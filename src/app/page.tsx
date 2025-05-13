@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
+import { TooltipProvider } from "@/components/ui/tooltip"; // Import TooltipProvider
 
 export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -64,84 +65,86 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-secondary/50">
-      <AppHeader />
-      <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
-        <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
-          <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
-            Scan for Account Lockout Risks
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            Enter the URL of a user registration page to analyze it for potential vulnerabilities
-            that could lead to user account lockouts.
-          </p>
-          <UrlInputForm 
-            onSubmit={handleFormSubmit} 
-            isLoading={isLoading}
-            defaultUrl={exampleUrl}
-          />
-        </section>
+    <TooltipProvider> {/* Wrap main content with TooltipProvider */}
+      <div className="min-h-screen flex flex-col bg-secondary/50">
+        <AppHeader />
+        <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
+          <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
+            <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
+              Scan for Account Lockout Risks
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Enter the URL of a user registration page to analyze it for potential vulnerabilities
+              that could lead to user account lockouts.
+            </p>
+            <UrlInputForm 
+              onSubmit={handleFormSubmit} 
+              isLoading={isLoading}
+              defaultUrl={exampleUrl}
+            />
+          </section>
 
-        <Separator className="my-8 md:my-12" />
+          <Separator className="my-8 md:my-12" />
 
-        <HackingInfoSection />
+          <HackingInfoSection />
 
-        <Separator className="my-8 md:my-12" />
-        
-        {isLoading && (
-          <div className="space-y-8">
-            <Card className="shadow-lg">
+          <Separator className="my-8 md:my-12" />
+          
+          {isLoading && (
+            <div className="space-y-8">
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <Skeleton className="h-8 w-3/4" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </CardContent>
+              </Card>
+               <Card className="shadow-lg">
+                <CardHeader>
+                  <Skeleton className="h-8 w-1/2" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center space-x-4 border-b py-3 last:border-b-0">
+                      <Skeleton className="h-6 w-1/4" />
+                      <Skeleton className="h-6 w-1/4" />
+                      <Skeleton className="h-6 w-1/4" />
+                      <Skeleton className="h-6 w-1/4" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {!isLoading && analysisResult && (
+            <VulnerabilityReportDisplay result={analysisResult} />
+          )}
+          
+          {!isLoading && !analysisResult && (
+             <Card className="mt-8 shadow-lg max-w-3xl mx-auto">
               <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                      <Info className="h-6 w-6 text-primary" />
+                      Ready to Scan
+                  </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
+              <CardContent>
+                  <p className="text-muted-foreground">
+                      Your analysis results will appear here once you submit a URL.
+                  </p>
               </CardContent>
-            </Card>
-             <Card className="shadow-lg">
-              <CardHeader>
-                <Skeleton className="h-8 w-1/2" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-4 border-b py-3 last:border-b-0">
-                    <Skeleton className="h-6 w-1/4" />
-                    <Skeleton className="h-6 w-1/4" />
-                    <Skeleton className="h-6 w-1/4" />
-                    <Skeleton className="h-6 w-1/4" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+             </Card>
+          )}
 
-        {!isLoading && analysisResult && (
-          <VulnerabilityReportDisplay result={analysisResult} />
-        )}
-        
-        {!isLoading && !analysisResult && (
-           <Card className="mt-8 shadow-lg max-w-3xl mx-auto">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                    <Info className="h-6 w-6 text-primary" />
-                    Ready to Scan
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">
-                    Your analysis results will appear here once you submit a URL.
-                </p>
-            </CardContent>
-           </Card>
-        )}
-
-      </main>
-      <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
-        © {new Date().getFullYear()} Account Lockout Analyzer. Powered by GenAI.
-      </footer>
-    </div>
+        </main>
+        <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
+          © {new Date().getFullYear()} Account Lockout Analyzer. Powered by GenAI.
+        </footer>
+      </div>
+    </TooltipProvider>
   );
 }
