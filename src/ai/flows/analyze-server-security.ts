@@ -28,6 +28,7 @@ const AnalyzeServerPromptOutputSchema = z.object({
 
 const analyzeServerSecurityPrompt = ai.definePrompt({
   name: 'analyzeServerSecurityPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: ServerConfigInputSchema},
   output: {schema: AnalyzeServerPromptOutputSchema},
   prompt: `You are a senior cybersecurity architect specializing in server and infrastructure hardening for enterprise environments, with deep expertise in securing dedicated game servers (e.g., Lineage 2, Roblox, Tibia, Minecraft, custom MMO servers).
@@ -112,4 +113,3 @@ const analyzeServerSecurityFlow = ai.defineFlow(
     };
   }
 );
-

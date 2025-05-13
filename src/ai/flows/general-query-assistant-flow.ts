@@ -21,6 +21,7 @@ export async function generalQueryAssistant(input: GeneralQueryInput): Promise<G
 
 const generalQueryAssistantPrompt = ai.definePrompt({
   name: 'generalQueryAssistantPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GeneralQueryInputSchema},
   output: {schema: GeneralQueryOutputSchema},
   prompt: `Eres un asistente virtual experto en ciberseguridad y especializado en la plataforma "Centro de Análisis de Seguridad Integral".
@@ -78,4 +79,3 @@ const generalQueryAssistantFlow = ai.defineFlow(
     return output;
   }
 );
-

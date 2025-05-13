@@ -25,6 +25,7 @@ export async function generateSecurityReport(
 
 const generateSecurityReportPrompt = ai.definePrompt({
   name: 'generateSecurityReportPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateSecurityReportInputSchema},
   output: {schema: GenerateSecurityReportOutputSchema},
   prompt: `
@@ -205,4 +206,3 @@ const generateSecurityReportFlow = ai.defineFlow(
     return output;
   }
 );
-

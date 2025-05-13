@@ -29,6 +29,7 @@ const AnalyzeDatabasePromptOutputSchema = z.object({
 
 const analyzeDatabaseSecurityPrompt = ai.definePrompt({
   name: 'analyzeDatabaseSecurityPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: DatabaseConfigInputSchema},
   output: {schema: AnalyzeDatabasePromptOutputSchema},
   prompt: `You are a database security specialist with expertise in various database systems (SQL and NoSQL), focusing on enterprise security best practices and specific considerations for game databases (e.g., for Lineage 2, Roblox, Tibia, MMOs).
@@ -112,4 +113,3 @@ const analyzeDatabaseSecurityFlow = ai.defineFlow(
     };
   }
 );
-

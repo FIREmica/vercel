@@ -32,6 +32,7 @@ const AnalyzeUrlPromptOutputSchema = z.object({
 
 const analyzeUrlVulnerabilitiesPrompt = ai.definePrompt({
   name: 'analyzeUrlVulnerabilitiesPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: AnalyzeUrlVulnerabilitiesInputSchema},
   output: {schema: AnalyzeUrlPromptOutputSchema},
   prompt: `You are a security expert analyzing web application URLs, particularly user registration pages or publicly accessible endpoints, for common web application vulnerabilities.
@@ -126,4 +127,3 @@ const analyzeUrlVulnerabilitiesFlow = ai.defineFlow(
     };
   }
 );
-

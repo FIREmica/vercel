@@ -31,6 +31,7 @@ export async function generateAttackVectors(
 // The input to this prompt is a single VulnerabilityFinding
 const generateAttackVectorForVulnerabilityPrompt = ai.definePrompt({
   name: 'generateAttackVectorForVulnerabilityPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: { schema: VulnerabilityFindingSchema }, // Input is a single finding
   output: { schema: AttackVectorItemSchema.omit({ source: true }) }, // The flow will add the source from the input finding
   prompt: `
