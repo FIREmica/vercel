@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -333,31 +333,48 @@ export default function HomePage() {
                 )}
 
                  {!isPremiumUser && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
-                  <Card className="mt-8 shadow-lg border-l-4 border-accent">
+                  <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
-                        <Sparkles className="h-6 w-6" />
-                        Desbloquear Funcionalidades Premium
+                        <Unlock className="h-6 w-6" />
+                        Desbloquee Todo el Potencial con Premium
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Ha recibido un resumen del análisis. Para acceder al informe técnico detallado con todos los hallazgos, escenarios de ataque ilustrativos, detalles técnicos completos y la opción de descarga de resultados, por favor active el Modo Premium.
+                        Su análisis ha generado información valiosa. Para profundizar y obtener una visión completa de su postura de seguridad, considere activar el Modo Premium.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <h3 className="font-semibold text-foreground mb-2">Beneficios Exclusivos del Modo Premium:</h3>
-                      <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-sm mb-4">
-                        <li>Acceso completo al informe técnico detallado generado por IA.</li>
-                        <li>Escenarios de ataque ilustrativos para cada vulnerabilidad activa detectada.</li>
-                        <li>Visualización de detalles técnicos, impacto de negocio, evidencia (si aplica) y CVSS para todos los hallazgos.</li>
-                        <li>Descarga de todos los resultados (informe, hallazgos, vectores de ataque) en un archivo ZIP.</li>
-                        <li>Acceso prioritario a futuras funcionalidades avanzadas y soporte mejorado.</li>
-                      </ul>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-2">Con el Modo Premium, usted obtiene:</h3>
+                        <ul className="space-y-2 text-muted-foreground text-sm">
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Informe Técnico Detallado:</strong> Acceso completo al análisis de la IA, incluyendo razonamiento y justificaciones.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Escenarios de Ataque Ilustrativos:</strong> Comprenda cómo las vulnerabilidades podrían ser explotadas con ejemplos prácticos.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Detalles Técnicos Exhaustivos:</strong> Visualice CVSS, impacto de negocio, evidencia (si aplica) y remediaciones para todos los hallazgos.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Descarga de Resultados (ZIP):</strong> Obtenga todos los artefactos del análisis (informe, hallazgos JSON, vectores de ataque JSON) para su documentación y uso offline.</span>
+                          </li>
+                           <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Futuras Funcionalidades Avanzadas:</strong> Acceso prioritario a nuevas herramientas y características de nivel empresarial.</span>
+                          </li>
+                        </ul>
+                      </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
                       <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
-                        <Unlock className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
+                        <Sparkles className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
                       </Button>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        La activación es simulada. En un entorno real, esto implicaría un proceso de pago.
+                        La activación es simulada para demostración. En un entorno real, esto podría implicar un proceso de pago.
                       </p>
                     </CardContent>
                   </Card>

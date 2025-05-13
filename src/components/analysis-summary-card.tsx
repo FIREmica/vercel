@@ -143,11 +143,11 @@ export function AnalysisSummaryCard({ analysisInput, allFindings }: AnalysisSumm
         <CardDescription>Visión global de los hallazgos en los componentes analizados.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className={cn("flex items-start gap-3 p-4 rounded-lg", posture.bgColorClass)}>
-          <posture.Icon className={cn("h-10 w-10 flex-shrink-0 mt-1", posture.colorClass)} />
+        <div className={cn("flex items-start gap-4 p-4 rounded-lg", posture.bgColorClass)}>
+          <posture.Icon className={cn("h-12 w-12 flex-shrink-0 mt-1", posture.colorClass)} />
           <div>
-            <h3 className={cn("text-lg font-semibold", posture.colorClass)}>{posture.title}</h3>
-            <p className="text-sm text-muted-foreground">{posture.message}</p>
+            <h3 className={cn("text-xl font-bold mb-1", posture.colorClass)}>{posture.title}</h3>
+            <p className="text-sm text-foreground font-medium">{posture.message}</p>
           </div>
         </div>
         
@@ -162,7 +162,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings }: AnalysisSumm
                             <item.IconComp className={cn("h-5 w-5", item.color)} />
                             <span className="text-sm font-medium text-foreground">{item.label}:</span>
                         </div>
-                        <Badge variant={item.badgeVariant} className={cn(item.badgeClass)}>
+                        <Badge variant={item.badgeVariant} className={cn("font-bold", item.badgeClass)}>
                             {item.count}
                         </Badge>
                         </div>
@@ -185,7 +185,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings }: AnalysisSumm
                         <Info className="h-5 w-5 text-blue-500" />
                         <span className="text-sm font-medium text-foreground">Informativos:</span>
                     </div>
-                    <Badge variant="outline" className="border-blue-500 text-blue-500">
+                    <Badge variant="outline" className="border-blue-500 text-blue-500 font-bold">
                         {informationalCount}
                     </Badge>
                  </div>
