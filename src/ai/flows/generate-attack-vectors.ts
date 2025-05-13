@@ -9,82 +9,93 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { AnalyzeVulnerabilitiesOutput, Vulnerability } from '@/types';
+import type { AnalyzeVulnerabilitiesOutput, Vulnerability } from '@/types'; // Vulnerability type now includes severity and description
 
 const AttackVectorItemSchema = z.object({
-  vulnerabilityName: z.string().describe('The name of the vulnerability this attack vector is based on.'),
-  attackScenarioDescription: z.string().describe('A description of how an attacker might exploit this vulnerability to cause an account lockout or other harm.'),
+  vulnerabilityName: z.string().describe('The name/category of the vulnerability this attack vector is based on.'),
+  attackScenarioDescription: z.string().describe('A description of how an attacker might exploit this vulnerability. Tailor to the vulnerability type.'),
   examplePayloadOrTechnique: z.string().describe('An example of a malicious payload, code snippet, or technique an attacker might use. This should be illustrative and for educational purposes only.'),
-  expectedOutcomeIfSuccessful: z.string().describe('The expected outcome if the attack is successful, e.g., "Account lockout for the targeted user", "Unauthorized access to user data".'),
+  expectedOutcomeIfSuccessful: z.string().describe('The expected outcome if the attack is successful, e.g., "Account lockout", "Unauthorized data access", "Cross-Site Scripting execution", "SQL Injection successful".'),
 });
 
 // This schema is used internally and for the output type, but not exported directly.
 const GenerateAttackVectorsOutputSchema = z.array(AttackVectorItemSchema);
 export type GenerateAttackVectorsOutput = z.infer<typeof GenerateAttackVectorsOutputSchema>;
 
-// Define a schema for the input to the individual prompt (a single vulnerability)
-const SingleVulnerabilityInputSchema = z.object({
-    vulnerability: z.string().describe('The identified vulnerability.'),
-    isVulnerable: z.boolean().describe('Whether the URL is vulnerable to the identified vulnerability.'),
+// Define a schema for the input to the individual prompt (a single vulnerability finding)
+const SingleVulnerabilityFindingInputSchema = z.object({
+    vulnerability: z.string().describe('The identified vulnerability category (e.g., Cross-Site Scripting (XSS), SQL Injection, Weak Password Policy).'),
+    description: z.string().describe('A brief description of the specific finding related to the vulnerability category.'),
+    isVulnerable: z.boolean().describe('Whether the URL shows signs of being vulnerable to this specific finding.'),
+    severity: z.enum(['Low', 'Medium', 'High', 'Informational']).describe('The estimated severity of the vulnerability finding.'),
     potentialForAccountLockout: z
         .boolean()
-        .describe('Whether the vulnerability could lead to account lockouts.'),
-    remediation: z.string().describe('Suggested remediation steps to address the vulnerability.'),
+        .describe('Whether this specific finding could directly contribute to account lockouts.'),
+    remediation: z.string().describe('Suggested remediation steps for the finding.'),
 });
 
 // This schema is used internally and for the input type, but not exported directly.
-const GenerateAttackVectorsInputSchema = z.array(SingleVulnerabilityInputSchema);
+// The input to the main flow is an array of these findings.
+const GenerateAttackVectorsInputSchema = z.array(SingleVulnerabilityFindingInputSchema);
 export type GenerateAttackVectorsInput = z.infer<typeof GenerateAttackVectorsInputSchema>;
 
 
 export async function generateAttackVectors(
   input: GenerateAttackVectorsInput
 ): Promise<GenerateAttackVectorsOutput> {
-  return generateAttackVectorsFlow(input);
+  // Filter out non-vulnerable findings before calling the flow
+  const vulnerableFindings = input.filter(v => v.isVulnerable);
+  if (vulnerableFindings.length === 0) {
+    return [];
+  }
+  return generateAttackVectorsFlow(vulnerableFindings);
 }
 
 const generateAttackVectorForVulnerabilityPrompt = ai.definePrompt({
   name: 'generateAttackVectorForVulnerabilityPrompt',
-  input: { schema: SingleVulnerabilityInputSchema },
+  input: { schema: SingleVulnerabilityFindingInputSchema },
   output: { schema: AttackVectorItemSchema },
   prompt: `
-    You are a cybersecurity expert. Given the following vulnerability, describe a potential attack vector.
-    Focus on how an attacker could exploit this to cause account lockouts or related issues.
-    Provide a brief, illustrative example of a payload or technique.
-    Clearly state the expected outcome if the attack is successful.
-    This information is for educational purposes to demonstrate risk. Do NOT generate actual harmful code or instructions that could be directly used for malicious activities. Keep payloads/techniques simple and illustrative.
+    You are a cybersecurity expert. Given the following vulnerability finding, describe a potential *illustrative* attack vector.
+    Focus on how an attacker could exploit this specific finding. Tailor the scenario, payload/technique, and outcome to the vulnerability type and description.
+    If 'potentialForAccountLockout' is true, ensure the scenario reflects this possibility where appropriate for the vulnerability type.
 
-    Vulnerability Details:
-    - Name: {{{vulnerability}}}
-    - Is Vulnerable: {{{isVulnerable}}}
+    Provide a brief, illustrative example of a payload or technique.
+    Clearly state the expected outcome if the attack is successful (e.g., XSS execution, data exposure, account lockout).
+    This information is strictly for educational purposes to demonstrate risk. Do NOT generate overly complex or directly executable harmful code. Keep payloads/techniques simple and conceptual.
+
+    Vulnerability Finding Details:
+    - Category: {{{vulnerability}}}
+    - Specific Finding: {{{description}}}
+    - Severity: {{{severity}}}
+    - Is Vulnerable: {{{isVulnerable}}} (This will always be true for inputs to this prompt)
     - Potential for Account Lockout: {{{potentialForAccountLockout}}}
     - Remediation: {{{remediation}}}
 
-    Based on this, generate the attack vector information.
-    If 'Is Vulnerable' is false, you can state that no direct attack vector is applicable for this specific item based on the current assessment, but briefly mention general risks if this type of vulnerability were present.
-    Example Payload/Technique: Should be a conceptual example, e.g., "Sending 1000 login attempts with common passwords", "Injecting ' OR 1=1 -- " into username field", "Using a script to rapidly submit registration forms with slight variations of a target email".
-    Expected Outcome: e.g., "Targeted account becomes locked", "Database reveals all usernames", "System resources exhausted, preventing new registrations".
+    Based on this, generate the attack vector information:
+    - vulnerabilityName: Use the 'Category' (e.g., "Cross-Site Scripting (XSS)").
+    - attackScenarioDescription: Describe the attack based on the 'Specific Finding'.
+    - examplePayloadOrTechnique: Provide a conceptual example relevant to the 'Category' and 'Specific Finding' (e.g., "Injecting <script>alert(1)</script> into a form field", "Sending 1000 registration requests rapidly", "Trying SQL query ' OR 1=1 -- '").
+    - expectedOutcomeIfSuccessful: State the likely result (e.g., "Execute arbitrary script in user's browser", "Overwhelm server resources", "Bypass authentication").
   `,
 });
 
 const generateAttackVectorsFlow = ai.defineFlow(
   {
     name: 'generateAttackVectorsFlow',
-    inputSchema: GenerateAttackVectorsInputSchema,
+    inputSchema: GenerateAttackVectorsInputSchema, // Expects an array of *vulnerable* findings
     outputSchema: GenerateAttackVectorsOutputSchema,
   },
-  async (vulnerabilities) => {
+  async (vulnerableFindings) => {
     const attackVectors: z.infer<typeof AttackVectorItemSchema>[] = [];
 
-    for (const vuln of vulnerabilities) {
-      // Only generate attack vectors for vulnerabilities marked as 'isVulnerable'
-      // or if it has potential for account lockout, as per user request to "probar posibles codigos malicioso luego del resultado de seguridad"
-      if (vuln.isVulnerable || vuln.potentialForAccountLockout) {
-        const { output } = await generateAttackVectorForVulnerabilityPrompt(vuln);
+    // Process only the findings passed in (which should already be filtered for isVulnerable=true)
+    for (const vulnFinding of vulnerableFindings) {
+        const { output } = await generateAttackVectorForVulnerabilityPrompt(vulnFinding);
         if (output) {
-          attackVectors.push(output);
+          // Ensure the output vulnerabilityName matches the input category for consistency
+          attackVectors.push({ ...output, vulnerabilityName: vulnFinding.vulnerability });
         }
-      }
     }
     return attackVectors;
   }

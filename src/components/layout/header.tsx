@@ -7,7 +7,7 @@ export function AppHeader() {
       <div className="container mx-auto flex items-center gap-3">
         <ShieldCheck className="h-8 w-8 text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">
-          Analizador de Bloqueo de Cuentas
+          Analizador de Seguridad Web
         </h1>
       </div>
     </header>

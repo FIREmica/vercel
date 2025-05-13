@@ -1,6 +1,5 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, ShieldEllipsis, TrendingDown } from "lucide-react";
+import { AlertTriangle, Code, DatabaseZap, ShieldEllipsis, TrendingDown, UserCog } from "lucide-react";
 
 export function HackingInfoSection() {
   return (
@@ -9,39 +8,69 @@ export function HackingInfoSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl text-amber-600">
             <AlertTriangle className="h-6 w-6" />
-            Posibles Modus Operandi (Bloqueo de Cuentas)
+            Posibles Modus Operandi (Vulnerabilidades Comunes)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-muted-foreground">
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Ataques de Fuerza Bruta:</h3>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><UserCog className="inline-block h-4 w-4"/> Ataques de Bloqueo de Cuentas:</h3>
+            <ul className="list-disc pl-5 space-y-1">
+                <li>
+                  <strong>Fuerza Bruta / Credential Stuffing:</strong> Intentos repetidos de contraseñas o uso de credenciales filtradas para activar políticas de bloqueo.
+                </li>
+                 <li>
+                  <strong>Enumeración + Password Spraying:</strong> Identificar usuarios válidos y probar contraseñas comunes contra ellos.
+                </li>
+                 <li>
+                  <strong>DoS mediante Bloqueo:</strong> Provocar bloqueos intencionales para denegar el servicio a usuarios legítimos.
+                </li>
+                 <li>
+                  <strong>Explotación de CAPTCHA/Rate Limit Débil:</strong> Automatizar los ataques anteriores si no hay protección adecuada.
+                </li>
+            </ul>
+          </div>
+           <hr className="border-border my-4"/>
+           <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Code className="inline-block h-4 w-4"/> Cross-Site Scripting (XSS):</h3>
             <p>
-              Consisten en intentar repetidamente contraseñas comunes o listas de credenciales robadas en una cuenta específica. Si existe una política de bloqueo (ej. bloquear tras 5 intentos fallidos), esto puede bloquear al usuario legítimo.
+              Inyección de scripts maliciosos (generalmente JavaScript) en páginas web vistas por otros usuarios. En un formulario de registro, podría ocurrir si los datos ingresados (ej. nombre de usuario, nombre real) no se sanitizan correctamente antes de mostrarse en otro lugar (ej. página de perfil, lista de usuarios, mensajes de error).
+            </p>
+             <ul className="list-disc pl-5 space-y-1 mt-1">
+                <li>
+                  <strong>Reflejado:</strong> El script se ejecuta cuando el usuario hace clic en un enlace manipulado.
+                </li>
+                 <li>
+                  <strong>Almacenado:</strong> El script se guarda en la base de datos y se ejecuta cada vez que se muestra la página afectada.
+                </li>
+                 <li>
+                  <strong>Basado en DOM:</strong> La vulnerabilidad reside en el código JavaScript del lado del cliente que manipula el DOM de forma insegura.
+                </li>
+            </ul>
+          </div>
+           <hr className="border-border my-4"/>
+          <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><DatabaseZap className="inline-block h-4 w-4"/> SQL Injection (SQLi):</h3>
+            <p>
+              Inserción de código SQL malicioso en las entradas de un formulario para manipular consultas a la base de datos. En un registro, podría usarse para intentar extraer datos, modificar registros o incluso obtener control del servidor de base de datos si las consultas SQL no están parametrizadas correctamente.
             </p>
           </div>
+           <hr className="border-border my-4"/>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Credential Stuffing:</h3>
-            <p>
-              Utilización de grandes listas de combinaciones de nombre de usuario/contraseña robadas de otras brechas de datos para intentar iniciar sesión en cuentas del sistema objetivo. Similar a la fuerza bruta, puede activar bloqueos.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Enumeración de Usuarios + Password Spraying:</h3>
-            <p>
-              Primero, se identifican nombres de usuario válidos (ej. mediante mensajes de error en formularios o perfiles públicos). Luego, se intenta una única contraseña común (o una lista pequeña) contra todos los nombres de usuario enumerados. Esto puede causar bloqueos masivos si muchos usuarios comparten contraseñas débiles.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Denegación de Servicio (DoS) mediante Bloqueo:</h3>
-            <p>
-              Desencadenar intencionalmente intentos de inicio de sesión fallidos para un usuario o conjunto de usuarios específico para impedirles el acceso a sus cuentas. Puede ser acoso dirigido o un ataque más amplio.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Explotación de CAPTCHA Débil o Limitación de Tasa Insuficiente:</h3>
-            <p>
-              Si la página de registro o inicio de sesión no tiene protección adecuada contra scripts automatizados, los atacantes pueden realizar fácilmente los ataques anteriores a gran escala.
-            </p>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><ShieldEllipsis className="inline-block h-4 w-4"/> Otras Vulnerabilidades Relevantes:</h3>
+             <ul className="list-disc pl-5 space-y-1">
+                <li>
+                  <strong>Políticas de Contraseña Débiles:</strong> Permitir contraseñas fáciles de adivinar aumenta el riesgo de fuerza bruta exitosa.
+                </li>
+                 <li>
+                  <strong>Falta de Validación de Entrada:</strong> No validar o sanitizar adecuadamente todas las entradas puede llevar a diversas vulnerabilidades (XSS, SQLi, Path Traversal, etc.).
+                </li>
+                 <li>
+                  <strong>Configuraciones Inseguras:</strong> Directorios listables, mensajes de error detallados, software desactualizado.
+                </li>
+                 <li>
+                  <strong>Control de Acceso Roto:</strong> Posibilidad de acceder a funciones o datos para los que el usuario no tiene permiso.
+                </li>
+            </ul>
           </div>
         </CardContent>
       </Card>
@@ -50,44 +79,50 @@ export function HackingInfoSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl text-destructive">
             <TrendingDown className="h-6 w-6" />
-            Repercusiones del Hackeo (Enfoque en Bloqueo de Cuentas)
+            Repercusiones Generales del Hackeo
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-muted-foreground">
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Frustración y Insatisfacción del Usuario:</h3>
+            <h3 className="font-semibold text-foreground mb-1">Pérdida o Robo de Datos:</h3>
             <p>
-              Que los usuarios legítimos no puedan acceder a sus cuentas es un gran inconveniente y puede llevar a una mala experiencia de usuario.
+              Exposición de información sensible de usuarios (credenciales, datos personales, etc.) a través de SQLi u otras vulnerabilidades de acceso a datos.
             </p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Aumento de la Carga de Soporte:</h3>
+            <h3 className="font-semibold text-foreground mb-1">Toma de Control de Cuentas (Account Takeover - ATO):</h3>
             <p>
-              Los usuarios bloqueados contactarán al soporte al cliente, aumentando los costos operativos y la carga de trabajo.
+              Los atacantes obtienen acceso no autorizado a cuentas de usuarios legítimos, a menudo mediante credenciales robadas, XSS (robo de sesión) o contraseñas débiles.
             </p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Daño Reputacional:</h3>
+            <h3 className="font-semibold text-foreground mb-1">Interrupción del Servicio / Denegación de Servicio (DoS):</h3>
             <p>
-              Incidentes frecuentes de bloqueo de cuentas pueden dañar la reputación de la empresa, haciéndola parecer poco fiable o insegura.
+              Usuarios legítimos no pueden acceder al servicio debido a bloqueos de cuenta masivos, agotamiento de recursos por ataques de fuerza bruta o explotación de otras vulnerabilidades.
             </p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Pérdida de Productividad:</h3>
+            <h3 className="font-semibold text-foreground mb-1">Daño Reputacional y Pérdida de Confianza:</h3>
             <p>
-              Para aplicaciones críticas de negocio, los bloqueos de cuenta pueden impedir que empleados o clientes realicen tareas necesarias.
+              Incidentes de seguridad erosionan la confianza de los usuarios y clientes, dañando la imagen de la marca.
             </p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Erosión de la Confianza:</h3>
+            <h3 className="font-semibold text-foreground mb-1">Impacto Financiero:</h3>
             <p>
-              Los usuarios pueden perder la confianza en la capacidad de la plataforma para proteger sus cuentas y datos.
+              Costos asociados a la respuesta a incidentes, recuperación de datos, multas regulatorias (por ejemplo, por violación de GDPR/CCPA), pérdida de negocio y aumento de costos de soporte.
             </p>
           </div>
            <div>
-            <h3 className="font-semibold text-foreground mb-1">Posibles Ataques Dirigidos:</h3>
+            <h3 className="font-semibold text-foreground mb-1">Distribución de Malware / Phishing:</h3>
             <p>
-              Los atacantes podrían usar los bloqueos como una cortina de humo o un paso preparatorio para ataques más sofisticados.
+              Un sitio comprometido (ej. vía XSS) puede ser utilizado para redirigir a usuarios a sitios maliciosos o para alojar malware.
+            </p>
+          </div>
+           <div>
+            <h3 className="font-semibold text-foreground mb-1">Uso como Plataforma de Ataque:</h3>
+            <p>
+              Un servidor comprometido puede ser utilizado para lanzar ataques contra otros sistemas.
             </p>
           </div>
         </CardContent>

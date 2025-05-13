@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Analizador de Bloqueo de Cuentas',
-  description: 'Analiza páginas de registro de usuarios en busca de vulnerabilidades de bloqueo de cuentas.',
+  title: 'Analizador de Seguridad Web',
+  description: 'Analiza páginas de registro de usuarios en busca de vulnerabilidades de seguridad comunes.',
 };
 
 export default function RootLayout({
@@ -32,4 +32,3 @@ export default function RootLayout({
     </html>
   );
 }
-

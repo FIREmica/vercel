@@ -3,7 +3,7 @@
 import type { AttackVector } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertTriangle, BugPlay, ShieldQuestion, Zap } from 'lucide-react';
+import { AlertTriangle, BugPlay, ShieldQuestion, Zap, Info } from 'lucide-react'; // Added Info
 import { Badge } from '@/components/ui/badge';
 
 type AttackVectorsDisplayProps = {
@@ -12,17 +12,18 @@ type AttackVectorsDisplayProps = {
 
 export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProps) {
   if (!attackVectors || attackVectors.length === 0) {
+    // Display a card indicating no specific attack vectors were generated for the detected vulnerabilities
     return (
-      <Card className="mt-8 shadow-lg">
+      <Card className="mt-8 shadow-lg border-l-4 border-blue-500">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <ShieldQuestion className="h-6 w-6 text-primary" />
-            Posibles Escenarios de Ataque
+            <Info className="h-6 w-6 text-blue-500" />
+            Escenarios de Ataque Ilustrativos
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            No se generaron escenarios de ataque específicos basados en el análisis actual, o no se encontraron vulnerabilidades relevantes para este tipo de demostración.
+            No se generaron ejemplos específicos de vectores de ataque para las vulnerabilidades detectadas en este análisis, o las vulnerabilidades encontradas eran de naturaleza informativa o de baja severidad sin un vector de ataque directo claro en este contexto.
           </p>
         </CardContent>
       </Card>
@@ -30,15 +31,15 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
   }
 
   return (
-    <Card className="mt-8 shadow-2xl">
+    <Card className="mt-8 shadow-2xl border-l-4 border-amber-500">
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-2xl md:text-3xl text-amber-500">
           <BugPlay className="h-8 w-8" />
           Posibles Escenarios de Ataque (Ejemplos Ilustrativos)
         </CardTitle>
         <CardDescription className="text-base">
-          A continuación, se presentan ejemplos de cómo las vulnerabilidades identificadas podrían ser explotadas.
-          <strong className="block mt-1">Esta información es estrictamente para fines educativos y de concienciación. No intente replicar estas acciones en sistemas para los que no tenga autorización explícita.</strong>
+          A continuación, se presentan ejemplos conceptuales de cómo las vulnerabilidades activas identificadas podrían ser explotadas. Estos escenarios son simplificados para fines educativos.
+          <strong className="block mt-1 text-destructive">ADVERTENCIA: Esta información es estrictamente para fines educativos y de concienciación. No intente replicar estas acciones en sistemas para los que no tenga autorización explícita. Hacerlo es ilegal y poco ético.</strong>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -46,8 +47,8 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
           {attackVectors.map((vector, index) => (
             <AccordionItem value={`item-${index}`} key={index} className="border-border">
               <AccordionTrigger className="text-lg hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <Zap className="h-5 w-5 text-amber-500" />
+                <div className="flex items-center gap-3 text-left"> {/* Added text-left */}
+                  <Zap className="h-5 w-5 text-amber-500 flex-shrink-0" /> {/* Added flex-shrink-0 */}
                   <span className="font-semibold">{vector.vulnerabilityName}</span>
                 </div>
               </AccordionTrigger>
@@ -57,16 +58,17 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
                   <p className="text-muted-foreground text-sm">{vector.attackScenarioDescription}</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-foreground mb-1">Ejemplo de Payload/Técnica:</h4>
+                  <h4 className="font-semibold text-foreground mb-1">Ejemplo Conceptual de Payload/Técnica:</h4>
                   <pre className="bg-muted p-3 rounded-md text-xs text-foreground overflow-x-auto">
                     <code>{vector.examplePayloadOrTechnique}</code>
                   </pre>
+                   <p className="text-xs text-muted-foreground italic mt-1">Nota: Este es un ejemplo simplificado sólo para ilustración.</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-foreground mb-1">Resultado Esperado (Si Exitoso):</h4>
                   <p className="text-muted-foreground text-sm flex items-center gap-2">
-                     <AlertTriangle className="h-4 w-4 text-destructive" /> 
-                     {vector.expectedOutcomeIfSuccessful}
+                     <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
+                     <span className="font-medium text-destructive">{vector.expectedOutcomeIfSuccessful}</span>
                   </p>
                 </div>
               </AccordionContent>

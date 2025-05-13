@@ -9,11 +9,13 @@ export interface AnalysisResult {
 }
 
 /**
- * Represents a single identified vulnerability from the analyzeVulnerabilities flow.
+ * Represents a single identified vulnerability finding from the analyzeVulnerabilities flow.
  */
 export type Vulnerability = {
-  vulnerability: string;
+  vulnerability: string; // Category
+  description: string; // Specific finding description
   isVulnerable: boolean;
+  severity: 'Low' | 'Medium' | 'High' | 'Informational';
   potentialForAccountLockout: boolean;
   remediation: string;
 };
@@ -22,7 +24,7 @@ export type Vulnerability = {
  * Represents a single attack vector generated based on a vulnerability.
  */
 export type AttackVector = {
-  vulnerabilityName: string;
+  vulnerabilityName: string; // Matches the vulnerability category
   attackScenarioDescription: string;
   examplePayloadOrTechnique: string;
   expectedOutcomeIfSuccessful: string;
