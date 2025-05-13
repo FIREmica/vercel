@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
-import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; // New import
+import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
 import { performAnalysisAction } from "./actions";
 import type { AnalysisResult } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -23,13 +23,11 @@ export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
-  const [submittedUrl, setSubmittedUrl] = useState<string>(""); // Store the URL that was submitted
+  const [submittedUrl, setSubmittedUrl] = useState<string>(""); 
   const { toast } = useToast();
 
-  // Example URL - Can be updated or removed if not needed
-  const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; // Example vulnerable site (use cautiously)
+  const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; 
 
-  // Clean up blob URL on unmount or when zipUrl changes
   useEffect(() => {
     const currentZipUrl = zipUrl;
     return () => {
@@ -40,10 +38,9 @@ export default function HomePage() {
   }, [zipUrl]);
 
   const generateZipFile = async (result: AnalysisResult, url: string) => {
-    if (!result || result.error) return;
+    if (!result || result.error || !result.analysis) return;
 
     const zip = new JSZip();
-    // Sanitize URL for filename (replace non-alphanumeric chars)
     const safeHostname = url ? new URL(url).hostname.replace(/[^a-zA-Z0-9.-]/g, '_') : 'analisis';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const folderName = `analisis_seguridad_${safeHostname}_${timestamp}`;
@@ -62,11 +59,10 @@ export default function HomePage() {
     folder.file("url_analizada.txt", url);
 
     if (result.reportText) {
-      // Save report as Markdown for better readability
       folder.file("informe_seguridad.md", result.reportText);
     }
-    if (result.vulnerabilities) {
-      folder.file("hallazgos_detallados.json", JSON.stringify(result.vulnerabilities, null, 2));
+    if (result.analysis && result.analysis.findings) { // Check if analysis and findings exist
+      folder.file("hallazgos_detallados.json", JSON.stringify(result.analysis.findings, null, 2));
     }
     if (result.attackVectors) {
       folder.file("vectores_ataque_ilustrativos.json", JSON.stringify(result.attackVectors, null, 2));
@@ -76,7 +72,6 @@ export default function HomePage() {
       const blob = await zip.generateAsync({ type: "blob" });
       const newZipUrl = URL.createObjectURL(blob);
 
-      // Clean up previous URL if it exists
       if (zipUrl) {
         URL.revokeObjectURL(zipUrl);
       }
@@ -94,7 +89,7 @@ export default function HomePage() {
           title: "Error al Generar ZIP",
           description: "Ocurrió un error al crear el archivo ZIP.",
         });
-       setZipUrl(null); // Reset on error
+       setZipUrl(null); 
     }
   };
 
@@ -102,8 +97,7 @@ export default function HomePage() {
   const handleFormSubmit = async (url: string) => {
     setIsLoading(true);
     setAnalysisResult(null);
-    setSubmittedUrl(url); // Store submitted URL
-    // Reset zip URL for new analysis
+    setSubmittedUrl(url); 
     if (zipUrl) {
         URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
@@ -124,25 +118,33 @@ export default function HomePage() {
           variant: "destructive",
           title: "Análisis Fallido",
           description: result.error,
-          duration: 8000, // Show error longer
+          duration: 8000, 
         });
       } else {
-          // Generate ZIP only if analysis was successful
-          await generateZipFile(result, url);
+          if (result.analysis) { // Check if analysis object exists
+            await generateZipFile(result, url);
 
-           const vulnerableCount = result.vulnerabilities?.filter(v => v.isVulnerable).length ?? 0;
+            const vulnerableCount = result.analysis.vulnerableFindingsCount ?? 0;
 
-           if (vulnerableCount > 0) {
-            toast({
-              title: "Análisis Completo",
-              description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). Revisa el informe y descarga el ZIP.`,
-              variant: "default", // Could be destructive or accent based on severity if needed
-            });
+            if (vulnerableCount > 0) {
+              toast({
+                title: "Análisis Completo",
+                description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${result.analysis.executiveSummary || ''} Revisa el informe y descarga el ZIP.`,
+                variant: "default", 
+              });
+            } else {
+              toast({
+                title: "Análisis Completo",
+                description: `Escaneo finalizado. ${result.analysis.executiveSummary || 'No se detectaron vulnerabilidades críticas con las verificaciones actuales.'} Revisa el informe y descarga el ZIP.`,
+                variant: "default",
+              });
+            }
           } else {
+            // This case should ideally not be reached if performAnalysisAction handles null analysisResults
              toast({
-              title: "Análisis Completo",
-              description: "Escaneo finalizado. No se detectaron vulnerabilidades críticas con las verificaciones actuales. Revisa el informe y descarga el ZIP.",
-              variant: "default", // Consider 'success' variant if available/added
+              variant: "destructive",
+              title: "Error de Análisis",
+              description: "El análisis no produjo resultados válidos.",
             });
           }
       }
@@ -150,7 +152,7 @@ export default function HomePage() {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
       const errorMessage = error.message || "Ocurrió un error inesperado.";
-      setAnalysisResult({ vulnerabilities: null, reportText: null, attackVectors: null, error: errorMessage });
+      setAnalysisResult({ analysis: null, reportText: null, attackVectors: null, error: errorMessage });
       toast({
         variant: "destructive",
         title: "Error de Envío",
@@ -178,7 +180,7 @@ export default function HomePage() {
             <UrlInputForm
               onSubmit={handleFormSubmit}
               isLoading={isLoading}
-              defaultUrl={exampleUrl} // Provide an example if desired
+              defaultUrl={exampleUrl} 
             />
           </section>
 
@@ -268,7 +270,8 @@ export default function HomePage() {
             {!isLoading && analysisResult && (
               <div className="space-y-8">
                 {/* Display Analysis Summary Card */}
-                <AnalysisSummaryCard vulnerabilities={analysisResult.vulnerabilities} />
+                {/* Pass the 'analysis' object which now contains structured summary info */}
+                <AnalysisSummaryCard analysisResults={analysisResult.analysis} /> 
                 <Separator />
                 {/* Display Vulnerability Report and Detailed Findings */}
                 <VulnerabilityReportDisplay result={analysisResult} />
@@ -326,5 +329,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
-    

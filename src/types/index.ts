@@ -1,31 +1,28 @@
-import type { AnalyzeVulnerabilitiesOutput } from "@/ai/flows/analyze-vulnerabilities";
-import type { GenerateAttackVectorsOutput } from "@/ai/flows/generate-attack-vectors";
+import type {
+  AnalyzeVulnerabilitiesOutput as FullAnalyzeVulnerabilitiesOutput,
+  VulnerabilityFinding as SingleVulnerabilityFinding,
+  GenerateAttackVectorsOutput as FullGenerateAttackVectorsOutput,
+  AttackVectorItem as SingleAttackVectorItem
+} from "@/types/ai-schemas"; // Updated import path
+
+// Re-exporting the structured output from analyze-vulnerabilities directly
+export type AnalyzeVulnerabilitiesOutput = FullAnalyzeVulnerabilitiesOutput;
 
 export interface AnalysisResult {
-  vulnerabilities: AnalyzeVulnerabilitiesOutput | null;
+  analysis: AnalyzeVulnerabilitiesOutput | null; 
   reportText: string | null;
-  attackVectors: GenerateAttackVectorsOutput | null;
+  attackVectors: FullGenerateAttackVectorsOutput | null; // Use the full output type
   error: string | null;
 }
 
 /**
- * Represents a single identified vulnerability finding from the analyzeVulnerabilities flow.
+ * Represents a single identified vulnerability finding.
+ * This type alias points to the one defined in ai-schemas.ts
  */
-export type Vulnerability = {
-  vulnerability: string; // Category
-  description: string; // Specific finding description
-  isVulnerable: boolean;
-  severity: 'Low' | 'Medium' | 'High' | 'Informational';
-  potentialForAccountLockout: boolean;
-  remediation: string;
-};
+export type VulnerabilityFinding = SingleVulnerabilityFinding;
 
 /**
  * Represents a single attack vector generated based on a vulnerability.
+ * This type alias points to the one defined in ai-schemas.ts
  */
-export type AttackVector = {
-  vulnerabilityName: string; // Matches the vulnerability category
-  attackScenarioDescription: string;
-  examplePayloadOrTechnique: string;
-  expectedOutcomeIfSuccessful: string;
-};
+export type AttackVector = SingleAttackVectorItem;
