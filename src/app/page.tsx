@@ -15,10 +15,12 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { ChatAssistant } from "@/components/chat-assistant";
 
 
 export default function HomePage() {
@@ -27,6 +29,7 @@ export default function HomePage() {
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
   const [isPremiumUser, setIsPremiumUser] = useState(false); 
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; 
@@ -50,7 +53,7 @@ export default function HomePage() {
     const folder = zip.folder(folderName);
 
     if (!folder) {
-        console.error("Failed to create zip folder");
+        console.error("Error al Crear ZIP: No se pudo crear la carpeta interna.");
         toast({ variant: "destructive", title: "Error al Crear ZIP", description: "No se pudo crear la carpeta interna." });
         return;
     }
@@ -82,7 +85,7 @@ export default function HomePage() {
       setZipUrl(newZipUrl);
       toast({ title: "Archivo ZIP Listo", description: "El ZIP con los resultados está listo para descargar.", variant: "default" });
     } catch (error) {
-      console.error("Error generating ZIP file:", error);
+      console.error("Error generando archivo ZIP:", error);
       toast({ variant: "destructive", title: "Error al Generar ZIP", description: "Ocurrió un error." });
       setZipUrl(null); 
     }
@@ -96,6 +99,7 @@ export default function HomePage() {
     if (values.url) descriptionParts.push(`URL: ${values.url}`);
     if (values.serverDescription) descriptionParts.push("Servidor");
     if (values.databaseDescription) descriptionParts.push("Base de Datos");
+    if (values.gameServerDescription) descriptionParts.push("Servidor de Juegos");
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
@@ -113,8 +117,17 @@ export default function HomePage() {
     try {
       const params: Partial<UrlInputFormValues> = {};
       if (values.url) params.url = values.url;
-      if (values.serverDescription) params.serverDescription = values.serverDescription;
+      // Combine serverDescription and gameServerDescription for the backend if both are provided or just use gameServerDescription
+      let finalServerDescription = values.serverDescription || "";
+      if (values.gameServerDescription) {
+        finalServerDescription = finalServerDescription 
+          ? `${finalServerDescription}\n\nDetalles Específicos del Servidor de Juegos:\n${values.gameServerDescription}`
+          : values.gameServerDescription;
+      }
+      if (finalServerDescription) params.serverDescription = finalServerDescription;
+
       if (values.databaseDescription) params.databaseDescription = values.databaseDescription;
+
 
       if (Object.keys(params).length === 0) {
         toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos una URL, descripción del servidor o descripción de la base de datos."});
@@ -360,6 +373,33 @@ export default function HomePage() {
             )}
           </section>
         </main>
+
+        <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-primary-foreground/50"
+                  aria-label="Abrir Asistente IA"
+                >
+                  <MessageCircle className="h-7 w-7" />
+                </Button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="bg-primary text-primary-foreground">
+              <p>Asistente IA de Seguridad</p>
+            </TooltipContent>
+          </Tooltip>
+          <DialogContent className="sm:max-w-[450px] p-0 border-0 shadow-none">
+            {/* DialogHeader can be removed if ChatAssistant has its own header */}
+            {/* <DialogHeader> <DialogTitle>Asistente IA</DialogTitle> </DialogHeader> */}
+            <ChatAssistant />
+          </DialogContent>
+        </Dialog>
+
+
         <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
           © {new Date().getFullYear()} Plataforma de Seguridad Integral. Impulsado por GenAI. Herramienta educativa y de evaluación avanzada.
         </footer>
@@ -367,4 +407,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-

@@ -112,3 +112,16 @@ export const GenerateSecurityReportOutputSchema = z.object({
 });
 export type GenerateSecurityReportOutput = z.infer<typeof GenerateSecurityReportOutputSchema>;
 
+
+// Schemas and types for general-query-assistant-flow
+export const GeneralQueryInputSchema = z.object({
+  userMessage: z.string().min(1, "El mensaje no puede estar vacío.").describe('The user\'s query or message to the AI assistant.'),
+  // conversationHistory: z.array(z.object({ sender: z.enum(["user", "ai"]), message: z.string() })).optional().describe("Optional history of the conversation so far.")
+});
+export type GeneralQueryInput = z.infer<typeof GeneralQueryInputSchema>;
+
+export const GeneralQueryOutputSchema = z.object({
+  aiResponse: z.string().describe('The AI assistant\'s response to the user\'s message.'),
+});
+export type GeneralQueryOutput = z.infer<typeof GeneralQueryOutputSchema>;
+

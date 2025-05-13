@@ -21,9 +21,10 @@ import { Search, Loader2, ServerIcon, Database, Globe, Gamepad2 } from "lucide-r
 const formSchema = z.object({
   url: z.string().url({ message: "Por favor, ingresa una URL válida." }).optional().or(z.literal('')),
   serverDescription: z.string().min(10, {message: "La descripción del servidor debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
+  gameServerDescription: z.string().min(10, {message: "La descripción del servidor de juegos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
   databaseDescription: z.string().min(10, {message: "La descripción de la base de datos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
-}).refine(data => !!data.url || !!data.serverDescription || !!data.databaseDescription, {
-  message: "Debes proporcionar al menos una URL, descripción del servidor o descripción de la base de datos.",
+}).refine(data => !!data.url || !!data.serverDescription || !!data.gameServerDescription || !!data.databaseDescription, {
+  message: "Debes proporcionar al menos una URL, descripción del servidor (general o de juegos) o descripción de la base de datos.",
   path: ["url"], 
 });
 
@@ -41,6 +42,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
     defaultValues: {
       url: defaultUrl || "",
       serverDescription: "",
+      gameServerDescription: "",
       databaseDescription: "",
     },
   });
@@ -48,10 +50,29 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
   async function handleSubmit(values: UrlInputFormValues) {
     const submissionValues: Partial<UrlInputFormValues> = {};
     if (values.url) submissionValues.url = values.url;
-    if (values.serverDescription) submissionValues.serverDescription = values.serverDescription;
+    
+    // Combine serverDescription and gameServerDescription before sending
+    let finalServerDescription = values.serverDescription || "";
+    if (values.gameServerDescription) {
+      finalServerDescription = finalServerDescription 
+        ? `${finalServerDescription}\n\n--- Información Específica del Servidor de Juegos ---\n${values.gameServerDescription}`
+        : values.gameServerDescription;
+    }
+    if (finalServerDescription) submissionValues.serverDescription = finalServerDescription;
+    // We no longer send gameServerDescription as a separate field to the action
+    // It's now part of serverDescription
+
     if (values.databaseDescription) submissionValues.databaseDescription = values.databaseDescription;
     
-    await onSubmit(submissionValues as UrlInputFormValues);
+    // Ensure the correct type is passed to onSubmit
+    const validSubmissionValues: UrlInputFormValues = {
+      url: submissionValues.url || "", // Ensure url is always a string
+      serverDescription: submissionValues.serverDescription || "", // Ensure serverDescription is always a string
+      // gameServerDescription is intentionally omitted here as it's merged into serverDescription
+      databaseDescription: submissionValues.databaseDescription || "" // Ensure databaseDescription is always a string
+    };
+
+    await onSubmit(validSubmissionValues);
   }
 
   return (
@@ -84,25 +105,51 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
             <FormItem>
               <FormLabel htmlFor="server-description-input" className="text-base flex items-center">
                 <ServerIcon className="mr-2 h-4 w-4 text-primary"/>
-                <Gamepad2 className="mr-2 h-4 w-4 text-primary"/>
-                Descripción del Servidor (Web o de Juegos) (Opcional)
+                Descripción del Servidor General (Web/App) (Opcional)
               </FormLabel>
               <FormControl>
                 <Textarea
                   id="server-description-input"
-                  placeholder="Describe la config. del servidor: OS, servicios (web, juego), puertos, versiones, anti-cheat, Nmap, etc."
+                  placeholder="Describe la config. del servidor general: OS, servicios (web, app), puertos, versiones, etc."
                   {...field}
                   className="text-sm min-h-[100px]"
                   aria-describedby="server-description-form-message"
                 />
               </FormControl>
               <FormDescription>
-                Proporciona detalles para el análisis de seguridad del servidor (web o de videojuegos).
+                Proporciona detalles para el análisis de seguridad del servidor general. Para servidores de juegos, usa el campo específico.
               </FormDescription>
               <FormMessage id="server-description-form-message" />
             </FormItem>
           )}
         />
+        
+        <FormField
+          control={form.control}
+          name="gameServerDescription"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor="game-server-description-input" className="text-base flex items-center">
+                <Gamepad2 className="mr-2 h-4 w-4 text-primary"/>
+                Descripción Específica del Servidor de Juegos (Opcional)
+              </FormLabel>
+              <FormControl>
+                <Textarea
+                  id="game-server-description-input"
+                  placeholder="Detalles del servidor de juegos: tipo (Lineage, Roblox, etc.), motor, mods, anti-cheat, puertos específicos del juego, etc."
+                  {...field}
+                  className="text-sm min-h-[100px]"
+                  aria-describedby="game-server-description-form-message"
+                />
+              </FormControl>
+              <FormDescription>
+                Proporciona detalles específicos del servidor de videojuegos para un análisis más preciso.
+              </FormDescription>
+              <FormMessage id="game-server-description-form-message" />
+            </FormItem>
+          )}
+        />
+
 
         <FormField
           control={form.control}

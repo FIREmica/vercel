@@ -6,6 +6,7 @@ import { analyzeServerSecurity } from "@/ai/flows/analyze-server-security";
 import { analyzeDatabaseSecurity } from "@/ai/flows/analyze-database-security";
 import { generateSecurityReport } from "@/ai/flows/generate-security-report";
 import { generateAttackVectors } from "@/ai/flows/generate-attack-vectors";
+import { generalQueryAssistant } from "@/ai/flows/general-query-assistant-flow";
 
 import type {
   AnalysisResult,
@@ -15,7 +16,7 @@ import type {
   DatabaseSecurityAnalysisOutput,
   GenerateAttackVectorsInput
 } from "@/types";
-import type { GenerateSecurityReportInput } from "@/types/ai-schemas";
+import type { GeneralQueryInput, GenerateSecurityReportInput } from "@/types/ai-schemas";
 
 interface PerformAnalysisParams {
   url?: string;
@@ -33,7 +34,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams): Prom
       databaseAnalysis: null, 
       reportText: null, 
       attackVectors: null, 
-      error: "At least one analysis target (URL, Server Description, or Database Description) must be provided." 
+      error: "Al menos uno de los objetivos de análisis (URL, Descripción del Servidor o Descripción de la Base de Datos) debe ser proporcionado." 
     };
   }
 
@@ -55,8 +56,8 @@ export async function performAnalysisAction(params: PerformAnalysisParams): Prom
           allFindings.push(...urlAnalysisResult.findings);
         }
       } catch (e: any) {
-        console.error("Error in URL analysis:", e);
-        collectedErrorMessages += `URL Analysis Error: ${e.message}. `;
+        console.error("Error en el análisis de URL:", e);
+        collectedErrorMessages += `Error en Análisis de URL: ${e.message}. `;
         errorOccurred = true;
       }
     }
@@ -68,8 +69,8 @@ export async function performAnalysisAction(params: PerformAnalysisParams): Prom
           allFindings.push(...serverAnalysisResult.findings);
         }
       } catch (e: any) {
-        console.error("Error in Server analysis:", e);
-        collectedErrorMessages += `Server Analysis Error: ${e.message}. `;
+        console.error("Error en el análisis de Servidor:", e);
+        collectedErrorMessages += `Error en Análisis de Servidor: ${e.message}. `;
         errorOccurred = true;
       }
     }
@@ -81,46 +82,47 @@ export async function performAnalysisAction(params: PerformAnalysisParams): Prom
           allFindings.push(...databaseAnalysisResult.findings);
         }
       } catch (e: any) {
-        console.error("Error in Database analysis:", e);
-        collectedErrorMessages += `Database Analysis Error: ${e.message}. `;
+        console.error("Error en el análisis de Base de Datos:", e);
+        collectedErrorMessages += `Error en Análisis de Base de Datos: ${e.message}. `;
         errorOccurred = true;
       }
     }
 
     if (errorOccurred && allFindings.length === 0) {
-       return { urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: `All analyses failed. Errors: ${collectedErrorMessages}` };
+       return { urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: `Todos los análisis fallaron. Errores: ${collectedErrorMessages}` };
     }
 
 
     // Step 2: Generate the comprehensive report using all available structured analysis results
     const reportInput: GenerateSecurityReportInput = {
-        analyzedTargetDescription: `Analysis for ${url ? `URL (${url}), ` : ''}${serverDescription ? 'Server, ' : ''}${databaseDescription ? 'Database' : ''}`.replace(/, $/, ''),
+        analyzedTargetDescription: `Análisis para ${url ? `URL (${url}), ` : ''}${serverDescription ? 'Servidor, ' : ''}${databaseDescription ? 'Base de Datos' : ''}`.replace(/, $/, ''),
         urlAnalysis: urlAnalysisResult ?? undefined,
         serverAnalysis: serverAnalysisResult ?? undefined,
         databaseAnalysis: databaseAnalysisResult ?? undefined,
         overallVulnerableFindings: allFindings.filter(f => f.isVulnerable)
     };
     
-    let reportResultText: string | null = "Report generation failed or no analysis results to report on.";
+    let reportResultText: string | null = "La generación del informe falló o no hay resultados de análisis para informar.";
     try {
         const reportOutput = await generateSecurityReport(reportInput);
         reportResultText = reportOutput.report;
     } catch (e: any) {
-        console.error("Error in generating security report:", e);
-        collectedErrorMessages += `Report Generation Error: ${e.message}. `;
+        console.error("Error al generar el informe de seguridad:", e);
+        collectedErrorMessages += `Error en Generación de Informe: ${e.message}. `;
         errorOccurred = true; // This error might mean the main output is compromised
     }
 
 
     // Step 3: Generate attack vectors ONLY for findings marked as vulnerable from ANY source
-    let attackVectorsResult: GenerateAttackVectorsInput | null = null;
+    let attackVectorsResult: GenerateAttackVectorsInput | null = null; // This should be AttackVector[] or null
     const vulnerableFindingsForAttackVectors = allFindings.filter(v => v.isVulnerable);
     if (vulnerableFindingsForAttackVectors.length > 0) {
       try {
+        // The generateAttackVectors function expects VulnerabilityFinding[] and returns AttackVector[]
         attackVectorsResult = await generateAttackVectors(vulnerableFindingsForAttackVectors);
       } catch (e: any) {
-        console.error("Error in generating attack vectors:", e);
-        collectedErrorMessages += `Attack Vector Generation Error: ${e.message}. `;
+        console.error("Error al generar vectores de ataque:", e);
+        collectedErrorMessages += `Error en Generación de Vectores de Ataque: ${e.message}. `;
         // Don't set errorOccurred to true for this, as it's supplementary
       }
     }
@@ -131,23 +133,34 @@ export async function performAnalysisAction(params: PerformAnalysisParams): Prom
         serverAnalysis: serverAnalysisResult,
         databaseAnalysis: databaseAnalysisResult,
         reportText: reportResultText,
-        attackVectors: attackVectorsResult,
+        attackVectors: attackVectorsResult, // This is now AttackVector[] | null
         allFindings: allFindings,
-        error: errorOccurred ? `One or more analysis steps failed. Partial results may be shown. Errors: ${collectedErrorMessages}` : (collectedErrorMessages ? `Minor issues occurred: ${collectedErrorMessages}`: null)
+        error: errorOccurred ? `Uno o más pasos del análisis fallaron. Se pueden mostrar resultados parciales. Errores: ${collectedErrorMessages}` : (collectedErrorMessages ? `Ocurrieron problemas menores: ${collectedErrorMessages}`: null)
     };
 
   } catch (error: any) { // Catch-all for unexpected errors during orchestration
-    console.error("Critical error in performAnalysisAction:", error);
-    let errorMessage = "An unexpected critical error occurred during the analysis process. The AI model might be unavailable or the input could be invalid.";
+    console.error("Error crítico en performAnalysisAction:", error);
+    let errorMessage = "Ocurrió un error crítico inesperado durante el proceso de análisis. El modelo de IA podría no estar disponible o la entrada podría ser inválida.";
      if (error.message.includes('fetch') || error.message.includes('network')) {
-        errorMessage = "A network error occurred while trying to reach an analysis service. Please check your connection and try again.";
+        errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión e inténtalo de nuevo.";
       } else if (error.message.includes('quota')) {
-        errorMessage = "An analysis service quota has been exceeded. Please try again later.";
+        errorMessage = "Se ha excedido una cuota del servicio de análisis. Por favor, inténtalo de nuevo más tarde.";
       } else if (error.message.toLowerCase().includes('json') || error.message.includes('Unexpected token') || error.message.includes('output.findings')) {
-          errorMessage = "The AI returned an invalid or unexpected format. Please try again. If the problem persists, the model might be temporarily unavailable or misconfigured.";
+          errorMessage = "La IA devolvió un formato inválido o inesperado. Por favor, inténtalo de nuevo. Si el problema persiste, el modelo podría estar temporalmente no disponible o mal configurado.";
       } else {
-        errorMessage = `Analysis failed catastrophically: ${error.message}`;
+        errorMessage = `El análisis falló catastróficamente: ${error.message}`;
       }
     return { urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: errorMessage, allFindings: null };
+  }
+}
+
+
+export async function askGeneralAssistantAction(input: GeneralQueryInput): Promise<string> {
+  try {
+    const result = await generalQueryAssistant(input);
+    return result.aiResponse;
+  } catch (error: any) {
+    console.error("Error interacting with General Assistant:", error);
+    return "Lo siento, no pude procesar tu pregunta en este momento. Por favor, intenta de nuevo más tarde.";
   }
 }
