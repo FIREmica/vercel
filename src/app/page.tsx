@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import JSZip from 'jszip';
 import { AppHeader } from "@/components/layout/header";
-import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form"; // Updated import
+import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
 import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
@@ -15,16 +15,19 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2 } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Globe } from "lucide-react";
+
 
 export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Simulate enterprise user
   const { toast } = useToast();
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; 
@@ -39,7 +42,7 @@ export default function HomePage() {
   }, [zipUrl]);
 
   const generateZipFile = async (result: AnalysisResult, targetDesc: string) => {
-    if (!result || result.error) return; // Allow generation even if some parts are null, as long as no major error
+    if (!result || (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0))) return; 
 
     const zip = new JSZip();
     const safeDesc = targetDesc.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0, 50) || 'analisis';
@@ -65,7 +68,7 @@ export default function HomePage() {
         if (result.serverAnalysis?.findings) folder.file("hallazgos_servidor.json", JSON.stringify(result.serverAnalysis.findings, null, 2));
         if (result.databaseAnalysis?.findings) folder.file("hallazgos_db.json", JSON.stringify(result.databaseAnalysis.findings, null, 2));
     }
-    if (result.attackVectors) {
+    if (result.attackVectors && result.attackVectors.length > 0) { 
       folder.file("vectores_ataque_ilustrativos.json", JSON.stringify(result.attackVectors, null, 2));
     }
      if (result.urlAnalysis?.executiveSummary) folder.file("resumen_url.txt", result.urlAnalysis.executiveSummary);
@@ -86,7 +89,7 @@ export default function HomePage() {
     }
   };
 
-  const handleFormSubmit = async (values: UrlInputFormValues) => { // Updated to use UrlInputFormValues
+  const handleFormSubmit = async (values: UrlInputFormValues) => {
     setIsLoading(true);
     setAnalysisResult(null);
     
@@ -103,13 +106,12 @@ export default function HomePage() {
     }
 
     toast({
-        title: "Iniciando Análisis...",
-        description: `Escaneando ${currentTargetDesc}. Esto puede tomar un momento.`,
+        title: "Iniciando Análisis Integral...",
+        description: `Escaneando ${currentTargetDesc}. Esto puede tomar unos momentos.`,
         variant: "default",
     });
 
     try {
-      // Pass only non-empty values to performAnalysisAction
       const params: Partial<UrlInputFormValues> = {};
       if (values.url) params.url = values.url;
       if (values.serverDescription) params.serverDescription = values.serverDescription;
@@ -124,7 +126,7 @@ export default function HomePage() {
       const result = await performAnalysisAction(params);
       setAnalysisResult(result);
 
-      if (result.error) {
+      if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) { 
         toast({
           variant: "destructive",
           title: "Análisis Fallido",
@@ -133,59 +135,59 @@ export default function HomePage() {
         });
       } else {
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
-          const primarySummary = result.urlAnalysis?.executiveSummary || result.serverAnalysis?.executiveSummary || result.databaseAnalysis?.executiveSummary || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.');
+          const primarySummary = result.reportText ? "Informe completo generado." : (result.urlAnalysis?.executiveSummary || result.serverAnalysis?.executiveSummary || result.databaseAnalysis?.executiveSummary || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
           
-          if (isAuthenticated) {
+          if (isAuthenticated && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
             await generateZipFile(result, currentTargetDesc);
           }
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s) en total. ${primarySummary} ${isAuthenticated ? 'Revisa el informe y descarga el ZIP.' : 'Inicia sesión para ver el informe completo.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default", // Could be "destructive" or "warning" for vulnerabilities
+            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${primarySummary} ${isAuthenticated ? 'Revisa el informe y descarga el ZIP si está disponible.' : 'Activa el Modo Empresa para ver el informe completo y opciones de descarga.'}`,
+            variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
     } catch (e) {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
-      const errorMessage = error.message || "Ocurrió un error inesperado.";
+      const errorMessage = error.message || "Ocurrió un error inesperado durante el análisis.";
       setAnalysisResult({ urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: errorMessage, allFindings: null });
-      toast({ variant: "destructive", title: "Error de Envío", description: errorMessage, duration: 8000 });
+      toast({ variant: "destructive", title: "Error Crítico de Análisis", description: errorMessage, duration: 8000 });
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Determine which summary to show in AnalysisSummaryCard
-  // Prioritize URL, then server, then database if multiple analyses were run.
-  // Or, we could pass allFindings to AnalysisSummaryCard and let it derive overall status.
+  
   const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || null;
-  // If we want to use allFindings for summary card:
-  // const allFindingsSummary = analysisResult?.allFindings ? { findings: analysisResult.allFindings, overallRiskAssessment: ..., executiveSummary: ...} : null;
-
 
   return (
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader 
           isAuthenticated={isAuthenticated} 
-          onAuthToggle={() => setIsAuthenticated(!isAuthenticated)}
+          onAuthToggle={() => {
+              setIsAuthenticated(!isAuthenticated);
+              toast({ title: isAuthenticated ? "Sesión de Empresa Simulada Terminada" : "Modo Empresa Simulado Activado", description: isAuthenticated ? "Las funciones avanzadas están ahora limitadas." : "Acceso a informes completos y descargas habilitado."})
+          }}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
-                Centro de Análisis de Seguridad
+                Centro de Análisis de Seguridad Integral
                 </h2>
-                <Button variant="outline" onClick={() => setIsAuthenticated(!isAuthenticated)} size="sm">
+                <Button variant={isAuthenticated ? "default" : "outline"} onClick={() => {
+                    setIsAuthenticated(!isAuthenticated);
+                     toast({ title: isAuthenticated ? "Sesión de Empresa Simulada Terminada" : "Modo Empresa Simulado Activado", description: isAuthenticated ? "Las funciones avanzadas están ahora limitadas." : "Acceso a informes completos y descargas habilitado."})
+                    }} size="sm">
                     {isAuthenticated ? <UserCheck className="mr-2 h-4 w-4" /> : <LogIn className="mr-2 h-4 w-4" />}
-                    {isAuthenticated ? "Simular Cierre Sesión" : "Simular Inicio Sesión"}
+                    {isAuthenticated ? "Empresa (Activado)" : "Activar Modo Empresa"}
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
-              Ingresa una URL, describe la configuración de tu servidor y/o base de datos para un análisis de seguridad integral.
-              La IA identificará vulnerabilidades, generará informes y sugerirá remediaciones. Autentícate para informes completos y descargas.
+              Ingrese detalles de su URL, configuración de servidor y/o base de datos para un análisis de seguridad exhaustivo.
+              Nuestra IA identificará vulnerabilidades, generará informes profesionales y sugerirá remediaciones. El "Modo Empresa" desbloquea informes completos y descargas.
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -197,6 +199,44 @@ export default function HomePage() {
           <Separator className="my-8 md:my-12" />
           <HackingInfoSection />
           <Separator className="my-8 md:my-12" />
+          
+          {/* Enterprise Features Placeholder */}
+          <section className="max-w-4xl mx-auto mb-8 md:mb-12">
+            <Card className="shadow-lg border-l-4 border-primary">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3 text-xl md:text-2xl">
+                        <Briefcase className="h-7 w-7 text-primary" />
+                        Funcionalidades Empresariales (Próximamente)
+                    </CardTitle>
+                    <CardDescription>
+                        Estamos trabajando para expandir nuestra plataforma con herramientas avanzadas para las necesidades de seguridad de su empresa.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
+                        <FileLock2 className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-muted-foreground">Análisis de Código Estático (SAST) y Dinámico (DAST)</span>
+                        <Badge variant="outline" className="ml-auto">En Desarrollo</Badge>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
+                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-muted-foreground">Paneles de Control Avanzados y Analítica de Riesgos</span>
+                         <Badge variant="outline" className="ml-auto">Planificado</Badge>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
+                        <Zap className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-muted-foreground">Integración con CI/CD y Herramientas de Ticketing</span>
+                         <Badge variant="outline" className="ml-auto">Explorando</Badge>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
+                        <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-muted-foreground">Informes de Cumplimiento Normativo (PCI, HIPAA, etc.)</span>
+                        <Badge variant="outline" className="ml-auto">Considerando</Badge>
+                    </div>
+                </CardContent>
+            </Card>
+          </section>
+
 
           <section className="max-w-4xl mx-auto">
             {isLoading && (
@@ -209,12 +249,14 @@ export default function HomePage() {
                         <Skeleton className="h-16 w-full" /> <Skeleton className="h-16 w-full" />
                         <Skeleton className="h-16 w-full" /> <Skeleton className="h-16 w-full" />
                     </div>
+                    <Skeleton className="h-40 w-full mt-4" />
                   </CardContent>
                 </Card>
                 <Card className="shadow-lg animate-pulse">
                   <CardHeader> <Skeleton className="h-8 w-3/4" /> <Skeleton className="h-4 w-1/2 mt-2" /> </CardHeader>
                   <CardContent className="space-y-4">
                     <Skeleton className="h-4 w-full" /> <Skeleton className="h-4 w-full" /> <Skeleton className="h-4 w-5/6" />
+                     <Skeleton className="h-20 w-full mt-4" />
                   </CardContent>
                 </Card>
               </div>
@@ -222,11 +264,9 @@ export default function HomePage() {
 
             {!isLoading && analysisResult && (
               <div className="space-y-8">
-                {/* Pass allFindings to AnalysisSummaryCard if it's adapted to handle them */}
-                {/* Otherwise, pass a primary analysis result (e.g., urlAnalysis) or a synthesized summary object */}
                 <AnalysisSummaryCard 
-                  analysisInput={summaryCardData} // Pass the most relevant summary
-                  allFindings={analysisResult.allFindings} // Or pass all findings for a more holistic summary
+                  analysisInput={summaryCardData} 
+                  allFindings={analysisResult.allFindings} 
                 />
                 
                 {isAuthenticated ? (
@@ -239,38 +279,43 @@ export default function HomePage() {
                         <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
                       </>
                     )}
-                    {zipUrl && !analysisResult.error && ( // Check error on main result
+                    {zipUrl && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0 )) && ( 
                       <div className="text-center mt-8">
                         <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                           <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
-                            <Download className="mr-2 h-5 w-5" /> Descargar Resultados (ZIP)
+                            <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
                           </a>
                         </Button>
                         <p className="text-xs text-muted-foreground mt-2">
-                          El ZIP contiene el informe (.md), detalles (.json) y vectores de ataque (.json).
+                          El ZIP contiene el informe completo (.md), detalles de hallazgos (.json) y escenarios de ataque (.json).
                         </p>
                       </div>
                     )}
                   </>
                 ) : (
-                  (analysisResult.urlAnalysis || analysisResult.serverAnalysis || analysisResult.databaseAnalysis) && (
+                  (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && 
+                  (
                     <Card className="mt-8 shadow-lg border-l-4 border-accent">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-xl text-accent">
                           <AlertTriangle className="h-6 w-6" />
-                          Acceso Limitado al Informe
+                          Acceso Limitado al Informe Detallado
                         </CardTitle>
                         <CardDescription>
-                          Has recibido un resumen del análisis. Para acceder al informe detallado, vectores de ataque y la opción de descarga, por favor inicia sesión.
+                          Has recibido un resumen del análisis. Para acceder al informe detallado, escenarios de ataque y la opción de descarga completa, por favor activa el "Modo Empresa".
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <h3 className="font-semibold text-foreground mb-2">Resumen Principal del Escaneo:</h3>
-                        <p className="text-muted-foreground bg-secondary/30 p-3 rounded-md">
-                          {analysisResult.urlAnalysis?.executiveSummary || analysisResult.serverAnalysis?.executiveSummary || analysisResult.databaseAnalysis?.executiveSummary || "No se proporcionó un resumen ejecutivo."}
+                        <h3 className="font-semibold text-foreground mb-2">Resumen Principal del Análisis:</h3>
+                        <p className="text-muted-foreground bg-secondary/30 p-3 rounded-md text-sm">
+                          {analysisResult.urlAnalysis?.executiveSummary || analysisResult.serverAnalysis?.executiveSummary || analysisResult.databaseAnalysis?.executiveSummary || "No se proporcionó un resumen ejecutivo específico para una fuente. Revisa el resumen general."}
                         </p>
-                        <Button className="mt-6 w-full" onClick={() => setIsAuthenticated(true)}>
-                          <LogIn className="mr-2 h-5 w-5" /> Ver Informe Completo (Simular Inicio de Sesión)
+                         {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
+                        <Button className="mt-6 w-full" onClick={() => {
+                            setIsAuthenticated(true);
+                             toast({ title: "Modo Empresa Simulado Activado", description: "Acceso a informes completos y descargas habilitado."})
+                            }}>
+                          <LogIn className="mr-2 h-5 w-5" /> Activar Modo Empresa para Ver Informe Completo
                         </Button>
                       </CardContent>
                     </Card>
@@ -284,10 +329,10 @@ export default function HomePage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-xl">
                         <ShieldCheck className="h-7 w-7 text-primary" />
-                        Plataforma Integral de Análisis de Seguridad
+                        Plataforma Integral de Análisis de Seguridad Asistido por IA
                     </CardTitle>
                     <CardDescription>
-                        Potencie la seguridad de sus aplicaciones y sistemas con nuestra solución de análisis inteligente.
+                        Potencie la seguridad de sus aplicaciones, servidores y bases de datos con nuestra solución de análisis inteligente.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -295,17 +340,17 @@ export default function HomePage() {
                         Proporcione detalles de su URL, servidor y/o base de datos para un escaneo exhaustivo. Nuestro motor de IA identificará vulnerabilidades,
                         generará un informe detallado y proporcionará escenarios de ataque ilustrativos.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-4 mt-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background"> <Info className="h-5 w-5 text-primary"/> Análisis de URL para vulnerabilidades web.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de configuración de servidor.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background"> <Database className="h-5 w-5 text-primary"/> Chequeo de seguridad de base de datos.</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis de URL y Web.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
-                        Ideal para equipos de desarrollo, profesionales de seguridad y empresas que buscan proteger sus activos digitales de manera proactiva.
+                        Ideal para equipos de desarrollo, profesionales de seguridad y empresas que buscan proteger sus activos digitales de manera proactiva y eficiente.
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-primary font-medium">
-                        <UserCheck className="h-5 w-5" />
-                        <span>Funcionalidades Premium incluyen: Informes detallados, exportación de datos y más.</span>
+                        <Briefcase className="h-5 w-5" />
+                        <span>Active el "Modo Empresa" para informes completos, descarga de resultados y futuras funcionalidades avanzadas.</span>
                     </div>
                 </CardContent>
                </Card>
@@ -313,9 +358,10 @@ export default function HomePage() {
           </section>
         </main>
         <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
-          © {new Date().getFullYear()} Analizador de Seguridad Integral. Impulsado por GenAI. Herramienta educativa y de evaluación.
+          © {new Date().getFullYear()} Plataforma de Seguridad Integral. Impulsado por GenAI. Herramienta educativa y de evaluación avanzada.
         </footer>
       </div>
     </TooltipProvider>
   );
 }
+
