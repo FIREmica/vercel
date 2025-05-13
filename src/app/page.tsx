@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -11,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
+import { HackingInfoSection } from "@/components/hacking-info-section";
 
 export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -79,6 +81,10 @@ export default function HomePage() {
             defaultUrl={exampleUrl}
           />
         </section>
+
+        <Separator className="my-8 md:my-12" />
+
+        <HackingInfoSection />
 
         <Separator className="my-8 md:my-12" />
         
