@@ -21,8 +21,9 @@ export async function analyzeServerSecurity(input: ServerConfigInput): Promise<S
 }
 
 // Schema for the direct output of the prompt, source will be added by the flow.
+// `potentialForAccountLockout` is typically not set by this flow unless specific auth service on server is described.
 const AnalyzeServerPromptOutputSchema = z.object({
-  findings: z.array(VulnerabilityFindingSchema.omit({ source: true, potentialForAccountLockout: true })), // Source and potentialForAccountLockout added/handled by flow
+  findings: z.array(VulnerabilityFindingSchema.omit({ source: true, potentialForAccountLockout: true })),
   overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]),
   executiveSummary: z.string(),
 });
@@ -51,13 +52,18 @@ const analyzeServerSecurityPrompt = ai.definePrompt({
       - description: A detailed description of the *specific* observation from the input text and its security implication in an enterprise context.
       - isVulnerable: Boolean, true if the description strongly suggests a vulnerability. Use 'false' for informational points or general recommendations if no direct vulnerability is evident from the text.
       - severity: 'Low', 'Medium', 'High', 'Critical', or 'Informational'. Assign 'Critical' for issues with widespread impact or high exploitability.
+      - cvssScore: (Optional) If related to a known CVE or CWE, provide an estimated CVSS 3.1 base score.
+      - cvssVector: (Optional) The CVSS 3.1 vector string for the score.
+      - businessImpact: (Optional) Describe the potential business impact (e.g., "Server compromise leading to data exfiltration and service downtime.").
+      - technicalDetails: (Optional) Explain the technical nature of the vulnerability, e.g., "The specified Apache version 2.4.x is known to be vulnerable to CVE-YYYY-ZZZZ, allowing remote code execution via a crafted request."
+      - evidence: (Optional) Point to specific parts of the input description that led to this finding, e.g., "Description states 'Server running Apache 2.4.x'."
       - remediation: Suggested high-level remediation steps, including specific configuration changes or processes where appropriate.
+      (Do not include 'source' or 'potentialForAccountLockout' in these finding objects; they are handled by the system for server analysis.)
   3.  Provide an 'overallRiskAssessment' based on the findings: 'Critical', 'High', 'Medium', 'Low', or 'Informational'.
   4.  Write a concise 'executiveSummary' (3-4 sentences) of the server's security posture based on your analysis of the description, suitable for a business audience.
 
   Output Format:
   Return a JSON object with "findings", "overallRiskAssessment", and "executiveSummary".
-  Do not include 'source' or 'potentialForAccountLockout' in the findings; these will be handled by the system.
   If the description is too vague or lacks actionable details for a security assessment, findings array can be empty, risk should be 'Informational', and summary should state that a proper assessment requires more details.
   Prioritize actionable findings relevant to enterprise security.
   `,
@@ -90,7 +96,7 @@ const analyzeServerSecurityFlow = ai.defineFlow(
     const findingsWithSource = (promptOutput.findings || []).map(f => ({
       ...f,
       source: "Server" as const,
-      // potentialForAccountLockout is not typically relevant for general server findings unless specified
+      // potentialForAccountLockout is not typically relevant for general server findings unless specified in description
     }));
 
     return {

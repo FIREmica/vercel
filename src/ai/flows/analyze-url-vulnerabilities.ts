@@ -23,9 +23,9 @@ export async function analyzeUrlVulnerabilities(input: AnalyzeUrlVulnerabilities
 }
 
 // This schema is specific to the prompt's direct output, before flow adds calculated fields.
-// The `source` field will be added by the flow logic.
+// The `source` field will be added by the flow logic. `potentialForAccountLockout` is also handled by flow for URL.
 const AnalyzeUrlPromptOutputSchema = z.object({
-  findings: z.array(VulnerabilityFindingSchema.omit({ source: true })), // Source is added later
+  findings: z.array(VulnerabilityFindingSchema.omit({ source: true, potentialForAccountLockout: true })),
   overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]),
   executiveSummary: z.string(),
 });
@@ -54,14 +54,18 @@ const analyzeUrlVulnerabilitiesPrompt = ai.definePrompt({
       - description: A brief description of the *specific* observation or finding for the URL.
       - isVulnerable: Boolean, true if the URL appears vulnerable to this *specific* finding.
       - severity: 'Low', 'Medium', 'High', 'Critical', or 'Informational'.
-      - potentialForAccountLockout: Boolean, ONLY if this *specific* finding could *directly* lead to or facilitate account lockouts (e.g. too many failed login attempts on a related login page if this is a registration page).
+      - cvssScore: (Optional) If applicable and a standard CVE or CWE exists, provide an estimated CVSS 3.1 base score (e.g., 7.5).
+      - cvssVector: (Optional) The CVSS 3.1 vector string for the score (e.g., CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N).
+      - businessImpact: (Optional) Describe the potential business impact if exploited (e.g., "Compromise of user accounts leading to unauthorized access and potential data theft.").
+      - technicalDetails: (Optional) Provide more in-depth technical details about why this is a vulnerability in this context.
+      - evidence: (Optional) Mention any specific evidence observed (e.g., "Error message '...' reveals internal path", "No CSRF token observed in form submission").
       - remediation: Suggested high-level remediation steps.
+      (Do not include 'source' or 'potentialForAccountLockout' in these finding objects; they are handled by the system for URL analysis.)
   3.  Based on all findings, provide an 'overallRiskAssessment': 'Critical' (if multiple High severity vulnerable findings or one High with significant impact), 'High' (if at least one High severity vulnerable finding), 'Medium' (if Medium severity vulnerable findings exist without any High), 'Low' (if only Low severity vulnerable findings), or 'Informational' (if no active vulnerabilities are found, only informational findings).
   4.  Write a concise 'executiveSummary' (2-3 sentences) of the page's security posture, highlighting the most critical risks if any. If no active vulnerabilities, state that.
 
   Output Format:
   Return a JSON object with three top-level keys: "findings" (an array of finding objects), "overallRiskAssessment" (string enum), and "executiveSummary" (string).
-  Do not include the 'source' field in the findings objects; it will be added by the system.
   Focus on vulnerabilities observable or inferable from accessing the URL.
   If no specific vulnerabilities are confidently identified, "findings" should be an empty array, "overallRiskAssessment" should be "Informational", and "executiveSummary" should reflect this.
   `,
@@ -88,9 +92,21 @@ const analyzeUrlVulnerabilitiesFlow = ai.defineFlow(
       };
     }
     
-    const findingsWithSource = (promptOutput.findings || []).map(f => ({ ...f, source: "URL" as const, potentialForAccountLockout: f.potentialForAccountLockout ?? false }));
+    const findingsWithSourceAndLockout = (promptOutput.findings || []).map(f => {
+        // Determine potentialForAccountLockout based on vulnerability type for URL analysis
+        const lockoutRiskCategories = ["Weak Password Policies", "Rate Limiting", "Missing or Weak CAPTCHA"];
+        const potentialForAccountLockout = lockoutRiskCategories.some(cat => 
+            f.vulnerability.toLowerCase().includes(cat.toLowerCase())
+        ) && f.isVulnerable;
+
+        return { 
+            ...f, 
+            source: "URL" as const, 
+            potentialForAccountLockout: potentialForAccountLockout
+        };
+    });
     
-    const vulnerableFindings = findingsWithSource.filter(f => f.isVulnerable);
+    const vulnerableFindings = findingsWithSourceAndLockout.filter(f => f.isVulnerable);
     const vulnerableFindingsCount = vulnerableFindings.length;
     const highSeverityCount = vulnerableFindings.filter(f => f.severity === 'High' || f.severity === 'Critical').length;
     const mediumSeverityCount = vulnerableFindings.filter(f => f.severity === 'Medium').length;
@@ -100,7 +116,7 @@ const analyzeUrlVulnerabilitiesFlow = ai.defineFlow(
     const executiveSummary = promptOutput.executiveSummary || (vulnerableFindingsCount > 0 ? "Vulnerabilities were identified for the URL. Please review the findings." : "No active vulnerabilities were identified for the URL in this scan.");
 
     return {
-      findings: findingsWithSource,
+      findings: findingsWithSourceAndLockout,
       overallRiskAssessment: overallRiskAssessment,
       executiveSummary: executiveSummary,
       vulnerableFindingsCount: vulnerableFindingsCount,
@@ -110,3 +126,4 @@ const analyzeUrlVulnerabilitiesFlow = ai.defineFlow(
     };
   }
 );
+

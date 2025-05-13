@@ -14,6 +14,7 @@ import {
   type GenerateSecurityReportInput,
   GenerateSecurityReportOutputSchema,
   type GenerateSecurityReportOutput,
+  VulnerabilityFindingSchema, // Import for typing if needed, though overallVulnerableFindings uses it
 } from '@/types/ai-schemas';
 
 export async function generateSecurityReport(
@@ -41,7 +42,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Key URL Vulnerable Findings ({{urlAnalysis.vulnerableFindingsCount}}):
       {{#each urlAnalysis.findings}}
         {{#if this.isVulnerable}}
-  - Source: URL, Category: {{this.vulnerability}} (Severity: {{this.severity}})
+  - Source: URL, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
     - Remediation: {{this.remediation}}
         {{/if}}
@@ -60,7 +61,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Key Server Vulnerable Findings:
         {{#each serverAnalysis.findings}}
           {{#if this.isVulnerable}}
-  - Source: Server, Category: {{this.vulnerability}} (Severity: {{this.severity}})
+  - Source: Server, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
     - Remediation: {{this.remediation}}
           {{/if}}
@@ -82,7 +83,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Key Database Vulnerable Findings:
         {{#each databaseAnalysis.findings}}
           {{#if this.isVulnerable}}
-  - Source: Database, Category: {{this.vulnerability}} (Severity: {{this.severity}})
+  - Source: Database, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
     - Remediation: {{this.remediation}}
           {{/if}}
@@ -98,7 +99,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   {{#if overallVulnerableFindings.length}}
   Consolidated List of All Vulnerable Findings ({{overallVulnerableFindings.length}} total):
     {{#each overallVulnerableFindings}}
-  - Source: {{this.source}}, Category: {{this.vulnerability}} (Severity: {{this.severity}})
+  - Source: {{this.source}}, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
     - Remediation: {{this.remediation}}
     {{/each}}
@@ -116,7 +117,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Instructions for the Report:
   Generate a comprehensive security report based *only* on the provided scan results. Structure the report logically using Markdown:
   1.  **# Overall Executive Summary (Report):**
-      - Start by stating the overall security posture of the analyzed components, considering the highest risk identified.
+      - Start by stating the overall security posture of the analyzed components, considering the highest risk identified (Severity and CVSS score if available).
       - Briefly summarize the most significant risks across URL, server, and/or database. Mention key themes if apparent (e.g., widespread patching issues, common misconfigurations).
       - State the total number of *active* vulnerabilities found across all sources.
       - Conclude with a call to action regarding remediation.
@@ -126,12 +127,14 @@ const generateSecurityReportPrompt = ai.definePrompt({
       For each source with *vulnerable* findings:
       *   Restate its specific executive summary and overall risk assessment from the input, if available.
       *   For *each vulnerable* finding ('isVulnerable' is true):
-          *   **### [Vulnerability Category] (Severity: [Severity])**
+          *   **### [Vulnerability Category] (Severity: [Severity]{{#if cvssScore}}, CVSS: {{cvssScore}} {{cvssVector}}{{/if}})**
           *   **Specific Finding:** Detail the observation from the 'description' field of the finding.
-          *   **Potential Business Impact:** Explain, in clear business terms, the potential consequences if this vulnerability is exploited (e.g., "Data breach of customer PII leading to regulatory fines and reputational damage," "Denial of service for critical application, impacting revenue," "Unauthorized server access enabling lateral movement within the network"). Tailor this to the source and vulnerability type.
-          *   **Recommended Remediation:** List the specific, actionable remediation steps.
+          *   **Potential Business Impact:** (Use 'businessImpact' field if available) Explain, in clear business terms, the potential consequences if this vulnerability is exploited (e.g., "Data breach of customer PII leading to regulatory fines and reputational damage," "Denial of service for critical application, impacting revenue," "Unauthorized server access enabling lateral movement within the network"). Tailor this to the source and vulnerability type.
+          *   **Technical Details:** (Use 'technicalDetails' field if available) Provide a more in-depth technical explanation of how the vulnerability occurs and its context.
+          *   **Evidence:** (Use 'evidence' field if available) List or quote specific evidence or observations that support this finding.
+          *   **Recommended Remediation:** List the specific, actionable remediation steps from the 'remediation' field.
   3.  **# Prioritized Recommendations:**
-      - List the top 3-5 vulnerabilities that should be addressed first, based on a combination of severity and potential business impact. Explain the rationale for this prioritization.
+      - List the top 3-5 vulnerabilities that should be addressed first, based on a combination of severity, CVSS score (if available), and potential business impact. Explain the rationale for this prioritization.
       - For each prioritized item, briefly reiterate the vulnerability and the core action needed.
   4.  **# Compliance Considerations (General Overview):**
       - Briefly mention general areas where findings might impact common compliance standards (e.g., "Identified data exposure risks could affect GDPR or CCPA compliance.", "Weak access controls may not align with PCI DSS requirements.").
@@ -157,7 +160,7 @@ const generateSecurityReportFlow = ai.defineFlow(
   },
   async (input): Promise<GenerateSecurityReportOutput> => {
     // Consolidate all vulnerable findings for the prompt
-    let overallVulnerableFindings: any[] = [];
+    let overallVulnerableFindings: VulnerabilityFinding[] = []; // Explicitly type this
     if (input.urlAnalysis?.findings) {
       overallVulnerableFindings = overallVulnerableFindings.concat(input.urlAnalysis.findings.filter(f => f.isVulnerable));
     }
@@ -177,7 +180,7 @@ const generateSecurityReportFlow = ai.defineFlow(
             else if (input.serverAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Server";
             else if (input.databaseAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Database";
         }
-        return { ...f, source: findingSource || "Unknown" };
+        return { ...f, source: findingSource || "Unknown" as const }; // Ensure source is of correct enum type
     });
 
 

@@ -13,6 +13,11 @@ export const VulnerabilityFindingSchema = z.object({
   description: z.string().describe('A brief description of the specific finding related to the vulnerability category.'),
   isVulnerable: z.boolean().describe('Whether the target shows signs of being vulnerable to this specific finding.'),
   severity: z.enum(['Low', 'Medium', 'High', 'Critical', 'Informational']).describe('The estimated severity of the vulnerability finding. Critical may be used by AI if multiple Highs or exceptionally severe single High.'),
+  cvssScore: z.number().optional().describe("The CVSS 3.1 base score, if applicable (e.g., 7.5)."),
+  cvssVector: z.string().optional().describe("The CVSS 3.1 vector string, if applicable (e.g., CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N)."),
+  businessImpact: z.string().optional().describe("Potential business impact if this vulnerability is exploited (e.g., data breach, service disruption, reputational damage)."),
+  technicalDetails: z.string().optional().describe("In-depth technical explanation of the vulnerability, how it occurs, and relevant technical context."),
+  evidence: z.string().optional().describe("Specific evidence or observations that support the finding (e.g., specific log entry, configuration snippet, problematic URL parameter)."),
   potentialForAccountLockout: z
     .boolean()
     .optional() // Making this optional as it's more relevant to URL auth flows
@@ -106,3 +111,4 @@ export const GenerateSecurityReportOutputSchema = z.object({
     ),
 });
 export type GenerateSecurityReportOutput = z.infer<typeof GenerateSecurityReportOutputSchema>;
+

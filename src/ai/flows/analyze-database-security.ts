@@ -21,8 +21,9 @@ export async function analyzeDatabaseSecurity(input: DatabaseConfigInput): Promi
 }
 
 // Schema for the direct output of the prompt, source will be added by the flow.
+// `potentialForAccountLockout` is typically not set by this flow unless specific auth service on database is described.
 const AnalyzeDatabasePromptOutputSchema = z.object({
-  findings: z.array(VulnerabilityFindingSchema.omit({ source: true, potentialForAccountLockout: true })), // Source and potentialForAccountLockout added/handled by flow
+  findings: z.array(VulnerabilityFindingSchema.omit({ source: true, potentialForAccountLockout: true })),
   overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]),
   executiveSummary: z.string(),
 });
@@ -52,13 +53,18 @@ const analyzeDatabaseSecurityPrompt = ai.definePrompt({
       - description: A detailed description of the *specific* observation from the input text and its security implication in an enterprise context.
       - isVulnerable: Boolean, true if the description strongly suggests a vulnerability. Use 'false' for informational points.
       - severity: 'Low', 'Medium', 'High', 'Critical', or 'Informational'. Assign 'Critical' for direct compromise or large-scale data exposure risks.
+      - cvssScore: (Optional) If related to a known CVE or CWE for the DB version/type, provide an estimated CVSS 3.1 base score.
+      - cvssVector: (Optional) The CVSS 3.1 vector string for the score.
+      - businessImpact: (Optional) Describe the potential business impact (e.g., "Unauthorized access to sensitive customer data", "Data corruption leading to operational disruption").
+      - technicalDetails: (Optional) Explain the technical nature, e.g., "The described configuration allows connections from 'ANY' host, exposing the database directly to potential attackers on the network."
+      - evidence: (Optional) Quote or refer to specific parts of the input description, e.g., "Description mentions 'database is accessible from 0.0.0.0/0'."
       - remediation: Suggested high-level remediation steps, including specific configuration changes or best practices.
+      (Do not include 'source' or 'potentialForAccountLockout' in these finding objects; they are handled by the system for database analysis.)
   3.  Provide an 'overallRiskAssessment' based on the findings: 'Critical', 'High', 'Medium', 'Low', or 'Informational'.
   4.  Write a concise 'executiveSummary' (3-4 sentences) of the database's security posture based on your analysis of the description, suitable for a business audience.
 
   Output Format:
   Return a JSON object with "findings", "overallRiskAssessment", and "executiveSummary".
-  Do not include 'source' or 'potentialForAccountLockout' in the findings; these will be handled by the system.
   If the description is too vague or lacks actionable details for a security assessment, the findings array can be empty, risk should be 'Informational', and the summary should state that a proper assessment requires more details.
   Prioritize actionable findings relevant to enterprise database security.
   `,
@@ -91,6 +97,7 @@ const analyzeDatabaseSecurityFlow = ai.defineFlow(
     const findingsWithSource = (promptOutput.findings || []).map(f => ({
       ...f,
       source: "Database" as const,
+      // potentialForAccountLockout is not typically relevant for general database findings
     }));
 
     return {
