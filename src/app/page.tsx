@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,6 +7,7 @@ import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
+import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; // New import
 import { performAnalysisAction } from "./actions";
 import type { AnalysisResult } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Info, BugPlay, Download } from "lucide-react";
+import { Info, Download } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -190,6 +192,21 @@ export default function HomePage() {
           <section className="max-w-4xl mx-auto">
             {isLoading && (
               <div className="space-y-8 mt-8">
+                {/* Skeleton for Summary Card */}
+                <Card className="shadow-lg animate-pulse">
+                  <CardHeader>
+                    <Skeleton className="h-8 w-1/2" />
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Skeleton className="h-6 w-3/4 mb-4" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                    </div>
+                  </CardContent>
+                </Card>
                 {/* Skeleton for Vulnerability Report */}
                 <Card className="shadow-lg animate-pulse">
                   <CardHeader>
@@ -250,6 +267,9 @@ export default function HomePage() {
 
             {!isLoading && analysisResult && (
               <div className="space-y-8">
+                {/* Display Analysis Summary Card */}
+                <AnalysisSummaryCard vulnerabilities={analysisResult.vulnerabilities} />
+                <Separator />
                 {/* Display Vulnerability Report and Detailed Findings */}
                 <VulnerabilityReportDisplay result={analysisResult} />
 
@@ -306,3 +326,5 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+
+    
