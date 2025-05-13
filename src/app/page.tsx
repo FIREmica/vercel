@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Simulate enterprise user
+  const [isPremiumUser, setIsPremiumUser] = useState(false); // Represents if user has "paid" for premium features
   const { toast } = useToast();
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; 
@@ -136,14 +136,14 @@ export default function HomePage() {
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
           const primarySummary = result.reportText ? "Informe completo generado." : (result.urlAnalysis?.executiveSummary || result.serverAnalysis?.executiveSummary || result.databaseAnalysis?.executiveSummary || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
           
-          if (isAuthenticated && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
+          if (isPremiumUser && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
             await generateZipFile(result, currentTargetDesc);
           }
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${primarySummary} ${isAuthenticated ? 'Revisa el informe y descarga el ZIP si está disponible.' : 'Activa el Modo Empresa para ver el informe completo y opciones de descarga.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default",
+            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a todos los detalles técnicos, escenarios de ataque y descarga.'}`,
+            variant: vulnerableCount > 0 ? "default" : "default", // Could be "destructive" if high severity
             duration: 7000,
           });
       }
@@ -157,6 +157,19 @@ export default function HomePage() {
       setIsLoading(false);
     }
   };
+
+  const handlePremiumToggle = () => {
+    setIsPremiumUser(!isPremiumUser);
+    toast({ 
+        title: isPremiumUser ? "Modo Premium Desactivado" : "¡Modo Premium Activado!", 
+        description: isPremiumUser ? "El acceso a funciones avanzadas ha sido limitado." : "Ahora tienes acceso completo a informes técnicos, escenarios de ataque y descargas.",
+        variant: "default"
+    });
+    // If activating premium and results are present, generate ZIP
+    if (!isPremiumUser && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
+        generateZipFile(analysisResult, submittedTargetDescription);
+    }
+  };
   
   const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || null;
 
@@ -164,11 +177,8 @@ export default function HomePage() {
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader 
-          isAuthenticated={isAuthenticated} 
-          onAuthToggle={() => {
-              setIsAuthenticated(!isAuthenticated);
-              toast({ title: isAuthenticated ? "Sesión de Empresa Simulada Terminada" : "Modo Empresa Simulado Activado", description: isAuthenticated ? "Las funciones avanzadas están ahora limitadas." : "Acceso a informes completos y descargas habilitado."})
-          }}
+          isPremiumUser={isPremiumUser} 
+          onAuthToggle={handlePremiumToggle}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
@@ -176,17 +186,14 @@ export default function HomePage() {
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
                 Centro de Análisis de Seguridad Integral
                 </h2>
-                <Button variant={isAuthenticated ? "default" : "outline"} onClick={() => {
-                    setIsAuthenticated(!isAuthenticated);
-                     toast({ title: isAuthenticated ? "Sesión de Empresa Simulada Terminada" : "Modo Empresa Simulado Activado", description: isAuthenticated ? "Las funciones avanzadas están ahora limitadas." : "Acceso a informes completos y descargas habilitado."})
-                    }} size="sm">
-                    {isAuthenticated ? <UserCheck className="mr-2 h-4 w-4" /> : <LogIn className="mr-2 h-4 w-4" />}
-                    {isAuthenticated ? "Empresa (Activado)" : "Activar Modo Empresa"}
+                <Button variant={isPremiumUser ? "default" : "outline"} onClick={handlePremiumToggle} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                    {isPremiumUser ? <Unlock className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    {isPremiumUser ? "Premium Activado" : "Activar Premium"}
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
               Ingrese detalles de su URL, configuración de servidor y/o base de datos para un análisis de seguridad exhaustivo.
-              Nuestra IA identificará vulnerabilidades, generará informes profesionales y sugerirá remediaciones. El "Modo Empresa" desbloquea informes completos y descargas.
+              Nuestra IA identificará vulnerabilidades, generará informes y sugerirá remediaciones. Active el Modo Premium para informes técnicos completos, escenarios de ataque y descargas.
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -199,7 +206,6 @@ export default function HomePage() {
           <HackingInfoSection />
           <Separator className="my-8 md:my-12" />
           
-          {/* Enterprise Features Placeholder */}
           <section className="max-w-4xl mx-auto mb-8 md:mb-12">
             <Card className="shadow-lg border-l-4 border-primary">
                 <CardHeader>
@@ -268,57 +274,53 @@ export default function HomePage() {
                   allFindings={analysisResult.allFindings} 
                 />
                 
-                {isAuthenticated ? (
+                <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremiumUser} />
+                
+                {isPremiumUser && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
                   <>
-                    <Separator />
-                    <VulnerabilityReportDisplay result={analysisResult} />
-                    {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
-                      <>
-                        <Separator className="my-8 md:my-12" />
-                        <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
-                      </>
-                    )}
-                    {zipUrl && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0 )) && ( 
-                      <div className="text-center mt-8">
-                        <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                          <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
-                            <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
-                          </a>
-                        </Button>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          El ZIP contiene el informe completo (.md), detalles de hallazgos (.json) y escenarios de ataque (.json).
-                        </p>
-                      </div>
-                    )}
+                    <Separator className="my-8 md:my-12" />
+                    <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
                   </>
-                ) : (
-                  (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && 
-                  (
-                    <Card className="mt-8 shadow-lg border-l-4 border-accent">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl text-accent">
-                          <AlertTriangle className="h-6 w-6" />
-                          Acceso Limitado al Informe Detallado
-                        </CardTitle>
-                        <CardDescription>
-                          Has recibido un resumen del análisis. Para acceder al informe detallado, escenarios de ataque y la opción de descarga completa, por favor activa el "Modo Empresa".
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <h3 className="font-semibold text-foreground mb-2">Resumen Principal del Análisis:</h3>
-                        <p className="text-muted-foreground bg-secondary/30 p-3 rounded-md text-sm">
-                          {analysisResult.urlAnalysis?.executiveSummary || analysisResult.serverAnalysis?.executiveSummary || analysisResult.databaseAnalysis?.executiveSummary || "No se proporcionó un resumen ejecutivo específico para una fuente. Revisa el resumen general."}
-                        </p>
-                         {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
-                        <Button className="mt-6 w-full" onClick={() => {
-                            setIsAuthenticated(true);
-                             toast({ title: "Modo Empresa Simulado Activado", description: "Acceso a informes completos y descargas habilitado."})
-                            }}>
-                          <LogIn className="mr-2 h-5 w-5" /> Activar Modo Empresa para Ver Informe Completo
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )
+                )}
+
+                {!isPremiumUser && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
+                  <Card className="mt-8 shadow-lg border-l-4 border-accent">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-xl text-accent">
+                        <Sparkles className="h-6 w-6" />
+                        Desbloquear Análisis Completo
+                      </CardTitle>
+                      <CardDescription>
+                        Has recibido un resumen del análisis. Para acceder al informe técnico detallado, escenarios de ataque ilustrativos y la opción de descarga completa, por favor activa el Modo Premium.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <h3 className="font-semibold text-foreground mb-2">Beneficios del Modo Premium:</h3>
+                      <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-sm mb-4">
+                        <li>Informe técnico detallado con análisis en profundidad.</li>
+                        <li>Escenarios de ataque ilustrativos para comprender riesgos.</li>
+                        <li>Descarga completa de resultados en formato ZIP.</li>
+                        <li>Futuras funcionalidades avanzadas.</li>
+                      </ul>
+                      {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
+                      <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
+                        <Unlock className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {isPremiumUser && zipUrl && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0 )) && ( 
+                  <div className="text-center mt-8">
+                    <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
+                        <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
+                      </a>
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      El ZIP contiene el informe completo (.md), detalles de hallazgos (.json) y escenarios de ataque (.json).
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -348,8 +350,8 @@ export default function HomePage() {
                         Ideal para equipos de desarrollo, profesionales de seguridad y empresas que buscan proteger sus activos digitales de manera proactiva y eficiente.
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-primary font-medium">
-                        <Briefcase className="h-5 w-5" />
-                        <span>Active el "Modo Empresa" para informes completos, descarga de resultados y futuras funcionalidades avanzadas.</span>
+                        <Sparkles className="h-5 w-5" />
+                        <span>Active el "Modo Premium" para informes completos, descarga de resultados y futuras funcionalidades avanzadas.</span>
                     </div>
                 </CardContent>
                </Card>
