@@ -1,10 +1,12 @@
+
 'use client';
 
 import type { AttackVector } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertTriangle, BugPlay, ShieldQuestion, Zap, Info } from 'lucide-react'; // Added Info
-import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, BugPlay, Zap, Info, ServerIcon, Database, Globe } from 'lucide-react';
+import { Badge } from '@/components/ui/badge'; // Badge might not be used here, but keep if planned
+import { cn } from '@/lib/utils';
 
 type AttackVectorsDisplayProps = {
   attackVectors: AttackVector[] | null;
@@ -12,7 +14,6 @@ type AttackVectorsDisplayProps = {
 
 export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProps) {
   if (!attackVectors || attackVectors.length === 0) {
-    // Display a card indicating no specific attack vectors were generated for the detected vulnerabilities
     return (
       <Card className="mt-8 shadow-lg border-l-4 border-blue-500">
         <CardHeader>
@@ -23,12 +24,21 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            No se generaron ejemplos específicos de vectores de ataque para las vulnerabilidades detectadas en este análisis, o las vulnerabilidades encontradas eran de naturaleza informativa o de baja severidad sin un vector de ataque directo claro en este contexto.
+            No se generaron ejemplos de vectores de ataque para las vulnerabilidades activas detectadas, o no se encontraron vulnerabilidades activas.
           </p>
         </CardContent>
       </Card>
     );
   }
+  
+  const getSourceIcon = (source?: "URL" | "Server" | "Database" | "Unknown") => {
+    switch(source) {
+        case "URL": return <Globe className="h-4 w-4 text-blue-500"/>;
+        case "Server": return <ServerIcon className="h-4 w-4 text-green-500"/>;
+        case "Database": return <Database className="h-4 w-4 text-purple-500"/>;
+        default: return <Zap className="h-4 w-4 text-amber-500"/>;
+    }
+  };
 
   return (
     <Card className="mt-8 shadow-2xl border-l-4 border-amber-500">
@@ -38,8 +48,8 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
           Posibles Escenarios de Ataque (Ejemplos Ilustrativos)
         </CardTitle>
         <CardDescription className="text-base">
-          A continuación, se presentan ejemplos conceptuales de cómo las vulnerabilidades activas identificadas podrían ser explotadas. Estos escenarios son simplificados para fines educativos.
-          <strong className="block mt-1 text-destructive">ADVERTENCIA: Esta información es estrictamente para fines educativos y de concienciación. No intente replicar estas acciones en sistemas para los que no tenga autorización explícita. Hacerlo es ilegal y poco ético.</strong>
+          A continuación, se presentan ejemplos conceptuales de cómo las vulnerabilidades activas identificadas podrían ser explotadas. Estos escenarios son simplificados.
+          <strong className="block mt-1 text-destructive">ADVERTENCIA: Esta información es estrictamente para fines educativos. No intente replicar estas acciones en sistemas sin autorización explícita.</strong>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -47,9 +57,10 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
           {attackVectors.map((vector, index) => (
             <AccordionItem value={`item-${index}`} key={index} className="border-border">
               <AccordionTrigger className="text-lg hover:no-underline">
-                <div className="flex items-center gap-3 text-left"> {/* Added text-left */}
-                  <Zap className="h-5 w-5 text-amber-500 flex-shrink-0" /> {/* Added flex-shrink-0 */}
+                <div className="flex items-center gap-3 text-left">
+                  {getSourceIcon(vector.source)}
                   <span className="font-semibold">{vector.vulnerabilityName}</span>
+                  {vector.source && <Badge variant="outline" className="text-xs">{vector.source}</Badge>}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 px-2 space-y-4 bg-secondary/30 rounded-md">
@@ -62,7 +73,7 @@ export function AttackVectorsDisplay({ attackVectors }: AttackVectorsDisplayProp
                   <pre className="bg-muted p-3 rounded-md text-xs text-foreground overflow-x-auto">
                     <code>{vector.examplePayloadOrTechnique}</code>
                   </pre>
-                   <p className="text-xs text-muted-foreground italic mt-1">Nota: Este es un ejemplo simplificado sólo para ilustración.</p>
+                   <p className="text-xs text-muted-foreground italic mt-1">Nota: Ejemplo simplificado para ilustración.</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-foreground mb-1">Resultado Esperado (Si Exitoso):</h4>

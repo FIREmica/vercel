@@ -1,5 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Code, DatabaseZap, ShieldEllipsis, TrendingDown, UserCog } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AlertTriangle, Code, DatabaseZap, ShieldEllipsis, TrendingDown, UserCog, ServerCog, Network, Database } from "lucide-react";
 
 export function HackingInfoSection() {
   return (
@@ -10,66 +11,66 @@ export function HackingInfoSection() {
             <AlertTriangle className="h-6 w-6" />
             Posibles Modus Operandi (Vulnerabilidades Comunes)
           </CardTitle>
+          <CardDescription>
+            Esta sección describe conceptos generales de vulnerabilidades y ataques. Los análisis específicos de esta herramienta se basan en la información que usted proporciona.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-muted-foreground">
+          {/* Web Application Vulnerabilities */}
           <div>
-            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><UserCog className="inline-block h-4 w-4"/> Ataques de Bloqueo de Cuentas:</h3>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><UserCog className="inline-block h-4 w-4"/> Ataques a la Lógica de Autenticación y Cuentas (Web):</h3>
             <ul className="list-disc pl-5 space-y-1">
-                <li>
-                  <strong>Fuerza Bruta / Credential Stuffing:</strong> Intentos repetidos de contraseñas o uso de credenciales filtradas para activar políticas de bloqueo.
-                </li>
-                 <li>
-                  <strong>Enumeración + Password Spraying:</strong> Identificar usuarios válidos y probar contraseñas comunes contra ellos.
-                </li>
-                 <li>
-                  <strong>DoS mediante Bloqueo:</strong> Provocar bloqueos intencionales para denegar el servicio a usuarios legítimos.
-                </li>
-                 <li>
-                  <strong>Explotación de CAPTCHA/Rate Limit Débil:</strong> Automatizar los ataques anteriores si no hay protección adecuada.
-                </li>
+                <li><strong>Fuerza Bruta / Credential Stuffing:</strong> Intentos repetidos de contraseñas o uso de credenciales filtradas.</li>
+                <li><strong>Enumeración + Password Spraying:</strong> Identificar usuarios válidos y probar contraseñas comunes.</li>
+                <li><strong>Explotación de CAPTCHA/Rate Limit Débil:</strong> Automatizar ataques si la protección es inadecuada.</li>
+            </ul>
+          </div>
+          <hr className="border-border my-4"/>
+          <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Code className="inline-block h-4 w-4"/> Cross-Site Scripting (XSS) (Web):</h3>
+            <p>Inyección de scripts maliciosos en páginas web. En un formulario de registro, podría ocurrir si los datos no se sanitizan antes de mostrarse.</p>
+          </div>
+          <hr className="border-border my-4"/>
+          <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><DatabaseZap className="inline-block h-4 w-4"/> SQL Injection (SQLi) (Web/DB):</h3>
+            <p>Inserción de código SQL malicioso en entradas para manipular consultas a la base de datos.</p>
+          </div>
+           <hr className="border-border my-4"/>
+
+          {/* Server Vulnerabilities */}
+          <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><ServerCog className="inline-block h-4 w-4"/> Vulnerabilidades de Servidor:</h3>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Software Desactualizado:</strong> Explotación de vulnerabilidades conocidas en el SO, servidor web, o aplicaciones.</li>
+                <li><strong>Servicios Inseguros Expuestos:</strong> Puertos abiertos innecesarios (ej. Telnet, FTP sin cifrar, RDP a internet).</li>
+                <li><strong>Configuraciones por Defecto o Débiles:</strong> Credenciales por defecto no cambiadas, listado de directorios habilitado.</li>
+                <li><strong>Escalada de Privilegios:</strong> Un atacante con acceso limitado explota una falla para obtener mayores permisos.</li>
+                 <li><strong>Missing Security Patches:</strong> Falta de aplicación regular de parches de seguridad.</li>
             </ul>
           </div>
            <hr className="border-border my-4"/>
-           <div>
-            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Code className="inline-block h-4 w-4"/> Cross-Site Scripting (XSS):</h3>
-            <p>
-              Inyección de scripts maliciosos (generalmente JavaScript) en páginas web vistas por otros usuarios. En un formulario de registro, podría ocurrir si los datos ingresados (ej. nombre de usuario, nombre real) no se sanitizan correctamente antes de mostrarse en otro lugar (ej. página de perfil, lista de usuarios, mensajes de error).
-            </p>
-             <ul className="list-disc pl-5 space-y-1 mt-1">
-                <li>
-                  <strong>Reflejado:</strong> El script se ejecuta cuando el usuario hace clic en un enlace manipulado.
-                </li>
-                 <li>
-                  <strong>Almacenado:</strong> El script se guarda en la base de datos y se ejecuta cada vez que se muestra la página afectada.
-                </li>
-                 <li>
-                  <strong>Basado en DOM:</strong> La vulnerabilidad reside en el código JavaScript del lado del cliente que manipula el DOM de forma insegura.
-                </li>
+
+          {/* Database Vulnerabilities */}
+          <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Database className="inline-block h-4 w-4"/> Vulnerabilidades de Base de Datos:</h3>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Autenticación Débil:</strong> Contraseñas fáciles de adivinar, sin MFA, cuentas compartidas.</li>
+                <li><strong>Privilegios Excesivos:</strong> Cuentas de aplicación con permisos de administrador de BD.</li>
+                <li><strong>Inyección de Comandos (No solo SQLi):</strong> Para NoSQL, OS command injection si la BD interactúa con el sistema.</li>
+                <li><strong>Falta de Cifrado:</strong> Datos sensibles no cifrados en reposo o en tránsito.</li>
+                <li><strong>Backups Inseguros:</strong> Backups no cifrados, almacenados incorrectamente o accesibles.</li>
+                 <li><strong>Auditoría y Logging Insuficientes:</strong> Dificultad para detectar o investigar brechas.</li>
             </ul>
           </div>
            <hr className="border-border my-4"/>
+
           <div>
-            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><DatabaseZap className="inline-block h-4 w-4"/> SQL Injection (SQLi):</h3>
-            <p>
-              Inserción de código SQL malicioso en las entradas de un formulario para manipular consultas a la base de datos. En un registro, podría usarse para intentar extraer datos, modificar registros o incluso obtener control del servidor de base de datos si las consultas SQL no están parametrizadas correctamente.
-            </p>
-          </div>
-           <hr className="border-border my-4"/>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><ShieldEllipsis className="inline-block h-4 w-4"/> Otras Vulnerabilidades Relevantes:</h3>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><ShieldEllipsis className="inline-block h-4 w-4"/> Otras Vulnerabilidades Relevantes (General):</h3>
              <ul className="list-disc pl-5 space-y-1">
-                <li>
-                  <strong>Políticas de Contraseña Débiles:</strong> Permitir contraseñas fáciles de adivinar aumenta el riesgo de fuerza bruta exitosa.
-                </li>
-                 <li>
-                  <strong>Falta de Validación de Entrada:</strong> No validar o sanitizar adecuadamente todas las entradas puede llevar a diversas vulnerabilidades (XSS, SQLi, Path Traversal, etc.).
-                </li>
-                 <li>
-                  <strong>Configuraciones Inseguras:</strong> Directorios listables, mensajes de error detallados, software desactualizado.
-                </li>
-                 <li>
-                  <strong>Control de Acceso Roto:</strong> Posibilidad de acceder a funciones o datos para los que el usuario no tiene permiso.
-                </li>
+                <li><strong>Políticas de Contraseña Débiles.</strong></li>
+                <li><strong>Falta de Validación de Entrada exhaustiva.</strong></li>
+                <li><strong>Configuraciones Inseguras en cualquier capa.</strong></li>
+                <li><strong>Control de Acceso Roto:</strong> Acceso a funciones o datos sin permiso.</li>
             </ul>
           </div>
         </CardContent>
@@ -83,50 +84,18 @@ export function HackingInfoSection() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-muted-foreground">
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Pérdida o Robo de Datos:</h3>
-            <p>
-              Exposición de información sensible de usuarios (credenciales, datos personales, etc.) a través de SQLi u otras vulnerabilidades de acceso a datos.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Toma de Control de Cuentas (Account Takeover - ATO):</h3>
-            <p>
-              Los atacantes obtienen acceso no autorizado a cuentas de usuarios legítimos, a menudo mediante credenciales robadas, XSS (robo de sesión) o contraseñas débiles.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Interrupción del Servicio / Denegación de Servicio (DoS):</h3>
-            <p>
-              Usuarios legítimos no pueden acceder al servicio debido a bloqueos de cuenta masivos, agotamiento de recursos por ataques de fuerza bruta o explotación de otras vulnerabilidades.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Daño Reputacional y Pérdida de Confianza:</h3>
-            <p>
-              Incidentes de seguridad erosionan la confianza de los usuarios y clientes, dañando la imagen de la marca.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1">Impacto Financiero:</h3>
-            <p>
-              Costos asociados a la respuesta a incidentes, recuperación de datos, multas regulatorias (por ejemplo, por violación de GDPR/CCPA), pérdida de negocio y aumento de costos de soporte.
-            </p>
-          </div>
-           <div>
-            <h3 className="font-semibold text-foreground mb-1">Distribución de Malware / Phishing:</h3>
-            <p>
-              Un sitio comprometido (ej. vía XSS) puede ser utilizado para redirigir a usuarios a sitios maliciosos o para alojar malware.
-            </p>
-          </div>
-           <div>
-            <h3 className="font-semibold text-foreground mb-1">Uso como Plataforma de Ataque:</h3>
-            <p>
-              Un servidor comprometido puede ser utilizado para lanzar ataques contra otros sistemas.
-            </p>
-          </div>
+          <div><h3 className="font-semibold text-foreground mb-1">Pérdida o Robo de Datos:</h3><p>Exposición de información sensible (credenciales, PII, datos financieros, propiedad intelectual).</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Toma de Control de Cuentas (ATO):</h3><p>Acceso no autorizado a cuentas de usuarios o administradores.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Interrupción del Servicio / Denegación de Servicio (DoS/DDoS):</h3><p>Sistemas o servicios dejan de estar disponibles para usuarios legítimos.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Ransomware:</h3><p>Cifrado de datos y sistemas, exigiendo un rescate para su recuperación.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Daño Reputacional y Pérdida de Confianza:</h3><p>Erosión de la confianza de clientes, socios y el público.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Impacto Financiero:</h3><p>Costos de respuesta a incidentes, recuperación, multas regulatorias, pérdida de negocio, litigios.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Distribución de Malware / Phishing:</h3><p>Uso de sistemas comprometidos para atacar a otros.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Uso como Plataforma de Ataque (Pivoting):</h3><p>Un servidor o BD comprometida se usa para lanzar ataques a otros sistemas internos o externos.</p></div>
+           <div><h3 className="font-semibold text-foreground mb-1">Espionaje Corporativo o Gubernamental:</h3><p>Robo de secretos comerciales, información clasificada o inteligencia.</p></div>
         </CardContent>
       </Card>
     </section>
   );
 }
+

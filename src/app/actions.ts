@@ -1,81 +1,153 @@
+
 "use server";
 
-import { analyzeVulnerabilities } from "@/ai/flows/analyze-vulnerabilities";
-import { generateVulnerabilityReport } from "@/ai/flows/generate-vulnerability-report";
+import { analyzeUrlVulnerabilities } from "@/ai/flows/analyze-url-vulnerabilities";
+import { analyzeServerSecurity } from "@/ai/flows/analyze-server-security";
+import { analyzeDatabaseSecurity } from "@/ai/flows/analyze-database-security";
+import { generateSecurityReport } from "@/ai/flows/generate-security-report";
 import { generateAttackVectors } from "@/ai/flows/generate-attack-vectors";
 
-// Import types from the main types entry point
-import type { 
-  AnalysisResult, 
-  VulnerabilityFinding, 
-  AnalyzeVulnerabilitiesOutput, 
-  GenerateAttackVectorsOutput,
-  GenerateAttackVectorsInput // Import if needed, though it's constructed internally
+import type {
+  AnalysisResult,
+  VulnerabilityFinding,
+  UrlVulnerabilityAnalysisOutput,
+  ServerSecurityAnalysisOutput,
+  DatabaseSecurityAnalysisOutput,
+  GenerateAttackVectorsInput
 } from "@/types";
-import type { GenerateVulnerabilityReportInput } from "@/types/ai-schemas"; // Specific input type for report generation
+import type { GenerateSecurityReportInput } from "@/types/ai-schemas";
 
-export async function performAnalysisAction(url: string): Promise<AnalysisResult> {
-  if (!url) {
-    return { analysis: null, reportText: null, attackVectors: null, error: "URL cannot be empty." };
+interface PerformAnalysisParams {
+  url?: string;
+  serverDescription?: string;
+  databaseDescription?: string;
+}
+
+export async function performAnalysisAction(params: PerformAnalysisParams): Promise<AnalysisResult> {
+  const { url, serverDescription, databaseDescription } = params;
+
+  if (!url && !serverDescription && !databaseDescription) {
+    return { 
+      urlAnalysis: null, 
+      serverAnalysis: null, 
+      databaseAnalysis: null, 
+      reportText: null, 
+      attackVectors: null, 
+      error: "At least one analysis target (URL, Server Description, or Database Description) must be provided." 
+    };
   }
 
-  try {
-    // Step 1: Analyze for vulnerabilities (returns structured object)
-    const analysisResults: AnalyzeVulnerabilitiesOutput | null = await analyzeVulnerabilities({ url });
+  let errorOccurred = false;
+  let collectedErrorMessages = "";
 
-    if (!analysisResults) {
-      // This case should ideally be handled within analyzeVulnerabilitiesFlow to return a default structure
-      return { analysis: null, reportText: null, attackVectors: null, error: "Vulnerability analysis failed to return results." };
+  let urlAnalysisResult: UrlVulnerabilityAnalysisOutput | null = null;
+  let serverAnalysisResult: ServerSecurityAnalysisOutput | null = null;
+  let databaseAnalysisResult: DatabaseSecurityAnalysisOutput | null = null;
+  
+  const allFindings: VulnerabilityFinding[] = [];
+
+  try {
+    // Step 1: Perform individual analyses
+    if (url) {
+      try {
+        urlAnalysisResult = await analyzeUrlVulnerabilities({ url });
+        if (urlAnalysisResult?.findings) {
+          allFindings.push(...urlAnalysisResult.findings);
+        }
+      } catch (e: any) {
+        console.error("Error in URL analysis:", e);
+        collectedErrorMessages += `URL Analysis Error: ${e.message}. `;
+        errorOccurred = true;
+      }
     }
 
-    // Step 2: Generate the comprehensive report using structured analysis results
-    const reportInput: GenerateVulnerabilityReportInput = { // Use the specific input type
-        url: url,
-        analysisResults: {
-            findings: analysisResults.findings,
-            overallRiskAssessment: analysisResults.overallRiskAssessment,
-            executiveSummaryFromScan: analysisResults.executiveSummary, 
-            vulnerableFindingsCount: analysisResults.vulnerableFindingsCount,
-            highSeverityCount: analysisResults.highSeverityCount,
-            mediumSeverityCount: analysisResults.mediumSeverityCount,
-            lowSeverityCount: analysisResults.lowSeverityCount,
+    if (serverDescription) {
+      try {
+        serverAnalysisResult = await analyzeServerSecurity({ serverDescription });
+        if (serverAnalysisResult?.findings) {
+          allFindings.push(...serverAnalysisResult.findings);
         }
-    };
-    const reportResult = await generateVulnerabilityReport(reportInput);
+      } catch (e: any) {
+        console.error("Error in Server analysis:", e);
+        collectedErrorMessages += `Server Analysis Error: ${e.message}. `;
+        errorOccurred = true;
+      }
+    }
 
-    // Step 3: Generate attack vectors ONLY for findings marked as vulnerable
-    let attackVectorsResult: GenerateAttackVectorsOutput | null = null; // Renamed to avoid conflict
-    if (analysisResults.findings && analysisResults.findings.length > 0) {
-        const vulnerableFindingsForAttackVectors: VulnerabilityFinding[] = analysisResults.findings.filter(v => v.isVulnerable);
-        if (vulnerableFindingsForAttackVectors.length > 0) {
-            // The input to generateAttackVectors is directly an array of VulnerabilityFinding objects (matching its input schema)
-            attackVectorsResult = await generateAttackVectors(vulnerableFindingsForAttackVectors);
+    if (databaseDescription) {
+      try {
+        databaseAnalysisResult = await analyzeDatabaseSecurity({ databaseDescription });
+        if (databaseAnalysisResult?.findings) {
+          allFindings.push(...databaseAnalysisResult.findings);
         }
+      } catch (e: any) {
+        console.error("Error in Database analysis:", e);
+        collectedErrorMessages += `Database Analysis Error: ${e.message}. `;
+        errorOccurred = true;
+      }
+    }
+
+    if (errorOccurred && allFindings.length === 0) {
+       return { urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: `All analyses failed. Errors: ${collectedErrorMessages}` };
+    }
+
+
+    // Step 2: Generate the comprehensive report using all available structured analysis results
+    const reportInput: GenerateSecurityReportInput = {
+        analyzedTargetDescription: `Analysis for ${url ? `URL (${url}), ` : ''}${serverDescription ? 'Server, ' : ''}${databaseDescription ? 'Database' : ''}`.replace(/, $/, ''),
+        urlAnalysis: urlAnalysisResult ?? undefined,
+        serverAnalysis: serverAnalysisResult ?? undefined,
+        databaseAnalysis: databaseAnalysisResult ?? undefined,
+        overallVulnerableFindings: allFindings.filter(f => f.isVulnerable)
+    };
+    
+    let reportResultText: string | null = "Report generation failed or no analysis results to report on.";
+    try {
+        const reportOutput = await generateSecurityReport(reportInput);
+        reportResultText = reportOutput.report;
+    } catch (e: any) {
+        console.error("Error in generating security report:", e);
+        collectedErrorMessages += `Report Generation Error: ${e.message}. `;
+        errorOccurred = true; // This error might mean the main output is compromised
+    }
+
+
+    // Step 3: Generate attack vectors ONLY for findings marked as vulnerable from ANY source
+    let attackVectorsResult: GenerateAttackVectorsInput | null = null;
+    const vulnerableFindingsForAttackVectors = allFindings.filter(v => v.isVulnerable);
+    if (vulnerableFindingsForAttackVectors.length > 0) {
+      try {
+        attackVectorsResult = await generateAttackVectors(vulnerableFindingsForAttackVectors);
+      } catch (e: any) {
+        console.error("Error in generating attack vectors:", e);
+        collectedErrorMessages += `Attack Vector Generation Error: ${e.message}. `;
+        // Don't set errorOccurred to true for this, as it's supplementary
+      }
     }
 
     // Step 4: Return combined results
     return {
-        analysis: analysisResults, 
-        reportText: reportResult.report,
-        attackVectors: attackVectorsResult, 
-        error: null
+        urlAnalysis: urlAnalysisResult,
+        serverAnalysis: serverAnalysisResult,
+        databaseAnalysis: databaseAnalysisResult,
+        reportText: reportResultText,
+        attackVectors: attackVectorsResult,
+        allFindings: allFindings,
+        error: errorOccurred ? `One or more analysis steps failed. Partial results may be shown. Errors: ${collectedErrorMessages}` : (collectedErrorMessages ? `Minor issues occurred: ${collectedErrorMessages}`: null)
     };
 
-  } catch (error) {
-    console.error("Error in performAnalysisAction:", error);
-    let errorMessage = "An unexpected error occurred during analysis. The AI model might be unavailable or the input could be invalid.";
-    if (error instanceof Error) {
-      if (error.message.includes('fetch')) {
-        errorMessage = "A network error occurred while trying to reach the analysis service. Please check your connection and try again.";
+  } catch (error: any) { // Catch-all for unexpected errors during orchestration
+    console.error("Critical error in performAnalysisAction:", error);
+    let errorMessage = "An unexpected critical error occurred during the analysis process. The AI model might be unavailable or the input could be invalid.";
+     if (error.message.includes('fetch') || error.message.includes('network')) {
+        errorMessage = "A network error occurred while trying to reach an analysis service. Please check your connection and try again.";
       } else if (error.message.includes('quota')) {
-        errorMessage = "The analysis service quota has been exceeded. Please try again later.";
-      } else if (error.message.includes('JSON') || error.message.includes('Unexpected token') || error.message.includes('output.findings')) {
+        errorMessage = "An analysis service quota has been exceeded. Please try again later.";
+      } else if (error.message.toLowerCase().includes('json') || error.message.includes('Unexpected token') || error.message.includes('output.findings')) {
           errorMessage = "The AI returned an invalid or unexpected format. Please try again. If the problem persists, the model might be temporarily unavailable or misconfigured.";
+      } else {
+        errorMessage = `Analysis failed catastrophically: ${error.message}`;
       }
-      else {
-        errorMessage = `Analysis failed: ${error.message}`;
-      }
-    }
-    return { analysis: null, reportText: null, attackVectors: null, error: errorMessage };
+    return { urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: errorMessage, allFindings: null };
   }
 }

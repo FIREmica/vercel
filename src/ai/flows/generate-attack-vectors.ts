@@ -1,19 +1,19 @@
+
 'use server';
 /**
- * @fileOverview Generates potential attack vectors based on identified vulnerabilities.
+ * @fileOverview Generates potential attack vectors based on identified vulnerabilities from various sources.
  *
  * - generateAttackVectors - A function that takes vulnerability analysis output and generates corresponding attack vectors.
  */
 
 import { ai } from '@/ai/genkit';
-// Import schemas and types from the centralized ai-schemas.ts file
 import {
-  VulnerabilityFindingSchema, // Used as SingleVulnerabilityFindingInputSchema
+  VulnerabilityFindingSchema,
   type GenerateAttackVectorsInput,
   GenerateAttackVectorsInputSchema,
   type GenerateAttackVectorsOutput,
   GenerateAttackVectorsOutputSchema,
-  AttackVectorItemSchema, // For individual attack vector items
+  AttackVectorItemSchema,
   type AttackVectorItem,
 } from '@/types/ai-schemas';
 
@@ -21,7 +21,6 @@ import {
 export async function generateAttackVectors(
   input: GenerateAttackVectorsInput
 ): Promise<GenerateAttackVectorsOutput> {
-  // Filter out non-vulnerable findings before calling the flow
   const vulnerableFindings = input.filter(v => v.isVulnerable);
   if (vulnerableFindings.length === 0) {
     return [];
@@ -29,50 +28,59 @@ export async function generateAttackVectors(
   return generateAttackVectorsFlow(vulnerableFindings);
 }
 
+// The input to this prompt is a single VulnerabilityFinding
 const generateAttackVectorForVulnerabilityPrompt = ai.definePrompt({
   name: 'generateAttackVectorForVulnerabilityPrompt',
-  input: { schema: VulnerabilityFindingSchema }, // Uses the imported schema directly
-  output: { schema: AttackVectorItemSchema }, // Uses the imported schema
+  input: { schema: VulnerabilityFindingSchema }, // Input is a single finding
+  output: { schema: AttackVectorItemSchema.omit({ source: true }) }, // The flow will add the source from the input finding
   prompt: `
-    You are a cybersecurity expert. Given the following vulnerability finding, describe a potential *illustrative* attack vector.
-    Focus on how an attacker could exploit this specific finding. Tailor the scenario, payload/technique, and outcome to the vulnerability type and description.
-    If 'potentialForAccountLockout' is true, ensure the scenario reflects this possibility where appropriate for the vulnerability type.
+    You are a cybersecurity expert. Given the following vulnerability finding (from source: {{{source}}}), describe a potential *illustrative* attack vector.
+    Focus on how an attacker could exploit this specific finding. Tailor the scenario, payload/technique, and outcome to the vulnerability type, description, and source.
+    If 'potentialForAccountLockout' is true (typically for URL/auth vulnerabilities), ensure the scenario reflects this possibility.
 
     Provide a brief, illustrative example of a payload or technique.
-    Clearly state the expected outcome if the attack is successful (e.g., XSS execution, data exposure, account lockout).
+    Clearly state the expected outcome if the attack is successful (e.g., XSS execution, data exposure, account lockout, server compromise, database breach).
     This information is strictly for educational purposes to demonstrate risk. Do NOT generate overly complex or directly executable harmful code. Keep payloads/techniques simple and conceptual.
 
     Vulnerability Finding Details:
+    - Source: {{{source}}}
     - Category: {{{vulnerability}}}
     - Specific Finding: {{{description}}}
     - Severity: {{{severity}}}
-    - Is Vulnerable: {{{isVulnerable}}} (This will always be true for inputs to this prompt as they are pre-filtered)
+    - Is Vulnerable: {{{isVulnerable}}} (This will always be true for inputs to this prompt)
+    {{#if potentialForAccountLockout}}
     - Potential for Account Lockout: {{{potentialForAccountLockout}}}
+    {{/if}}
     - Remediation (for context, not direct use): {{{remediation}}}
 
     Based on this, generate the attack vector information:
-    - vulnerabilityName: Use the 'Category' (e.g., "Cross-Site Scripting (XSS)").
-    - attackScenarioDescription: Describe the attack based on the 'Specific Finding'.
-    - examplePayloadOrTechnique: Provide a conceptual example relevant to the 'Category' and 'Specific Finding' (e.g., "Injecting <script>alert(1)</script> into a form field", "Sending 1000 registration requests rapidly", "Trying SQL query ' OR 1=1 -- '").
-    - expectedOutcomeIfSuccessful: State the likely result (e.g., "Execute arbitrary script in user's browser", "Overwhelm server resources", "Bypass authentication").
+    - vulnerabilityName: Use the 'Category' (e.g., "Cross-Site Scripting (XSS)", "Outdated Web Server").
+    - attackScenarioDescription: Describe the attack based on the 'Specific Finding' and 'Source'.
+    - examplePayloadOrTechnique: Provide a conceptual example relevant to the 'Category', 'Specific Finding', and 'Source' (e.g., "Injecting <script>alert(1)</script> into a form field for URL source", "Using known exploit for CVE-XXXX-YYYY for Server source if version is mentioned", "Trying SQL query ' OR 1=1 -- ' for Database source").
+    - expectedOutcomeIfSuccessful: State the likely result (e.g., "Execute arbitrary script in user's browser", "Gain shell access to server", "Bypass authentication to database").
   `,
 });
 
 const generateAttackVectorsFlow = ai.defineFlow(
   {
     name: 'generateAttackVectorsFlow',
-    inputSchema: GenerateAttackVectorsInputSchema, 
-    outputSchema: GenerateAttackVectorsOutputSchema,
+    inputSchema: GenerateAttackVectorsInputSchema, // Array of VulnerabilityFinding
+    outputSchema: GenerateAttackVectorsOutputSchema, // Array of AttackVectorItem
   },
   async (vulnerableFindings): Promise<GenerateAttackVectorsOutput> => {
-    const attackVectors: AttackVectorItem[] = []; // Use the imported type
+    const attackVectors: AttackVectorItem[] = [];
 
     for (const vulnFinding of vulnerableFindings) {
-        const { output } = await generateAttackVectorForVulnerabilityPrompt(vulnFinding);
-        if (output) {
-          // Ensure the output vulnerabilityName matches the input category for consistency
-          attackVectors.push({ ...output, vulnerabilityName: vulnFinding.vulnerability });
+      if (vulnFinding.isVulnerable) { // Double check, though pre-filtered
+        const { output: attackVectorPromptOutput } = await generateAttackVectorForVulnerabilityPrompt(vulnFinding);
+        if (attackVectorPromptOutput) {
+          attackVectors.push({
+            ...attackVectorPromptOutput,
+            vulnerabilityName: vulnFinding.vulnerability, // Ensure consistency
+            source: vulnFinding.source || "Unknown", // Carry over the source
+          });
         }
+      }
     }
     return attackVectors;
   }
