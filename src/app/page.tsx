@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2 } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
-  const [isPremiumUser, setIsPremiumUser] = useState(false); // Represents if user has "paid" for premium features
+  const [isPremiumUser, setIsPremiumUser] = useState(false); 
   const { toast } = useToast();
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; 
@@ -142,8 +142,8 @@ export default function HomePage() {
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a todos los detalles técnicos, escenarios de ataque y descarga.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default", // Could be "destructive" if high severity
+            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a escenarios de ataque, detalles técnicos y descarga.'}`,
+            variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
@@ -162,7 +162,7 @@ export default function HomePage() {
     setIsPremiumUser(!isPremiumUser);
     toast({ 
         title: isPremiumUser ? "Modo Premium Desactivado" : "¡Modo Premium Activado!", 
-        description: isPremiumUser ? "El acceso a funciones avanzadas ha sido limitado." : "Ahora tienes acceso completo a informes técnicos, escenarios de ataque y descargas.",
+        description: isPremiumUser ? "El acceso a funciones avanzadas como escenarios de ataque, detalles técnicos y descarga ZIP ha sido limitado." : "Ahora tienes acceso completo a informes técnicos, escenarios de ataque y descargas.",
         variant: "default"
     });
     // If activating premium and results are present, generate ZIP
@@ -192,8 +192,8 @@ export default function HomePage() {
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
-              Ingrese detalles de su URL, configuración de servidor y/o base de datos para un análisis de seguridad exhaustivo.
-              Nuestra IA identificará vulnerabilidades, generará informes y sugerirá remediaciones. Active el Modo Premium para informes técnicos completos, escenarios de ataque y descargas.
+              Ingrese detalles de su URL, aplicación web, configuración de servidor (incluyendo servidores de juegos como Lineage 2, Roblox, etc.) y/o base de datos para un análisis de seguridad exhaustivo.
+              Nuestra IA identificará vulnerabilidades, generará informes y sugerirá remediaciones. Active el Modo Premium para informes técnicos completos, escenarios de ataque ilustrativos y descarga de resultados.
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -214,7 +214,7 @@ export default function HomePage() {
                         Funcionalidades Empresariales (Próximamente)
                     </CardTitle>
                     <CardDescription>
-                        Estamos trabajando para expandir nuestra plataforma con herramientas avanzadas para las necesidades de seguridad de su empresa.
+                        Estamos trabajando para expandir nuestra plataforma con herramientas avanzadas para las necesidades de seguridad de su empresa, incluyendo análisis SAST/DAST, paneles de control avanzados y más.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -288,7 +288,7 @@ export default function HomePage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
                         <Sparkles className="h-6 w-6" />
-                        Desbloquear Análisis Completo
+                        Desbloquear Análisis Completo y Escenarios de Ataque
                       </CardTitle>
                       <CardDescription>
                         Has recibido un resumen del análisis. Para acceder al informe técnico detallado, escenarios de ataque ilustrativos y la opción de descarga completa, por favor activa el Modo Premium.
@@ -298,9 +298,10 @@ export default function HomePage() {
                       <h3 className="font-semibold text-foreground mb-2">Beneficios del Modo Premium:</h3>
                       <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-sm mb-4">
                         <li>Informe técnico detallado con análisis en profundidad.</li>
-                        <li>Escenarios de ataque ilustrativos para comprender riesgos.</li>
+                        <li>Escenarios de ataque ilustrativos para comprender riesgos específicos.</li>
+                        <li>Acceso a detalles técnicos completos de cada hallazgo.</li>
                         <li>Descarga completa de resultados en formato ZIP.</li>
-                        <li>Futuras funcionalidades avanzadas.</li>
+                        <li>Futuras funcionalidades avanzadas y soporte prioritario.</li>
                       </ul>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
                       <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
@@ -318,7 +319,7 @@ export default function HomePage() {
                       </a>
                     </Button>
                     <p className="text-xs text-muted-foreground mt-2">
-                      El ZIP contiene el informe completo (.md), detalles de hallazgos (.json) y escenarios de ataque (.json).
+                      El ZIP contiene el informe completo (.md), detalles de hallazgos (.json) y escenarios de ataque (.json) si fueron generados.
                     </p>
                   </div>
                 )}
@@ -333,25 +334,26 @@ export default function HomePage() {
                         Plataforma Integral de Análisis de Seguridad Asistido por IA
                     </CardTitle>
                     <CardDescription>
-                        Potencie la seguridad de sus aplicaciones, servidores y bases de datos con nuestra solución de análisis inteligente.
+                        Potencie la seguridad de sus aplicaciones web, servidores (incluyendo servidores de juegos), y bases de datos con nuestra solución de análisis inteligente.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
                         Proporcione detalles de su URL, servidor y/o base de datos para un escaneo exhaustivo. Nuestro motor de IA identificará vulnerabilidades,
-                        generará un informe detallado y proporcionará escenarios de ataque ilustrativos.
+                        generará un informe detallado y, con el Modo Premium, proporcionará escenarios de ataque ilustrativos y detalles técnicos profundos.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis de URL y Web.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow col-span-1 sm:col-span-3 lg:col-span-1"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis de Servidores de Juegos.</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
-                        Ideal para equipos de desarrollo, profesionales de seguridad y empresas que buscan proteger sus activos digitales de manera proactiva y eficiente.
+                        Ideal para equipos de desarrollo, profesionales de seguridad, administradores de servidores de juegos y empresas que buscan proteger sus activos digitales de manera proactiva y eficiente.
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-primary font-medium">
                         <Sparkles className="h-5 w-5" />
-                        <span>Active el "Modo Premium" para informes completos, descarga de resultados y futuras funcionalidades avanzadas.</span>
+                        <span>Active el "Modo Premium" para informes completos, escenarios de ataque, descarga de resultados y futuras funcionalidades avanzadas.</span>
                     </div>
                 </CardContent>
                </Card>

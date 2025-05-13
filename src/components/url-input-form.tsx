@@ -15,8 +15,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; // Import Textarea
-import { Search, Loader2, ServerIcon, Database, Globe } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea"; 
+import { Search, Loader2, ServerIcon, Database, Globe, Gamepad2 } from "lucide-react";
 
 const formSchema = z.object({
   url: z.string().url({ message: "Por favor, ingresa una URL válida." }).optional().or(z.literal('')),
@@ -24,7 +24,7 @@ const formSchema = z.object({
   databaseDescription: z.string().min(10, {message: "La descripción de la base de datos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
 }).refine(data => !!data.url || !!data.serverDescription || !!data.databaseDescription, {
   message: "Debes proporcionar al menos una URL, descripción del servidor o descripción de la base de datos.",
-  path: ["url"], // You can point to any field or a general form error
+  path: ["url"], 
 });
 
 export type UrlInputFormValues = z.infer<typeof formSchema>;
@@ -46,7 +46,6 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
   });
 
   async function handleSubmit(values: UrlInputFormValues) {
-    // Filter out empty optional fields before submitting
     const submissionValues: Partial<UrlInputFormValues> = {};
     if (values.url) submissionValues.url = values.url;
     if (values.serverDescription) submissionValues.serverDescription = values.serverDescription;
@@ -83,18 +82,22 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
           name="serverDescription"
           render={({ field }) => (
             <FormItem>
-              <FormLabel htmlFor="server-description-input" className="text-base flex items-center"><ServerIcon className="mr-2 h-4 w-4 text-primary"/>Descripción del Servidor (Opcional)</FormLabel>
+              <FormLabel htmlFor="server-description-input" className="text-base flex items-center">
+                <ServerIcon className="mr-2 h-4 w-4 text-primary"/>
+                <Gamepad2 className="mr-2 h-4 w-4 text-primary"/>
+                Descripción del Servidor (Web o de Juegos) (Opcional)
+              </FormLabel>
               <FormControl>
                 <Textarea
                   id="server-description-input"
-                  placeholder="Describe la configuración del servidor: OS, servicios, puertos, versiones de software, etc. O pega la salida de Nmap aquí."
+                  placeholder="Describe la config. del servidor: OS, servicios (web, juego), puertos, versiones, anti-cheat, Nmap, etc."
                   {...field}
                   className="text-sm min-h-[100px]"
                   aria-describedby="server-description-form-message"
                 />
               </FormControl>
               <FormDescription>
-                Proporciona detalles para el análisis de seguridad del servidor.
+                Proporciona detalles para el análisis de seguridad del servidor (web o de videojuegos).
               </FormDescription>
               <FormMessage id="server-description-form-message" />
             </FormItem>
@@ -110,14 +113,14 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
               <FormControl>
                 <Textarea
                   id="database-description-input"
-                  placeholder="Describe la configuración de la BD: tipo, versión, autenticación, exposición de red, etc."
+                  placeholder="Describe la config. de la BD: tipo, versión, auth., red, datos de jugadores, ítems virtuales, etc."
                   {...field}
                   className="text-sm min-h-[100px]"
                   aria-describedby="database-description-form-message"
                 />
               </FormControl>
                <FormDescription>
-                Proporciona detalles para el análisis de seguridad de la base de datos.
+                Proporciona detalles para el análisis de seguridad de la base de datos, incluyendo aquellas para servidores de juegos.
               </FormDescription>
               <FormMessage id="database-description-form-message" />
             </FormItem>

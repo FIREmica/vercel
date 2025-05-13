@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Analyzes a textual description of a server's configuration for potential security vulnerabilities.
+ * @fileOverview Analyzes a textual description of a server's configuration (including game servers) for potential security vulnerabilities.
  *
  * - analyzeServerSecurity - A function that handles the server security analysis process.
  */
@@ -20,8 +20,6 @@ export async function analyzeServerSecurity(input: ServerConfigInput): Promise<S
   return analyzeServerSecurityFlow(input);
 }
 
-// Schema for the direct output of the prompt, source will be added by the flow.
-// `potentialForAccountLockout` is typically not set by this flow unless specific auth service on server is described.
 const AnalyzeServerPromptOutputSchema = z.object({
   findings: z.array(VulnerabilityFindingSchema.omit({ source: true, potentialForAccountLockout: true })),
   overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]),
@@ -32,40 +30,47 @@ const analyzeServerSecurityPrompt = ai.definePrompt({
   name: 'analyzeServerSecurityPrompt',
   input: {schema: ServerConfigInputSchema},
   output: {schema: AnalyzeServerPromptOutputSchema},
-  prompt: `You are a senior cybersecurity architect specializing in server and infrastructure hardening for enterprise environments.
-  Analyze the following server description for potential security vulnerabilities, misconfigurations, and areas for improvement, paying close attention to common enterprise security concerns.
+  prompt: `You are a senior cybersecurity architect specializing in server and infrastructure hardening for enterprise environments, including dedicated game servers.
+  Analyze the following server description for potential security vulnerabilities, misconfigurations, and areas for improvement, paying close attention to common enterprise security concerns and game server specific risks.
 
   Server Description:
   {{{serverDescription}}}
 
   Task:
   1.  Identify potential security issues based *solely* on the provided description. Consider:
-      - **OS Hardening:** Outdated OS/kernel versions (if mentioned), unnecessary services/daemons running, default credentials, weak password policies implied, lack of centralized authentication (e.g., LDAP/AD integration hints).
-      - **Network Security:** Exposed management interfaces (SSH, RDP, web consoles) to untrusted networks, overly permissive firewall rules (if described), lack of network segmentation, default SNMP community strings.
-      - **Application/Service Security:** Outdated web server/app server versions (Apache, Nginx, Tomcat, etc.), insecure service configurations (e.g., directory listing, weak SSL/TLS ciphers, default error pages), missing security headers for web services, vulnerabilities in common applications (e.g., known CVEs if versions are hinted).
-      - **Logging and Monitoring:** Absence of mentions of robust logging, centralized log management, or intrusion detection/prevention systems (IDS/IPS).
-      - **Patch Management:** Lack of explicit mention of a patch management process or schedule.
-      - **Data Protection:** If server hosts databases or sensitive data, look for implications of insecure storage or access.
-      - **Access Control:** Weaknesses in user account management, privilege separation, or use of shared accounts if inferable.
+      - **OS Hardening:** Outdated OS/kernel versions, unnecessary services/daemons, default credentials, weak password policies, lack of centralized authentication.
+      - **Network Security:** Exposed management interfaces (SSH, RDP, web consoles) to untrusted networks, overly permissive firewall rules (including game-specific ports), lack of network segmentation, default SNMP, DDoS vulnerability if implied by lack of protection.
+      - **Application/Service Security (Web/Generic):** Outdated web/app server versions (Apache, Nginx, Tomcat, etc.), insecure service configurations (directory listing, weak SSL/TLS, default error pages), missing security headers, known CVEs.
+      - **Game Server Specifics:**
+          - Vulnerabilities in game server software itself (e.g., specific engine exploits if version is hinted).
+          - Insecure handling of game protocols or real-time communication channels.
+          - Lack of or poorly configured anti-cheat mechanisms if mentioned.
+          - Exposure of sensitive game server commands or APIs.
+          - Risks related to player data handling on the server (if described).
+          - Vulnerabilities to denial-of-service (DoS/DDoS) attacks specific to game servers (e.g., reflection/amplification attacks via game protocols).
+      - **Logging and Monitoring:** Absence of robust logging, centralized log management, or IDS/IPS.
+      - **Patch Management:** Lack of explicit mention of a patch management process.
+      - **Data Protection:** If server hosts databases or sensitive data (e.g., player accounts, game state), look for implications of insecure storage or access.
+      - **Access Control:** Weaknesses in user account management, privilege separation.
   2.  For each potential issue, create a finding object:
-      - vulnerability: The general category (e.g., "Outdated OS", "Exposed Insecure Service", "Weak TLS Configuration", "Missing Patch Management Process", "Default SNMP Community String").
-      - description: A detailed description of the *specific* observation from the input text and its security implication in an enterprise context.
-      - isVulnerable: Boolean, true if the description strongly suggests a vulnerability. Use 'false' for informational points or general recommendations if no direct vulnerability is evident from the text.
-      - severity: 'Low', 'Medium', 'High', 'Critical', or 'Informational'. Assign 'Critical' for issues with widespread impact or high exploitability.
-      - cvssScore: (Optional) If related to a known CVE or CWE, provide an estimated CVSS 3.1 base score.
-      - cvssVector: (Optional) The CVSS 3.1 vector string for the score.
-      - businessImpact: (Optional) Describe the potential business impact (e.g., "Server compromise leading to data exfiltration and service downtime.").
-      - technicalDetails: (Optional) Explain the technical nature of the vulnerability, e.g., "The specified Apache version 2.4.x is known to be vulnerable to CVE-YYYY-ZZZZ, allowing remote code execution via a crafted request."
-      - evidence: (Optional) Point to specific parts of the input description that led to this finding, e.g., "Description states 'Server running Apache 2.4.x'."
-      - remediation: Suggested high-level remediation steps, including specific configuration changes or processes where appropriate.
+      - vulnerability: The general category (e.g., "Outdated OS", "Exposed Insecure Game Port", "Weak Anti-Cheat Implementation", "DDoS Amplification Risk", "Default Game Server Credentials").
+      - description: Detailed observation and its security implication in an enterprise or game server context.
+      - isVulnerable: Boolean, true if description strongly suggests a vulnerability.
+      - severity: 'Low', 'Medium', 'High', 'Critical', or 'Informational'.
+      - cvssScore: (Optional) Estimated CVSS 3.1 base score.
+      - cvssVector: (Optional) CVSS 3.1 vector string.
+      - businessImpact: (Optional) Potential impact (e.g., "Server compromise leading to game cheating", "Player data exfiltration", "Game service downtime due to DDoS").
+      - technicalDetails: (Optional) Technical nature of the vulnerability.
+      - evidence: (Optional) Reference to input description.
+      - remediation: Suggested high-level remediation.
       (Do not include 'source' or 'potentialForAccountLockout' in these finding objects; they are handled by the system for server analysis.)
-  3.  Provide an 'overallRiskAssessment' based on the findings: 'Critical', 'High', 'Medium', 'Low', or 'Informational'.
-  4.  Write a concise 'executiveSummary' (3-4 sentences) of the server's security posture based on your analysis of the description, suitable for a business audience.
+  3.  Provide an 'overallRiskAssessment': 'Critical', 'High', 'Medium', 'Low', or 'Informational'.
+  4.  Write a concise 'executiveSummary' (3-4 sentences) of the server's security posture, suitable for a business audience.
 
   Output Format:
   Return a JSON object with "findings", "overallRiskAssessment", and "executiveSummary".
-  If the description is too vague or lacks actionable details for a security assessment, findings array can be empty, risk should be 'Informational', and summary should state that a proper assessment requires more details.
-  Prioritize actionable findings relevant to enterprise security.
+  If the description is too vague, findings can be empty, risk 'Informational', and summary should state this.
+  Prioritize actionable findings relevant to enterprise and game server security.
   `,
 });
 
@@ -80,7 +85,7 @@ const analyzeServerSecurityFlow = ai.defineFlow(
         return {
             findings: [],
             overallRiskAssessment: "Informational",
-            executiveSummary: "Server description is too brief or missing. Cannot perform a meaningful security analysis. Please provide detailed information about OS, services, configurations, and any security measures in place.",
+            executiveSummary: "Server description is too brief or missing. Cannot perform a meaningful security analysis. Please provide detailed information about OS, services (including game server details if applicable), configurations, and any security measures in place.",
         };
     }
     const { output: promptOutput } = await analyzeServerSecurityPrompt(input);
@@ -96,7 +101,6 @@ const analyzeServerSecurityFlow = ai.defineFlow(
     const findingsWithSource = (promptOutput.findings || []).map(f => ({
       ...f,
       source: "Server" as const,
-      // potentialForAccountLockout is not typically relevant for general server findings unless specified in description
     }));
 
     return {

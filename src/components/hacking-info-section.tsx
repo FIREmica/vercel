@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertTriangle, Code, DatabaseZap, ShieldEllipsis, TrendingDown, UserCog, ServerCog, Network, Database } from "lucide-react";
+import { AlertTriangle, Code, DatabaseZap, ShieldEllipsis, TrendingDown, UserCog, ServerCog, Network, Database, Gamepad2 } from "lucide-react";
 
 export function HackingInfoSection() {
   return (
@@ -39,7 +39,7 @@ export function HackingInfoSection() {
 
           {/* Server Vulnerabilities */}
           <div>
-            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><ServerCog className="inline-block h-4 w-4"/> Vulnerabilidades de Servidor:</h3>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><ServerCog className="inline-block h-4 w-4"/> Vulnerabilidades de Servidor (General):</h3>
             <ul className="list-disc pl-5 space-y-1">
                 <li><strong>Software Desactualizado:</strong> Explotación de vulnerabilidades conocidas en el SO, servidor web, o aplicaciones.</li>
                 <li><strong>Servicios Inseguros Expuestos:</strong> Puertos abiertos innecesarios (ej. Telnet, FTP sin cifrar, RDP a internet).</li>
@@ -48,18 +48,32 @@ export function HackingInfoSection() {
                  <li><strong>Missing Security Patches:</strong> Falta de aplicación regular de parches de seguridad.</li>
             </ul>
           </div>
+          <hr className="border-border my-4"/>
+
+          {/* Game Server Vulnerabilities */}
+          <div>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Gamepad2 className="inline-block h-4 w-4"/> Vulnerabilidades Específicas de Servidores de Juegos:</h3>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Explotación de Vulnerabilidades del Motor del Juego:</strong> Fallos en el software del servidor del juego (ej. Unreal Engine, Unity, motores propietarios).</li>
+                <li><strong>Manipulación de Paquetes de Red:</strong> Interceptar y modificar datos enviados entre el cliente y el servidor para hacer trampas (ej. speed hacks, teleport).</li>
+                <li><strong>Ataques de Denegación de Servicio (DDoS):</strong> Inundar el servidor con tráfico para hacerlo inaccesible a jugadores legítimos.</li>
+                <li><strong>Explotación de Lógica del Juego:</strong> Encontrar fallos en la lógica del juego para obtener ventajas injustas (ej. duplicación de ítems, atravesar paredes).</li>
+                <li><strong>Vulnerabilidades de Anti-Cheat:</strong> Bypassear o deshabilitar sistemas anti-trampas.</li>
+                <li><strong>Comandos de Consola/Administración Expuestos:</strong> Acceso no autorizado a comandos de administración del servidor.</li>
+            </ul>
+          </div>
            <hr className="border-border my-4"/>
 
           {/* Database Vulnerabilities */}
           <div>
-            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Database className="inline-block h-4 w-4"/> Vulnerabilidades de Base de Datos:</h3>
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-1"><Database className="inline-block h-4 w-4"/> Vulnerabilidades de Base de Datos (Incluyendo Juegos):</h3>
             <ul className="list-disc pl-5 space-y-1">
                 <li><strong>Autenticación Débil:</strong> Contraseñas fáciles de adivinar, sin MFA, cuentas compartidas.</li>
                 <li><strong>Privilegios Excesivos:</strong> Cuentas de aplicación con permisos de administrador de BD.</li>
-                <li><strong>Inyección de Comandos (No solo SQLi):</strong> Para NoSQL, OS command injection si la BD interactúa con el sistema.</li>
-                <li><strong>Falta de Cifrado:</strong> Datos sensibles no cifrados en reposo o en tránsito.</li>
+                <li><strong>Inyección de Comandos (No solo SQLi):</strong> Para NoSQL, OS command injection si la BD interactúa con el sistema. Específico para juegos: manipulación de datos de jugador, inventarios, monedas.</li>
+                <li><strong>Falta de Cifrado:</strong> Datos sensibles (credenciales de jugador, detalles de pago, inventarios) no cifrados en reposo o en tránsito.</li>
                 <li><strong>Backups Inseguros:</strong> Backups no cifrados, almacenados incorrectamente o accesibles.</li>
-                 <li><strong>Auditoría y Logging Insuficientes:</strong> Dificultad para detectar o investigar brechas.</li>
+                 <li><strong>Auditoría y Logging Insuficientes:</strong> Dificultad para detectar o investigar trampas, robo de cuentas o manipulación de economía del juego.</li>
             </ul>
           </div>
            <hr className="border-border my-4"/>
@@ -80,18 +94,19 @@ export function HackingInfoSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl text-destructive">
             <TrendingDown className="h-6 w-6" />
-            Repercusiones Generales del Hackeo
+            Repercusiones Generales del Hackeo (Incluyendo Servidores de Juegos)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-muted-foreground">
-          <div><h3 className="font-semibold text-foreground mb-1">Pérdida o Robo de Datos:</h3><p>Exposición de información sensible (credenciales, PII, datos financieros, propiedad intelectual).</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Toma de Control de Cuentas (ATO):</h3><p>Acceso no autorizado a cuentas de usuarios o administradores.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Interrupción del Servicio / Denegación de Servicio (DoS/DDoS):</h3><p>Sistemas o servicios dejan de estar disponibles para usuarios legítimos.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Pérdida o Robo de Datos:</h3><p>Exposición de información sensible (credenciales, PII, datos financieros, propiedad intelectual, datos de jugadores, cuentas de juego).</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Toma de Control de Cuentas (ATO):</h3><p>Acceso no autorizado a cuentas de usuarios, administradores o cuentas de jugadores con ítems/progreso valioso.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Interrupción del Servicio / Denegación de Servicio (DoS/DDoS):</h3><p>Sistemas o servicios (incluyendo servidores de juego) dejan de estar disponibles.</p></div>
           <div><h3 className="font-semibold text-foreground mb-1">Ransomware:</h3><p>Cifrado de datos y sistemas, exigiendo un rescate para su recuperación.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Daño Reputacional y Pérdida de Confianza:</h3><p>Erosión de la confianza de clientes, socios y el público.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Impacto Financiero:</h3><p>Costos de respuesta a incidentes, recuperación, multas regulatorias, pérdida de negocio, litigios.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Distribución de Malware / Phishing:</h3><p>Uso de sistemas comprometidos para atacar a otros.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Uso como Plataforma de Ataque (Pivoting):</h3><p>Un servidor o BD comprometida se usa para lanzar ataques a otros sistemas internos o externos.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Daño Reputacional y Pérdida de Confianza:</h3><p>Erosión de la confianza de clientes y jugadores, llevando a la pérdida de base de usuarios.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Impacto Financiero:</h3><p>Costos de respuesta, recuperación, multas, pérdida de negocio, litigios, pérdida de ingresos por ventas de ítems virtuales o suscripciones.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Trampas y Desbalance del Juego:</h3><p>En servidores de juegos, el hackeo puede llevar a trampas masivas, arruinando la experiencia para jugadores legítimos y dañando la economía del juego.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Distribución de Malware / Phishing:</h3><p>Uso de sistemas comprometidos para atacar a otros, o engañar a jugadores para que descarguen malware.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Uso como Plataforma de Ataque (Pivoting):</h3><p>Un servidor comprometido se usa para lanzar ataques a otros sistemas internos o externos.</p></div>
            <div><h3 className="font-semibold text-foreground mb-1">Espionaje Corporativo o Gubernamental:</h3><p>Robo de secretos comerciales, información clasificada o inteligencia.</p></div>
         </CardContent>
       </Card>

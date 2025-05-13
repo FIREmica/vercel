@@ -14,7 +14,7 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
         <div className="flex items-center gap-3">
           <ShieldCheck className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-semibold text-foreground">
-            Analizador de Seguridad Web
+            Analizador de Seguridad Integral
           </h1>
         </div>
         <Button variant="outline" size="sm" onClick={onAuthToggle} className={isPremiumUser ? "border-accent text-accent hover:bg-accent/10" : ""}>
