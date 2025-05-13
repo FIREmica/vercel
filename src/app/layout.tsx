@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Analizador de Seguridad Integral',
-  description: 'Analiza aplicaciones web, servidores, bases de datos y servidores de juegos en busca de vulnerabilidades de seguridad comunes.',
+  title: 'Centro de Análisis de Seguridad Integral',
+  description: 'Plataforma integral para analizar la seguridad de aplicaciones web, servidores (incluyendo servidores de juegos), bases de datos y más, identificando vulnerabilidades comunes y específicas con IA.',
 };
 
 export default function RootLayout({

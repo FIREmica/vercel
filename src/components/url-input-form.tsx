@@ -48,31 +48,10 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
   });
 
   async function handleSubmit(values: UrlInputFormValues) {
-    const submissionValues: Partial<UrlInputFormValues> = {};
-    if (values.url) submissionValues.url = values.url;
-    
-    // Combine serverDescription and gameServerDescription before sending
-    let finalServerDescription = values.serverDescription || "";
-    if (values.gameServerDescription) {
-      finalServerDescription = finalServerDescription 
-        ? `${finalServerDescription}\n\n--- Información Específica del Servidor de Juegos ---\n${values.gameServerDescription}`
-        : values.gameServerDescription;
-    }
-    if (finalServerDescription) submissionValues.serverDescription = finalServerDescription;
-    // We no longer send gameServerDescription as a separate field to the action
-    // It's now part of serverDescription
-
-    if (values.databaseDescription) submissionValues.databaseDescription = values.databaseDescription;
-    
-    // Ensure the correct type is passed to onSubmit
-    const validSubmissionValues: UrlInputFormValues = {
-      url: submissionValues.url || "", // Ensure url is always a string
-      serverDescription: submissionValues.serverDescription || "", // Ensure serverDescription is always a string
-      // gameServerDescription is intentionally omitted here as it's merged into serverDescription
-      databaseDescription: submissionValues.databaseDescription || "" // Ensure databaseDescription is always a string
-    };
-
-    await onSubmit(validSubmissionValues);
+    // The values passed to onSubmit will contain all fields from the form,
+    // including gameServerDescription separately.
+    // The merging logic is handled in `performAnalysisAction`.
+    await onSubmit(values);
   }
 
   return (
@@ -93,6 +72,9 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
                   aria-describedby="url-form-message"
                 />
               </FormControl>
+               <FormDescription>
+                Ingrese la URL completa de la aplicación web o página de registro que desea analizar.
+              </FormDescription>
               <FormMessage id="url-form-message" />
             </FormItem>
           )}
@@ -110,14 +92,14 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
               <FormControl>
                 <Textarea
                   id="server-description-input"
-                  placeholder="Describe la config. del servidor general: OS, servicios (web, app), puertos, versiones, etc."
+                  placeholder="Describe la configuración del servidor general: OS, servicios (web, app), puertos, versiones, medidas de seguridad existentes, etc."
                   {...field}
                   className="text-sm min-h-[100px]"
                   aria-describedby="server-description-form-message"
                 />
               </FormControl>
               <FormDescription>
-                Proporciona detalles para el análisis de seguridad del servidor general. Para servidores de juegos, usa el campo específico.
+                Proporciona detalles relevantes para el análisis de seguridad del servidor general. Si es un servidor de juegos, utiliza el campo específico a continuación.
               </FormDescription>
               <FormMessage id="server-description-form-message" />
             </FormItem>
@@ -136,20 +118,19 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
               <FormControl>
                 <Textarea
                   id="game-server-description-input"
-                  placeholder="Detalles del servidor de juegos: tipo (Lineage, Roblox, etc.), motor, mods, anti-cheat, puertos específicos del juego, etc."
+                  placeholder="Detalles del servidor de juegos: tipo (ej. Lineage 2, Roblox, Minecraft), motor, modificaciones, sistemas anti-trampas, puertos de juego, autenticación de jugadores, etc."
                   {...field}
                   className="text-sm min-h-[100px]"
                   aria-describedby="game-server-description-form-message"
                 />
               </FormControl>
               <FormDescription>
-                Proporciona detalles específicos del servidor de videojuegos para un análisis más preciso.
+                Proporciona información detallada sobre la configuración y componentes de tu servidor de videojuegos para un análisis de seguridad más preciso.
               </FormDescription>
               <FormMessage id="game-server-description-form-message" />
             </FormItem>
           )}
         />
-
 
         <FormField
           control={form.control}
@@ -160,14 +141,14 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
               <FormControl>
                 <Textarea
                   id="database-description-input"
-                  placeholder="Describe la config. de la BD: tipo, versión, auth., red, datos de jugadores, ítems virtuales, etc."
+                  placeholder="Describe la configuración de la BD: tipo (MySQL, MongoDB, etc.), versión, métodos de autenticación, acceso a la red, tipo de datos almacenados (ej. datos de jugadores, inventarios virtuales, información financiera), etc."
                   {...field}
                   className="text-sm min-h-[100px]"
                   aria-describedby="database-description-form-message"
                 />
               </FormControl>
                <FormDescription>
-                Proporciona detalles para el análisis de seguridad de la base de datos, incluyendo aquellas para servidores de juegos.
+                Proporciona detalles para el análisis de seguridad de la base de datos, incluyendo aquellas utilizadas por servidores de juegos.
               </FormDescription>
               <FormMessage id="database-description-form-message" />
             </FormItem>
@@ -179,7 +160,6 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
          {form.formState.errors.url && !form.formState.errors.url.message?.includes("válida") && (
              <FormMessage>{form.formState.errors.url.message}</FormMessage>
          )}
-
 
         <Button type="submit" disabled={isLoading} className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground" size="lg">
           {isLoading ? (

@@ -9,14 +9,14 @@ import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-di
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
 import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
 import { performAnalysisAction } from "./actions";
-import type { AnalysisResult, VulnerabilityFinding } from "@/types";
+import type { AnalysisResult } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -97,9 +97,9 @@ export default function HomePage() {
     
     const descriptionParts = [];
     if (values.url) descriptionParts.push(`URL: ${values.url}`);
-    if (values.serverDescription) descriptionParts.push("Servidor");
-    if (values.databaseDescription) descriptionParts.push("Base de Datos");
+    if (values.serverDescription) descriptionParts.push("Servidor General");
     if (values.gameServerDescription) descriptionParts.push("Servidor de Juegos");
+    if (values.databaseDescription) descriptionParts.push("Base de Datos");
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
@@ -109,19 +109,19 @@ export default function HomePage() {
     }
 
     toast({
-        title: "Iniciando Análisis Integral...",
-        description: `Escaneando ${currentTargetDesc}. Esto puede tomar unos momentos.`,
+        title: "Iniciando Análisis Integral de Seguridad...",
+        description: `Analizando: ${currentTargetDesc}. Este proceso puede tomar unos momentos.`,
         variant: "default",
     });
 
     try {
-      const params: Partial<UrlInputFormValues> = {};
+      const params: { url?: string; serverDescription?: string; databaseDescription?: string; } = {};
       if (values.url) params.url = values.url;
-      // Combine serverDescription and gameServerDescription for the backend if both are provided or just use gameServerDescription
+      
       let finalServerDescription = values.serverDescription || "";
       if (values.gameServerDescription) {
         finalServerDescription = finalServerDescription 
-          ? `${finalServerDescription}\n\nDetalles Específicos del Servidor de Juegos:\n${values.gameServerDescription}`
+          ? `${finalServerDescription}\n\n--- Detalles Específicos del Servidor de Juegos ---\n${values.gameServerDescription}`
           : values.gameServerDescription;
       }
       if (finalServerDescription) params.serverDescription = finalServerDescription;
@@ -155,8 +155,8 @@ export default function HomePage() {
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) potencial(es) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a escenarios de ataque, detalles técnicos y descarga.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default",
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a escenarios de ataque, detalles técnicos y descarga.'}`,
+            variant: vulnerableCount > 0 ? "default" : "default", // Consider "warning" or "destructive" variant if many criticals
             duration: 7000,
           });
       }
@@ -171,16 +171,23 @@ export default function HomePage() {
     }
   };
 
-  const handlePremiumToggle = () => {
-    setIsPremiumUser(!isPremiumUser);
+  const handlePremiumToggle = async () => {
+    const newPremiumStatus = !isPremiumUser;
+    setIsPremiumUser(newPremiumStatus);
     toast({ 
-        title: isPremiumUser ? "Modo Premium Desactivado" : "¡Modo Premium Activado!", 
-        description: isPremiumUser ? "El acceso a funciones avanzadas como escenarios de ataque, detalles técnicos y descarga ZIP ha sido limitado." : "Ahora tienes acceso completo a informes técnicos, escenarios de ataque y descargas.",
+        title: newPremiumStatus ? "¡Modo Premium Activado!" : "Modo Premium Desactivado", 
+        description: newPremiumStatus 
+          ? "Ahora tienes acceso completo a informes técnicos detallados, escenarios de ataque ilustrativos, descarga de resultados y futuras capacidades avanzadas." 
+          : "El acceso a funciones avanzadas como escenarios de ataque, detalles técnicos completos y descarga ZIP ha sido limitado.",
         variant: "default"
     });
-    // If activating premium and results are present, generate ZIP
-    if (!isPremiumUser && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
-        generateZipFile(analysisResult, submittedTargetDescription);
+    
+    if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
+        await generateZipFile(analysisResult, submittedTargetDescription);
+    }
+     if (!newPremiumStatus && zipUrl) {
+        URL.revokeObjectURL(zipUrl);
+        setZipUrl(null);
     }
   };
   
@@ -195,18 +202,19 @@ export default function HomePage() {
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
                 Centro de Análisis de Seguridad Integral
                 </h2>
-                <Button variant={isPremiumUser ? "default" : "outline"} onClick={handlePremiumToggle} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Button variant={isPremiumUser ? "default" : "outline"} onClick={handlePremiumToggle} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground self-start sm:self-center">
                     {isPremiumUser ? <Unlock className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
                     {isPremiumUser ? "Premium Activado" : "Activar Premium"}
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
-              Ingrese detalles de su URL, aplicación web, configuración de servidor (incluyendo servidores de juegos como Lineage 2, Roblox, etc.) y/o base de datos para un análisis de seguridad exhaustivo.
-              Nuestra IA identificará vulnerabilidades, generará informes y sugerirá remediaciones. Active el Modo Premium para informes técnicos completos, escenarios de ataque ilustrativos y descarga de resultados.
+              Nuestra plataforma utiliza Inteligencia Artificial para analizar exhaustivamente la seguridad de sus URLs, aplicaciones web, configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia, etc.) y/o bases de datos.
+              Identificamos vulnerabilidades, generamos informes detallados y sugerimos remediaciones.
+              <strong className="text-foreground"> Active el Modo Premium para desbloquear informes técnicos completos, escenarios de ataque ilustrativos y la descarga de resultados.</strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -224,32 +232,60 @@ export default function HomePage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-xl md:text-2xl">
                         <Briefcase className="h-7 w-7 text-primary" />
-                        Funcionalidades Empresariales (Próximamente)
+                        Capacidades Empresariales Avanzadas
                     </CardTitle>
                     <CardDescription>
-                        Estamos trabajando para expandir nuestra plataforma con herramientas avanzadas para las necesidades de seguridad de su empresa, incluyendo análisis SAST/DAST, paneles de control avanzados y más.
+                        Estamos expandiendo continuamente nuestra plataforma para ofrecer herramientas de seguridad de nivel empresarial. Algunas funcionalidades en desarrollo y planificación incluyen:
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
-                        <FileLock2 className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-muted-foreground">Análisis de Código Estático (SAST) y Dinámico (DAST)</span>
-                        <Badge variant="outline" className="ml-auto">En Desarrollo</Badge>
+                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <FileLock2 className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold text-foreground">Análisis SAST/DAST</span>
+                          <p className="text-muted-foreground">Integración de análisis de código estático y dinámico para una detección de vulnerabilidades más profunda.</p>
+                          <Badge variant="outline" className="mt-1">En Desarrollo</Badge>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
-                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-muted-foreground">Paneles de Control Avanzados y Analítica de Riesgos</span>
-                         <Badge variant="outline" className="ml-auto">Planificado</Badge>
+                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <BarChart3 className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                         <div>
+                          <span className="font-semibold text-foreground">Paneles de Control Avanzados</span>
+                          <p className="text-muted-foreground">Visualizaciones y analítica de riesgos personalizables para una gestión de seguridad proactiva.</p>
+                          <Badge variant="outline" className="mt-1">Planificado</Badge>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
-                        <Zap className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-muted-foreground">Integración con CI/CD y Herramientas de Ticketing</span>
-                         <Badge variant="outline" className="ml-auto">Explorando</Badge>
+                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <Zap className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold text-foreground">Integración con CI/CD</span>
+                          <p className="text-muted-foreground">Automatización de análisis de seguridad en pipelines de desarrollo para DevSecOps.</p>
+                          <Badge variant="outline" className="mt-1">Explorando</Badge>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 border rounded-md bg-secondary/30 opacity-70 cursor-not-allowed">
-                        <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-muted-foreground">Informes de Cumplimiento Normativo (PCI, HIPAA, etc.)</span>
-                        <Badge variant="outline" className="ml-auto">Considerando</Badge>
+                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <ShieldCheck className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold text-foreground">Informes de Cumplimiento</span>
+                          <p className="text-muted-foreground">Mapeo de hallazgos a normativas (PCI, HIPAA, GDPR) y generación de informes de cumplimiento.</p>
+                          <Badge variant="outline" className="mt-1">Considerando</Badge>
+                        </div>
+                    </div>
+                     <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <Cloud className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold text-foreground">Análisis de Configuración Cloud</span>
+                          <p className="text-muted-foreground">Evaluación de seguridad para infraestructuras en AWS, Azure y GCP.</p>
+                          <Badge variant="outline" className="mt-1">Planificado</Badge>
+                        </div>
+                    </div>
+                     <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <SlidersHorizontal className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold text-foreground">Reglas de Análisis Personalizadas</span>
+                          <p className="text-muted-foreground">Permitir a las empresas definir políticas y reglas de detección específicas.</p>
+                          <Badge variant="outline" className="mt-1">En Desarrollo</Badge>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -296,30 +332,33 @@ export default function HomePage() {
                   </>
                 )}
 
-                {!isPremiumUser && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
+                 {!isPremiumUser && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                   <Card className="mt-8 shadow-lg border-l-4 border-accent">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
                         <Sparkles className="h-6 w-6" />
-                        Desbloquear Análisis Completo y Escenarios de Ataque
+                        Desbloquear Funcionalidades Premium
                       </CardTitle>
-                      <CardDescription>
-                        Has recibido un resumen del análisis. Para acceder al informe técnico detallado, escenarios de ataque ilustrativos y la opción de descarga completa, por favor activa el Modo Premium.
+                      <CardDescription className="text-muted-foreground">
+                        Ha recibido un resumen del análisis. Para acceder al informe técnico detallado con todos los hallazgos, escenarios de ataque ilustrativos, detalles técnicos completos y la opción de descarga de resultados, por favor active el Modo Premium.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <h3 className="font-semibold text-foreground mb-2">Beneficios del Modo Premium:</h3>
+                      <h3 className="font-semibold text-foreground mb-2">Beneficios Exclusivos del Modo Premium:</h3>
                       <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-sm mb-4">
-                        <li>Informe técnico detallado con análisis en profundidad.</li>
-                        <li>Escenarios de ataque ilustrativos para comprender riesgos específicos.</li>
-                        <li>Acceso a detalles técnicos completos de cada hallazgo.</li>
-                        <li>Descarga completa de resultados en formato ZIP.</li>
-                        <li>Futuras funcionalidades avanzadas y soporte prioritario.</li>
+                        <li>Acceso completo al informe técnico detallado generado por IA.</li>
+                        <li>Escenarios de ataque ilustrativos para cada vulnerabilidad activa detectada.</li>
+                        <li>Visualización de detalles técnicos, impacto de negocio, evidencia (si aplica) y CVSS para todos los hallazgos.</li>
+                        <li>Descarga de todos los resultados (informe, hallazgos, vectores de ataque) en un archivo ZIP.</li>
+                        <li>Acceso prioritario a futuras funcionalidades avanzadas y soporte mejorado.</li>
                       </ul>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
                       <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
                         <Unlock className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
                       </Button>
+                       <p className="text-xs text-muted-foreground mt-3 text-center">
+                        La activación es simulada. En un entorno real, esto implicaría un proceso de pago.
+                      </p>
                     </CardContent>
                   </Card>
                 )}
@@ -347,26 +386,26 @@ export default function HomePage() {
                         Plataforma Integral de Análisis de Seguridad Asistido por IA
                     </CardTitle>
                     <CardDescription>
-                        Potencie la seguridad de sus aplicaciones web, servidores (incluyendo servidores de juegos), y bases de datos con nuestra solución de análisis inteligente.
+                        Fortalezca la seguridad de sus aplicaciones web, servidores (incluyendo servidores de juegos populares como Lineage 2, Roblox, Tibia, servidores privados, etc.) y bases de datos con nuestra solución de análisis inteligente y automatizado.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
-                        Proporcione detalles de su URL, servidor y/o base de datos para un escaneo exhaustivo. Nuestro motor de IA identificará vulnerabilidades,
-                        generará un informe detallado y, con el Modo Premium, proporcionará escenarios de ataque ilustrativos y detalles técnicos profundos.
+                        Proporcione detalles de su URL, la configuración de su servidor y/o las características de su base de datos para un escaneo exhaustivo. Nuestro motor de IA identificará vulnerabilidades comunes y específicas,
+                        generará un informe detallado y, con el Modo Premium, proporcionará escenarios de ataque ilustrativos, detalles técnicos profundos y la capacidad de descargar todos los resultados.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis de URL y Web.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow col-span-1 sm:col-span-3 lg:col-span-1"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis de Servidores de Juegos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow col-span-1 sm:col-span-3 lg:col-span-1"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis Específico para Servidores de Juegos.</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
-                        Ideal para equipos de desarrollo, profesionales de seguridad, administradores de servidores de juegos y empresas que buscan proteger sus activos digitales de manera proactiva y eficiente.
+                        Ideal para equipos de desarrollo, profesionales de ciberseguridad, administradores de servidores de juegos y empresas que buscan proteger sus activos digitales de manera proactiva, eficiente y con la potencia de la IA.
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-primary font-medium">
                         <Sparkles className="h-5 w-5" />
-                        <span>Active el "Modo Premium" para informes completos, escenarios de ataque, descarga de resultados y futuras funcionalidades avanzadas.</span>
+                        <span>Active el "Modo Premium" para desbloquear informes técnicos completos, escenarios de ataque detallados, descarga de resultados y acceso a futuras funcionalidades avanzadas.</span>
                     </div>
                 </CardContent>
                </Card>
@@ -384,7 +423,7 @@ export default function HomePage() {
                   className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-primary-foreground/50"
                   aria-label="Abrir Asistente IA"
                 >
-                  <MessageCircle className="h-7 w-7" />
+                  <Bot className="h-7 w-7" />
                 </Button>
               </DialogTrigger>
             </TooltipTrigger>
@@ -392,16 +431,13 @@ export default function HomePage() {
               <p>Asistente IA de Seguridad</p>
             </TooltipContent>
           </Tooltip>
-          <DialogContent className="sm:max-w-[450px] p-0 border-0 shadow-none">
-            {/* DialogHeader can be removed if ChatAssistant has its own header */}
-            {/* <DialogHeader> <DialogTitle>Asistente IA</DialogTitle> </DialogHeader> */}
+          <DialogContent className="sm:max-w-[450px] p-0 border-0 shadow-none bg-transparent">
             <ChatAssistant />
           </DialogContent>
         </Dialog>
 
-
         <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
-          © {new Date().getFullYear()} Plataforma de Seguridad Integral. Impulsado por GenAI. Herramienta educativa y de evaluación avanzada.
+          © {new Date().getFullYear()} Centro de Análisis de Seguridad Integral. Impulsado por GenAI. Herramienta educativa y de evaluación avanzada para profesionales.
         </footer>
       </div>
     </TooltipProvider>
