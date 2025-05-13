@@ -3,7 +3,7 @@
 
 import type { UrlVulnerabilityAnalysisOutput, VulnerabilityFinding } from "@/types"; // Using specific type for input, but can adapt
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, CircleAlert, ServerIcon, Database } from "lucide-react";
+import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -123,12 +123,13 @@ export function AnalysisSummaryCard({ analysisInput, allFindings }: AnalysisSumm
   const getIconForSource = (source?: "URL" | "Server" | "Database") => {
     if (source === "Server") return <ServerIcon className="h-4 w-4 mr-1 text-muted-foreground" />;
     if (source === "Database") return <Database className="h-4 w-4 mr-1 text-muted-foreground" />;
+    if (source === "URL") return <Globe className="h-4 w-4 mr-1 text-muted-foreground" />;
     return null; // Or a generic icon for URL/Unknown
   };
 
   const summaryItems = [
     { label: "Alta Severidad", count: highCount, IconComp: ShieldAlert, color: "text-destructive", badgeVariant: "destructive" as const },
-    { label: "Media Severidad", count: mediumCount, IconComp: AlertTriangle, color: "text-orange-500", badgeVariant: "outline" as const, badgeClass: "border-orange-500 text-orange-500" },
+    { label: "Media Severidad", count: mediumCount, IconComp: AlertCircle, color: "text-orange-500", badgeVariant: "outline" as const, badgeClass: "border-orange-500 text-orange-500" },
     { label: "Baja Severidad", count: lowCount, IconComp: FileWarning, color: "text-yellow-600", badgeVariant: "outline" as const, badgeClass: "border-yellow-600 text-yellow-600"},
   ];
 

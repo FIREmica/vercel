@@ -8,7 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'zod'; // Corrected import
+import {z} from 'zod';
 import {
   AnalyzeUrlVulnerabilitiesInputSchema,
   type AnalyzeUrlVulnerabilitiesInput,
