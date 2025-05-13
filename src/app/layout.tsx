@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Account Lockout Analyzer',
-  description: 'Analyze user registration pages for account lockout vulnerabilities.',
+  title: 'Analizador de Bloqueo de Cuentas',
+  description: 'Analiza páginas de registro de usuarios en busca de vulnerabilidades de bloqueo de cuentas.',
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
         <Toaster />
@@ -32,3 +32,4 @@ export default function RootLayout({
     </html>
   );
 }
+

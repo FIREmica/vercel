@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
-import { TooltipProvider } from "@/components/ui/tooltip"; // Import TooltipProvider
+import { TooltipProvider } from "@/components/ui/tooltip"; 
 
 export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -24,7 +24,7 @@ export default function HomePage() {
 
   const handleFormSubmit = async (url: string) => {
     setIsLoading(true);
-    setAnalysisResult(null); // Clear previous results
+    setAnalysisResult(null); 
     
     try {
       const result = await performAnalysisAction(url);
@@ -33,30 +33,30 @@ export default function HomePage() {
       if (result.error) {
         toast({
           variant: "destructive",
-          title: "Analysis Failed",
+          title: "Análisis Fallido",
           description: result.error,
         });
       } else if (result.vulnerabilities && result.vulnerabilities.length > 0) {
         toast({
-          title: "Analysis Complete",
-          description: "Vulnerabilities found. Please review the report.",
+          title: "Análisis Completo",
+          description: "Vulnerabilidades encontradas. Por favor, revisa el informe.",
           variant: "default",
         });
       } else {
          toast({
-          title: "Analysis Complete",
-          description: "Scan finished. No critical vulnerabilities detected by this scan, review the generated report for details.",
+          title: "Análisis Completo",
+          description: "Escaneo finalizado. No se detectaron vulnerabilidades críticas en este escaneo, revisa el informe generado para más detalles.",
           variant: "default",
         });
       }
     } catch (e) {
       const error = e as Error;
-      console.error("Form submission error:", error);
-      const errorMessage = error.message || "An unexpected error occurred.";
+      console.error("Error en el envío del formulario:", error);
+      const errorMessage = error.message || "Ocurrió un error inesperado.";
       setAnalysisResult({ vulnerabilities: null, reportText: null, error: errorMessage });
       toast({
         variant: "destructive",
-        title: "Submission Error",
+        title: "Error de Envío",
         description: errorMessage,
       });
     } finally {
@@ -65,17 +65,17 @@ export default function HomePage() {
   };
 
   return (
-    <TooltipProvider> {/* Wrap main content with TooltipProvider */}
+    <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
             <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
-              Scan for Account Lockout Risks
+              Escanear Riesgos de Bloqueo de Cuenta
             </h2>
             <p className="text-muted-foreground mb-6">
-              Enter the URL of a user registration page to analyze it for potential vulnerabilities
-              that could lead to user account lockouts.
+              Ingresa la URL de una página de registro de usuarios para analizarla en busca de posibles vulnerabilidades
+              que podrían llevar al bloqueo de cuentas de usuario.
             </p>
             <UrlInputForm 
               onSubmit={handleFormSubmit} 
@@ -129,12 +129,12 @@ export default function HomePage() {
               <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
                       <Info className="h-6 w-6 text-primary" />
-                      Ready to Scan
+                      Listo para Escanear
                   </CardTitle>
               </CardHeader>
               <CardContent>
                   <p className="text-muted-foreground">
-                      Your analysis results will appear here once you submit a URL.
+                      Los resultados de tu análisis aparecerán aquí una vez que envíes una URL.
                   </p>
               </CardContent>
              </Card>
@@ -142,7 +142,7 @@ export default function HomePage() {
 
         </main>
         <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
-          © {new Date().getFullYear()} Account Lockout Analyzer. Powered by GenAI.
+          © {new Date().getFullYear()} Analizador de Bloqueo de Cuentas. Impulsado por GenAI.
         </footer>
       </div>
     </TooltipProvider>

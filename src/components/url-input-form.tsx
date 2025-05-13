@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
-  url: z.string().url({ message: "Please enter a valid URL." }),
+  url: z.string().url({ message: "Por favor, ingresa una URL válida." }),
 });
 
 type UrlInputFormProps = {
@@ -45,11 +45,11 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
           name="url"
           render={({ field }) => (
             <FormItem>
-              <FormLabel htmlFor="url-input" className="text-lg">Registration Page URL</FormLabel>
+              <FormLabel htmlFor="url-input" className="text-lg">URL de la Página de Registro</FormLabel>
               <FormControl>
                 <Input 
                   id="url-input"
-                  placeholder="e.g., http://www.example.com/register" 
+                  placeholder="ej., http://www.ejemplo.com/registro" 
                   {...field} 
                   className="text-base"
                   aria-describedby="url-form-message"
@@ -65,7 +65,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
           ) : (
             <Search className="mr-2 h-5 w-5" />
           )}
-          Scan Vulnerabilities
+          Escanear Vulnerabilidades
         </Button>
       </form>
     </Form>
