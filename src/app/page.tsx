@@ -14,8 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Info, Download } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Info, Download, ShieldCheck } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -304,18 +304,34 @@ export default function HomePage() {
 
             {/* Initial state message */}
             {!isLoading && !analysisResult && (
-               <Card className="mt-8 shadow-lg max-w-3xl mx-auto">
+               <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                        <Info className="h-6 w-6 text-primary" />
-                        Listo para Escanear
+                    <CardTitle className="flex items-center gap-3 text-xl">
+                        <ShieldCheck className="h-7 w-7 text-primary" />
+                        Plataforma de Análisis de Seguridad Web
                     </CardTitle>
+                    <CardDescription>
+                        Potencie la seguridad de sus aplicaciones con nuestra solución de análisis inteligente.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
-                        Los resultados de tu análisis de seguridad aparecerán aquí una vez que envíes una URL.
-                        Esto incluirá un informe general, hallazgos detallados, posibles escenarios de ataque ilustrativos (si aplica) y una opción para descargar todo en un archivo ZIP.
+                        Ingrese la URL de su página de registro para iniciar un escaneo exhaustivo. Nuestro motor de IA identificará vulnerabilidades comunes,
+                        generará un informe detallado y proporcionará escenarios de ataque ilustrativos.
                     </p>
+                    <p className="text-muted-foreground">
+                        Ideal para equipos de desarrollo, profesionales de seguridad y empresas que buscan proteger sus activos digitales.
+                    </p>
+                    <div className="mt-6 pt-4 border-t border-border">
+                        <h4 className="font-semibold text-foreground mb-2">Características Clave:</h4>
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                            <li>Análisis impulsado por IA para detección precisa.</li>
+                            <li>Informe de vulnerabilidades completo y accionable.</li>
+                            <li>Ejemplos de vectores de ataque para comprender riesgos.</li>
+                            <li>Exportación de resultados en formato ZIP.</li>
+                            <li>Diseñado para uso profesional y empresarial.</li>
+                        </ul>
+                    </div>
                 </CardContent>
                </Card>
             )}
