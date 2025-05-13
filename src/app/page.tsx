@@ -5,13 +5,14 @@ import { useState } from "react";
 import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
+import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
 import { performAnalysisAction } from "./actions";
 import type { AnalysisResult } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Info } from "lucide-react";
+import { Info, BugPlay } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider } from "@/components/ui/tooltip"; 
 
@@ -39,7 +40,7 @@ export default function HomePage() {
       } else if (result.vulnerabilities && result.vulnerabilities.length > 0) {
         toast({
           title: "Análisis Completo",
-          description: "Vulnerabilidades encontradas. Por favor, revisa el informe.",
+          description: "Vulnerabilidades encontradas. Por favor, revisa el informe y los escenarios de ataque.",
           variant: "default",
         });
       } else {
@@ -53,7 +54,7 @@ export default function HomePage() {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
       const errorMessage = error.message || "Ocurrió un error inesperado.";
-      setAnalysisResult({ vulnerabilities: null, reportText: null, error: errorMessage });
+      setAnalysisResult({ vulnerabilities: null, reportText: null, attackVectors: null, error: errorMessage });
       toast({
         variant: "destructive",
         title: "Error de Envío",
@@ -87,11 +88,10 @@ export default function HomePage() {
           <Separator className="my-8 md:my-12" />
 
           <HackingInfoSection />
-
-          <Separator className="my-8 md:my-12" />
           
           {isLoading && (
-            <div className="space-y-8">
+            <div className="space-y-8 mt-8">
+              {/* Skeleton for Vulnerability Report */}
               <Card className="shadow-lg">
                 <CardHeader>
                   <Skeleton className="h-8 w-3/4" />
@@ -117,11 +117,36 @@ export default function HomePage() {
                   ))}
                 </CardContent>
               </Card>
+              {/* Skeleton for Attack Vectors */}
+              <Card className="shadow-lg">
+                <CardHeader>
+                   <div className="flex items-center gap-3">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-8 w-3/4" />
+                   </div>
+                  <Skeleton className="h-4 w-full mt-2" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[...Array(2)].map((_, i) => (
+                    <div key={i} className="border p-4 rounded-md">
+                      <Skeleton className="h-6 w-1/2 mb-3" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-3/4 mb-3" />
+                      <Skeleton className="h-10 w-full bg-muted" />
+                       <Skeleton className="h-4 w-full mt-3" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
             </div>
           )}
 
           {!isLoading && analysisResult && (
-            <VulnerabilityReportDisplay result={analysisResult} />
+            <>
+              <VulnerabilityReportDisplay result={analysisResult} />
+              <Separator className="my-8 md:my-12" />
+              <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
+            </>
           )}
           
           {!isLoading && !analysisResult && (
@@ -135,6 +160,7 @@ export default function HomePage() {
               <CardContent>
                   <p className="text-muted-foreground">
                       Los resultados de tu análisis aparecerán aquí una vez que envíes una URL.
+                      Esto incluirá un informe de vulnerabilidades y posibles escenarios de ataque ilustrativos.
                   </p>
               </CardContent>
              </Card>

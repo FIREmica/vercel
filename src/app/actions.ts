@@ -2,11 +2,12 @@
 
 import { analyzeVulnerabilities, type AnalyzeVulnerabilitiesOutput } from "@/ai/flows/analyze-vulnerabilities";
 import { generateVulnerabilityReport } from "@/ai/flows/generate-vulnerability-report";
+import { generateAttackVectors, type GenerateAttackVectorsOutput } from "@/ai/flows/generate-attack-vectors";
 import type { AnalysisResult } from "@/types";
 
 export async function performAnalysisAction(url: string): Promise<AnalysisResult> {
   if (!url) {
-    return { vulnerabilities: null, reportText: null, error: "URL cannot be empty." };
+    return { vulnerabilities: null, reportText: null, attackVectors: null, error: "URL cannot be empty." };
   }
 
   try {
@@ -26,7 +27,16 @@ export async function performAnalysisAction(url: string): Promise<AnalysisResult
     
     const reportResult = await generateVulnerabilityReport({ analysis: analysisSummaryForReport });
     
-    return { vulnerabilities, reportText: reportResult.report, error: null };
+    let attackVectors: GenerateAttackVectorsOutput | null = null;
+    if (vulnerabilities && vulnerabilities.length > 0) {
+        // Filter for vulnerabilities that are present or have potential for lockout to generate attack vectors
+        const relevantVulnerabilities = vulnerabilities.filter(v => v.isVulnerable || v.potentialForAccountLockout);
+        if (relevantVulnerabilities.length > 0) {
+            attackVectors = await generateAttackVectors(relevantVulnerabilities);
+        }
+    }
+    
+    return { vulnerabilities, reportText: reportResult.report, attackVectors, error: null };
 
   } catch (error) {
     console.error("Error in performAnalysisAction:", error);
@@ -41,6 +51,6 @@ export async function performAnalysisAction(url: string): Promise<AnalysisResult
         errorMessage = error.message;
       }
     }
-    return { vulnerabilities: null, reportText: null, error: errorMessage };
+    return { vulnerabilities: null, reportText: null, attackVectors: null, error: errorMessage };
   }
 }
