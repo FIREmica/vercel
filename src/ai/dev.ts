@@ -6,6 +6,8 @@ config();
 import '@/ai/flows/analyze-url-vulnerabilities.ts';
 import '@/ai/flows/analyze-server-security.ts';
 import '@/ai/flows/analyze-database-security.ts';
+import '@/ai/flows/analyze-sast-security.ts';
+import '@/ai/flows/analyze-dast-security.ts';
 import '@/ai/flows/generate-attack-vectors.ts';
 import '@/ai/flows/generate-security-report.ts';
 import '@/ai/flows/general-query-assistant-flow.ts';

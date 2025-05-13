@@ -3,6 +3,8 @@ import type {
   UrlVulnerabilityAnalysisOutput,
   ServerSecurityAnalysisOutput,
   DatabaseSecurityAnalysisOutput,
+  SastAnalysisOutput,
+  DastAnalysisOutput,
   VulnerabilityFinding as SingleVulnerabilityFinding,
   GenerateAttackVectorsOutput as FullGenerateAttackVectorsOutput,
   AttackVectorItem as SingleAttackVectorItem
@@ -12,12 +14,16 @@ import type {
 export type { UrlVulnerabilityAnalysisOutput };
 export type { ServerSecurityAnalysisOutput };
 export type { DatabaseSecurityAnalysisOutput };
+export type { SastAnalysisOutput };
+export type { DastAnalysisOutput };
 
 
 export interface AnalysisResult {
   urlAnalysis: UrlVulnerabilityAnalysisOutput | null;
   serverAnalysis: ServerSecurityAnalysisOutput | null;
   databaseAnalysis: DatabaseSecurityAnalysisOutput | null;
+  sastAnalysis: SastAnalysisOutput | null;
+  dastAnalysis: DastAnalysisOutput | null;
   // The comprehensive report text generated from all available analyses
   reportText: string | null;
   // Attack vectors generated from any vulnerable findings across all analyses
@@ -38,3 +44,4 @@ export type VulnerabilityFinding = SingleVulnerabilityFinding;
  * This type alias points to the one defined in ai-schemas.ts
  */
 export type AttackVector = SingleAttackVectorItem;
+

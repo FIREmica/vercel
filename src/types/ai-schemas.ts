@@ -8,8 +8,8 @@ import { z } from 'zod';
 
 // Schemas and types for analyze-url-vulnerabilities flow (renamed from analyze-vulnerabilities)
 export const VulnerabilityFindingSchema = z.object({
-  source: z.enum(["URL", "Server", "Database"]).optional().describe("The source of the finding."),
-  vulnerability: z.string().describe('The identified vulnerability category (e.g., Cross-Site Scripting (XSS), SQL Injection, Weak Password Policy, Missing Rate Limiting, Insecure Configuration, Outdated OS, Exposed Database Port).'),
+  source: z.enum(["URL", "Server", "Database", "SAST", "DAST"]).optional().describe("The source of the finding."),
+  vulnerability: z.string().describe('The identified vulnerability category (e.g., Cross-Site Scripting (XSS), SQL Injection, Weak Password Policy, Missing Rate Limiting, Insecure Configuration, Outdated OS, Exposed Database Port, Insecure Code Pattern, Dynamic Application Flaw).'),
   description: z.string().describe('A brief description of the specific finding related to the vulnerability category.'),
   isVulnerable: z.boolean().describe('Whether the target shows signs of being vulnerable to this specific finding.'),
   severity: z.enum(['Low', 'Medium', 'High', 'Critical', 'Informational']).describe('The estimated severity of the vulnerability finding. Critical may be used by AI if multiple Highs or exceptionally severe single High.'),
@@ -23,6 +23,14 @@ export const VulnerabilityFindingSchema = z.object({
     .optional() // Making this optional as it's more relevant to URL auth flows
     .describe('Whether this specific finding could directly contribute to account lockouts (primarily for URL auth vulnerabilities).'),
   remediation: z.string().describe('Suggested remediation steps to address the finding.'),
+  // SAST specific fields
+  filePath: z.string().optional().describe("For SAST findings, the path to the vulnerable file."),
+  lineNumber: z.number().int().positive().optional().describe("For SAST findings, the line number of the vulnerability."),
+  codeSnippetContext: z.string().optional().describe("For SAST findings, a snippet of the vulnerable code with context."),
+  // DAST specific fields
+  affectedParameter: z.string().optional().describe("For DAST findings, the affected parameter or input field."),
+  requestExample: z.string().optional().describe("For DAST findings, an example HTTP request that triggered the vulnerability."),
+  responseExample: z.string().optional().describe("For DAST findings, a relevant snippet from the server's HTTP response."),
 });
 export type VulnerabilityFinding = z.infer<typeof VulnerabilityFindingSchema>;
 
@@ -74,18 +82,46 @@ export const DatabaseSecurityAnalysisOutputSchema = z.object({
 export type DatabaseSecurityAnalysisOutput = z.infer<typeof DatabaseSecurityAnalysisOutputSchema>;
 
 
+// Schemas and types for SAST (Static Application Security Testing)
+export const SastAnalysisInputSchema = z.object({
+  codeSnippet: z.string().min(50, "El fragmento de código debe tener al menos 50 caracteres.").describe("El fragmento de código fuente a analizar."),
+  language: z.string().optional().describe("El lenguaje de programación del fragmento de código (ej: Python, JavaScript, Java)."),
+});
+export type SastAnalysisInput = z.infer<typeof SastAnalysisInputSchema>;
+
+export const SastAnalysisOutputSchema = z.object({
+  findings: z.array(VulnerabilityFindingSchema.extend({ source: z.literal("SAST").default("SAST") })).describe("Lista de posibles vulnerabilidades encontradas en el código."),
+  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación general del riesgo del fragmento de código."),
+  executiveSummary: z.string().describe("Resumen conciso de la seguridad del código analizado."),
+});
+export type SastAnalysisOutput = z.infer<typeof SastAnalysisOutputSchema>;
+
+
+// Schemas and types for DAST (Dynamic Application Security Testing)
+export const DastAnalysisInputSchema = z.object({
+  targetUrl: z.string().url("Por favor, ingrese una URL válida para el análisis DAST.").describe("La URL de la aplicación web a escanear dinámicamente."),
+  scanProfile: z.enum(["Quick", "Full"]).optional().default("Quick").describe("Perfil de escaneo DAST: Rápido para chequeos comunes, Completo para un análisis exhaustivo."),
+});
+export type DastAnalysisInput = z.infer<typeof DastAnalysisInputSchema>;
+
+export const DastAnalysisOutputSchema = z.object({
+  findings: z.array(VulnerabilityFindingSchema.extend({ source: z.literal("DAST").default("DAST") })).describe("Lista de vulnerabilidades descubiertas durante el escaneo dinámico."),
+  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación general del riesgo de la aplicación web basada en el escaneo DAST."),
+  executiveSummary: z.string().describe("Resumen ejecutivo de los hallazgos del análisis DAST."),
+});
+export type DastAnalysisOutput = z.infer<typeof DastAnalysisOutputSchema>;
+
+
 // Schemas and types for generate-attack-vectors flow
 export const AttackVectorItemSchema = z.object({
   vulnerabilityName: z.string().describe('The name/category of the vulnerability this attack vector is based on.'),
-  source: z.enum(["URL", "Server", "Database", "Unknown"]).optional().describe("The source of the original finding for this attack vector."),
+  source: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Unknown"]).optional().describe("The source of the original finding for this attack vector."),
   attackScenarioDescription: z.string().describe('A description of how an attacker might exploit this vulnerability. Tailor to the vulnerability type and source.'),
   examplePayloadOrTechnique: z.string().describe('An example of a malicious payload, code snippet, or technique an attacker might use. This should be illustrative and for educational purposes only.'),
   expectedOutcomeIfSuccessful: z.string().describe('The expected outcome if the attack is successful, e.g., "Account lockout", "Unauthorized data access", "Cross-Site Scripting execution", "SQL Injection successful", "Server compromise".'),
 });
 export type AttackVectorItem = z.infer<typeof AttackVectorItemSchema>;
 
-// Input for generating attack vectors can be a single finding or an array of findings.
-// The flow itself will process an array.
 export const GenerateAttackVectorsInputSchema = z.array(VulnerabilityFindingSchema);
 export type GenerateAttackVectorsInput = z.infer<typeof GenerateAttackVectorsInputSchema>;
 
@@ -95,10 +131,12 @@ export type GenerateAttackVectorsOutput = z.infer<typeof GenerateAttackVectorsOu
 
 // Schemas and types for the comprehensive security report
 export const GenerateSecurityReportInputSchema = z.object({
-  analyzedTargetDescription: z.string().optional().describe("A brief overall description of what was targeted for analysis, e.g., 'Registration page for MyService', 'Production Web Server', 'Customer Database Server'"),
+  analyzedTargetDescription: z.string().optional().describe("A brief overall description of what was targeted for analysis, e.g., 'Registration page for MyService', 'Production Web Server', 'Customer Database Server', 'Code Snippet Analysis', 'Dynamic Application Scan'"),
   urlAnalysis: UrlVulnerabilityAnalysisOutputSchema.optional().describe("Results from the URL vulnerability analysis, if performed."),
   serverAnalysis: ServerSecurityAnalysisOutputSchema.optional().describe("Results from the server security analysis, if performed."),
   databaseAnalysis: DatabaseSecurityAnalysisOutputSchema.optional().describe("Results from the database security analysis, if performed."),
+  sastAnalysis: SastAnalysisOutputSchema.optional().describe("Results from the SAST analysis, if performed."),
+  dastAnalysis: DastAnalysisOutputSchema.optional().describe("Results from the DAST analysis, if performed."),
   overallVulnerableFindings: z.array(VulnerabilityFindingSchema).optional().describe("A combined list of all findings marked as isVulnerable from all analysis types.")
 });
 export type GenerateSecurityReportInput = z.infer<typeof GenerateSecurityReportInputSchema>;
@@ -107,7 +145,7 @@ export const GenerateSecurityReportOutputSchema = z.object({
   report: z
     .string()
     .describe(
-      'A comprehensive, well-structured security report in Markdown. It should synthesize findings from all provided analyses (URL, server, database), offer an overall executive summary, detail findings with impacts and remediations, and conclude with prioritized recommendations.'
+      'A comprehensive, well-structured security report in Markdown. It should synthesize findings from all provided analyses (URL, server, database, SAST, DAST), offer an overall executive summary, detail findings with impacts and remediations, and conclude with prioritized recommendations.'
     ),
 });
 export type GenerateSecurityReportOutput = z.infer<typeof GenerateSecurityReportOutputSchema>;

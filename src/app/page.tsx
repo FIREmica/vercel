@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +69,8 @@ export default function HomePage() {
         if (result.urlAnalysis?.findings) folder.file("hallazgos_url.json", JSON.stringify(result.urlAnalysis.findings, null, 2));
         if (result.serverAnalysis?.findings) folder.file("hallazgos_servidor.json", JSON.stringify(result.serverAnalysis.findings, null, 2));
         if (result.databaseAnalysis?.findings) folder.file("hallazgos_db.json", JSON.stringify(result.databaseAnalysis.findings, null, 2));
+        if (result.sastAnalysis?.findings) folder.file("hallazgos_sast.json", JSON.stringify(result.sastAnalysis.findings, null, 2));
+        if (result.dastAnalysis?.findings) folder.file("hallazgos_dast.json", JSON.stringify(result.dastAnalysis.findings, null, 2));
     }
     if (result.attackVectors && result.attackVectors.length > 0) { 
       folder.file("vectores_ataque_ilustrativos.json", JSON.stringify(result.attackVectors, null, 2));
@@ -76,6 +78,8 @@ export default function HomePage() {
      if (result.urlAnalysis?.executiveSummary) folder.file("resumen_url.txt", result.urlAnalysis.executiveSummary);
      if (result.serverAnalysis?.executiveSummary) folder.file("resumen_servidor.txt", result.serverAnalysis.executiveSummary);
      if (result.databaseAnalysis?.executiveSummary) folder.file("resumen_db.txt", result.databaseAnalysis.executiveSummary);
+     if (result.sastAnalysis?.executiveSummary) folder.file("resumen_sast.txt", result.sastAnalysis.executiveSummary);
+     if (result.dastAnalysis?.executiveSummary) folder.file("resumen_dast.txt", result.dastAnalysis.executiveSummary);
 
 
     try {
@@ -100,6 +104,9 @@ export default function HomePage() {
     if (values.serverDescription) descriptionParts.push("Servidor General");
     if (values.gameServerDescription) descriptionParts.push("Servidor de Juegos");
     if (values.databaseDescription) descriptionParts.push("Base de Datos");
+    if (values.codeSnippet || values.repositoryUrl) descriptionParts.push("Análisis SAST");
+    if (values.dastTargetUrl) descriptionParts.push("Análisis DAST");
+    
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
@@ -115,7 +122,7 @@ export default function HomePage() {
     });
 
     try {
-      const params: { url?: string; serverDescription?: string; databaseDescription?: string; } = {};
+      const params: Parameters<typeof performAnalysisAction>[0] = {};
       if (values.url) params.url = values.url;
       
       let finalServerDescription = values.serverDescription || "";
@@ -127,10 +134,15 @@ export default function HomePage() {
       if (finalServerDescription) params.serverDescription = finalServerDescription;
 
       if (values.databaseDescription) params.databaseDescription = values.databaseDescription;
+      if (values.codeSnippet) params.codeSnippet = values.codeSnippet;
+      if (values.sastLanguage) params.sastLanguage = values.sastLanguage;
+      // Note: repositoryUrl is not directly used in actions yet, but captured from form.
+      // SAST flow currently uses codeSnippet. Future enhancement could use repoUrl.
+      if (values.dastTargetUrl) params.dastTargetUrl = values.dastTargetUrl;
 
 
       if (Object.keys(params).length === 0) {
-        toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos una URL, descripción del servidor o descripción de la base de datos."});
+        toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos un objetivo de análisis (URL, descripción de servidor/BD, fragmento de código, URL para DAST)."});
         setIsLoading(false);
         return;
       }
@@ -147,7 +159,13 @@ export default function HomePage() {
         });
       } else {
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
-          const primarySummary = result.reportText ? "Informe completo generado." : (result.urlAnalysis?.executiveSummary || result.serverAnalysis?.executiveSummary || result.databaseAnalysis?.executiveSummary || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
+          const primarySummary = result.reportText ? "Informe completo generado." : 
+            (result.urlAnalysis?.executiveSummary || 
+             result.serverAnalysis?.executiveSummary || 
+             result.databaseAnalysis?.executiveSummary || 
+             result.sastAnalysis?.executiveSummary ||
+             result.dastAnalysis?.executiveSummary ||
+             (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
           
           if (isPremiumUser && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
             await generateZipFile(result, currentTargetDesc);
@@ -156,7 +174,7 @@ export default function HomePage() {
           toast({
             title: "Análisis Completo",
             description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a escenarios de ataque, detalles técnicos y descarga.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default", // Consider "warning" or "destructive" variant if many criticals
+            variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
@@ -164,7 +182,7 @@ export default function HomePage() {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
       const errorMessage = error.message || "Ocurrió un error inesperado durante el análisis.";
-      setAnalysisResult({ urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, reportText: null, attackVectors: null, error: errorMessage, allFindings: null });
+      setAnalysisResult({ urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, reportText: null, attackVectors: null, error: errorMessage, allFindings: null });
       toast({ variant: "destructive", title: "Error Crítico de Análisis", description: errorMessage, duration: 8000 });
     } finally {
       setIsLoading(false);
@@ -191,7 +209,7 @@ export default function HomePage() {
     }
   };
   
-  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || null;
+  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || null;
 
   return (
     <TooltipProvider>
@@ -212,7 +230,7 @@ export default function HomePage() {
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
-              Nuestra plataforma utiliza Inteligencia Artificial para analizar exhaustivamente la seguridad de sus URLs, aplicaciones web, configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia, etc.) y/o bases de datos.
+              Nuestra plataforma utiliza Inteligencia Artificial para analizar exhaustivamente la seguridad de sus URLs, aplicaciones web, configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia, etc.), bases de datos, fragmentos de código (SAST simulado) y aplicaciones en ejecución (DAST simulado).
               Identificamos vulnerabilidades, generamos informes detallados y sugerimos remediaciones.
               <strong className="text-foreground"> Active el Modo Premium para desbloquear informes técnicos completos, escenarios de ataque ilustrativos y la descarga de resultados.</strong>
             </p>
@@ -235,16 +253,24 @@ export default function HomePage() {
                         Capacidades Empresariales Avanzadas
                     </CardTitle>
                     <CardDescription>
-                        Estamos expandiendo continuamente nuestra plataforma para ofrecer herramientas de seguridad de nivel empresarial. Algunas funcionalidades en desarrollo y planificación incluyen:
+                        Expandimos continuamente nuestra plataforma para ofrecer herramientas de seguridad de nivel empresarial. Funcionalidades en desarrollo, simulación y planificación:
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <FileLock2 className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <SearchCode className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                         <div>
-                          <span className="font-semibold text-foreground">Análisis SAST/DAST</span>
-                          <p className="text-muted-foreground">Integración de análisis de código estático y dinámico para una detección de vulnerabilidades más profunda.</p>
-                          <Badge variant="outline" className="mt-1">En Desarrollo</Badge>
+                          <span className="font-semibold text-foreground">Análisis SAST (Estático)</span>
+                          <p className="text-muted-foreground">Análisis de fragmentos de código para identificar vulnerabilidades (simulado). Próximamente: análisis de repositorios completos.</p>
+                          <Badge variant="outline" className="mt-1 border-green-500 text-green-500">Simulado</Badge>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                        <Network className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold text-foreground">Análisis DAST (Dinámico)</span>
+                          <p className="text-muted-foreground">Pruebas de seguridad en aplicaciones web en ejecución para encontrar vulnerabilidades (simulado).</p>
+                          <Badge variant="outline" className="mt-1 border-green-500 text-green-500">Simulado</Badge>
                         </div>
                     </div>
                     <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
@@ -403,19 +429,21 @@ export default function HomePage() {
                         Plataforma Integral de Análisis de Seguridad Asistido por IA
                     </CardTitle>
                     <CardDescription>
-                        Fortalezca la seguridad de sus aplicaciones web, servidores (incluyendo servidores de juegos populares como Lineage 2, Roblox, Tibia, servidores privados, etc.) y bases de datos con nuestra solución de análisis inteligente y automatizado.
+                        Fortalezca la seguridad de sus aplicaciones web, servidores (incluyendo servidores de juegos populares como Lineage 2, Roblox, Tibia, servidores privados, etc.), bases de datos, código fuente (SAST) y aplicaciones en ejecución (DAST) con nuestra solución de análisis inteligente y automatizado.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
-                        Proporcione detalles de su URL, la configuración de su servidor y/o las características de su base de datos para un escaneo exhaustivo. Nuestro motor de IA identificará vulnerabilidades comunes y específicas,
+                        Proporcione detalles de su URL, la configuración de su servidor, las características de su base de datos, fragmentos de código o URLs para análisis dinámico. Nuestro motor de IA identificará vulnerabilidades comunes y específicas,
                         generará un informe detallado y, con el Modo Premium, proporcionará escenarios de ataque ilustrativos, detalles técnicos profundos y la capacidad de descargar todos los resultados.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis de URL y Web.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow col-span-1 sm:col-span-3 lg:col-span-1"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis Específico para Servidores de Juegos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis Específico para Servidores de Juegos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <SearchCode className="h-5 w-5 text-primary"/> Análisis de Código (SAST).</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Network className="h-5 w-5 text-primary"/> Análisis Dinámico (DAST).</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
                         Ideal para equipos de desarrollo, profesionales de ciberseguridad, administradores de servidores de juegos y empresas que buscan proteger sus activos digitales de manera proactiva, eficiente y con la potencia de la IA.
@@ -460,3 +488,4 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+
