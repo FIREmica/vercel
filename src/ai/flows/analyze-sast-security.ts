@@ -7,7 +7,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z}from 'zod';
 import {
   SastAnalysisInputSchema,
   type SastAnalysisInput,
@@ -27,7 +27,7 @@ const AnalyzeSastPromptOutputSchema = z.object({
     .extend({
         // SAST specific fields that the AI should focus on generating
         filePath: z.string().optional().describe("If applicable, the conceptual file path where the vulnerability might occur."),
-        lineNumber: z.number().int().positive().optional().describe("If applicable, the conceptual line number."),
+        lineNumber: z.number().int().min(1).optional().describe("If applicable, the conceptual line number."),
         codeSnippetContext: z.string().optional().describe("A small snippet illustrating the vulnerable code pattern."),
     })
   ),

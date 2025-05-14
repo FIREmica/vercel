@@ -24,7 +24,7 @@ export const VulnerabilityFindingSchema = z.object({
   remediation: z.string().describe('Suggested remediation steps to address the finding.'),
   // SAST specific fields
   filePath: z.string().optional().describe("For SAST findings, the path to the vulnerable file."),
-  lineNumber: z.number().int().positive().optional().describe("For SAST findings, the line number of the vulnerability."),
+  lineNumber: z.number().int().min(1).optional().describe("For SAST findings, the line number of the vulnerability."),
   codeSnippetContext: z.string().optional().describe("For SAST findings, a snippet of the vulnerable code with context."),
   // DAST specific fields
   affectedParameter: z.string().optional().describe("For DAST findings, the affected parameter or input field."),
@@ -234,3 +234,4 @@ export const GeneralQueryOutputSchema = z.object({
   aiResponse: z.string().describe('The AI assistant\'s response to the user\'s message.'),
 });
 export type GeneralQueryOutput = z.infer<typeof GeneralQueryOutputSchema>;
+
