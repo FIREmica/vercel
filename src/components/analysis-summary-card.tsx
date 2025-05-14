@@ -2,7 +2,7 @@
 
 import type { AnalysisResult, VulnerabilityFinding } from "@/types"; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle, CloudIcon, BoxIcon, LibraryIcon } from "lucide-react";
+import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle, CloudIcon, BoxIcon, LibraryIcon, SearchCode, Network } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -52,11 +52,33 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
 
   let overallRiskAssessment = analysisInput?.overallRiskAssessment;
   if (result) { // Derive global risk if full result is available
-      if (result.urlAnalysis?.overallRiskAssessment === "Critical" || result.serverAnalysis?.overallRiskAssessment === "Critical" || result.databaseAnalysis?.overallRiskAssessment === "Critical" || result.sastAnalysis?.overallRiskAssessment === "Critical" || result.dastAnalysis?.overallRiskAssessment === "Critical" || result.cloudAnalysis?.overallRiskAssessment === "Critical" || result.containerAnalysis?.overallRiskAssessment === "Critical" || result.dependencyAnalysis?.overallRiskAssessment === "Critical" || highCount > 1) overallRiskAssessment = "Critical";
-      else if (result.urlAnalysis?.overallRiskAssessment === "High" || result.serverAnalysis?.overallRiskAssessment === "High" || result.databaseAnalysis?.overallRiskAssessment === "High" || result.sastAnalysis?.overallRiskAssessment === "High" || result.dastAnalysis?.overallRiskAssessment === "High" || result.cloudAnalysis?.overallRiskAssessment === "High" || result.containerAnalysis?.overallRiskAssessment === "High" || result.dependencyAnalysis?.overallRiskAssessment === "High" || highCount > 0) overallRiskAssessment = "High";
-      else if (result.urlAnalysis?.overallRiskAssessment === "Medium" || result.serverAnalysis?.overallRiskAssessment === "Medium" || result.databaseAnalysis?.overallRiskAssessment === "Medium" || result.sastAnalysis?.overallRiskAssessment === "Medium" || result.dastAnalysis?.overallRiskAssessment === "Medium" || result.cloudAnalysis?.overallRiskAssessment === "Medium" || result.containerAnalysis?.overallRiskAssessment === "Medium" || result.dependencyAnalysis?.overallRiskAssessment === "Medium" || mediumCount > 0) overallRiskAssessment = "Medium";
-      else if (lowCount > 0) overallRiskAssessment = "Low";
-      else overallRiskAssessment = "Informational";
+      const riskLevels = ["Critical", "High", "Medium", "Low", "Informational"];
+      const assessments = [
+        result.urlAnalysis?.overallRiskAssessment,
+        result.serverAnalysis?.overallRiskAssessment,
+        result.databaseAnalysis?.overallRiskAssessment,
+        result.sastAnalysis?.overallRiskAssessment,
+        result.dastAnalysis?.overallRiskAssessment,
+        result.cloudAnalysis?.overallRiskAssessment,
+        result.containerAnalysis?.overallRiskAssessment,
+        result.dependencyAnalysis?.overallRiskAssessment,
+      ].filter(Boolean) as ("Low" | "Medium" | "High" | "Critical" | "Informational")[];
+      
+      if (highCount > 0) assessments.push("High"); // Ensure highCount influences overall risk if not reflected by individual assessments
+
+      for (const level of riskLevels) {
+        if (assessments.includes(level as any)) {
+          overallRiskAssessment = level as any;
+          break;
+        }
+      }
+      if (!overallRiskAssessment) { // Fallback if no individual assessments
+         if (highCount > 0) overallRiskAssessment = "Critical"; // Treat any high as critical for overall if not specified
+         else if (mediumCount > 0) overallRiskAssessment = "Medium";
+         else if (lowCount > 0) overallRiskAssessment = "Low";
+         else overallRiskAssessment = "Informational";
+      }
+
   } else if (allFindings && !overallRiskAssessment) {
       if (highCount > 0) overallRiskAssessment = "Critical";
       else if (mediumCount > 0) overallRiskAssessment = "Medium";
@@ -110,8 +132,8 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
         case "URL": return <Globe className="h-4 w-4 mr-1 text-blue-500" />;
         case "Server": return <ServerIcon className="h-4 w-4 mr-1 text-green-500" />;
         case "Database": return <Database className="h-4 w-4 mr-1 text-purple-500" />;
-        case "SAST": return <FileWarning className="h-4 w-4 mr-1 text-indigo-500" />; // Using FileWarning as a placeholder for code-related icon
-        case "DAST": return <Activity className="h-4 w-4 mr-1 text-pink-500" />; // Using Activity as a placeholder for dynamic scan
+        case "SAST": return <SearchCode className="h-4 w-4 mr-1 text-indigo-500" />;
+        case "DAST": return <Network className="h-4 w-4 mr-1 text-pink-500" />; 
         case "Cloud": return <CloudIcon className="h-4 w-4 mr-1 text-sky-500" />;
         case "Container": return <BoxIcon className="h-4 w-4 mr-1 text-teal-500" />;
         case "Dependency": return <LibraryIcon className="h-4 w-4 mr-1 text-rose-500" />;
@@ -126,14 +148,14 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
   ];
 
   const analysisTypesPerformed = result ? [
-    result.urlAnalysis && { name: "URL", count: result.urlAnalysis.findings.length },
-    result.serverAnalysis && { name: "Servidor", count: result.serverAnalysis.findings.length },
-    result.databaseAnalysis && { name: "Base de Datos", count: result.databaseAnalysis.findings.length },
-    result.sastAnalysis && { name: "SAST (Código)", count: result.sastAnalysis.findings.length },
-    result.dastAnalysis && { name: "DAST (App)", count: result.dastAnalysis.findings.length },
-    result.cloudAnalysis && { name: "Cloud", count: result.cloudAnalysis.findings.length },
-    result.containerAnalysis && { name: "Contenedor", count: result.containerAnalysis.findings.length },
-    result.dependencyAnalysis && { name: "Dependencias", count: result.dependencyAnalysis.findings.length },
+    result.urlAnalysis && { name: "URL" as const, count: result.urlAnalysis.findings.length },
+    result.serverAnalysis && { name: "Servidor" as const, count: result.serverAnalysis.findings.length },
+    result.databaseAnalysis && { name: "Base de Datos" as const, count: result.databaseAnalysis.findings.length },
+    result.sastAnalysis && { name: "SAST (Código)" as const, count: result.sastAnalysis.findings.length },
+    result.dastAnalysis && { name: "DAST (App)" as const, count: result.dastAnalysis.findings.length },
+    result.cloudAnalysis && { name: "Cloud" as const, count: result.cloudAnalysis.findings.length },
+    result.containerAnalysis && { name: "Contenedor" as const, count: result.containerAnalysis.findings.length },
+    result.dependencyAnalysis && { name: "Dependencias" as const, count: result.dependencyAnalysis.findings.length },
   ].filter(Boolean) as { name: VulnerabilityFinding['source'], count: number }[] : [];
 
 
@@ -201,7 +223,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
                 <h4 className="text-md font-semibold mb-2 text-foreground">Distribución de Hallazgos Totales por Origen del Análisis:</h4>
                 <div className="flex flex-wrap gap-3">
                     {analysisTypesPerformed.map(sourceType => {
-                        if (sourceType.count === 0 && !findingsToSummarize.some(f => f.source === sourceType.name)) return null; // Show if findings exist, even if 0 for that specific input type
+                        if (!sourceType || !sourceType.name) return null; // Defensive check
                         const totalCountForSource = findingsToSummarize.filter(f => f.source === sourceType.name).length;
                         if (totalCountForSource === 0) return null; // Only show if there are actual findings from this source
                         return (

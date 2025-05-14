@@ -1,6 +1,6 @@
 # Centro de Análisis de Seguridad Integral
 
-Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos) y bases de datos para identificar vulnerabilidades de seguridad utilizando IA.
+Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos), bases de datos, código (SAST), aplicaciones en ejecución (DAST), configuraciones de nube (AWS, Azure, GCP), seguridad de contenedores (Docker, Kubernetes) y dependencias de software para identificar vulnerabilidades de seguridad utilizando IA.
 
 ## Primeros Pasos
 
@@ -84,8 +84,14 @@ Genkit se utiliza para los flujos de IA. Puedes ejecutar el servidor de desarrol
 *   **Análisis de URL:** Evalúa la seguridad de URLs de aplicaciones web.
 *   **Análisis de Servidores:** Analiza descripciones de configuraciones de servidores (generales y de juegos) en busca de vulnerabilidades.
 *   **Análisis de Bases de Datos:** Examina descripciones de configuraciones de bases de datos para identificar riesgos.
+*   **Análisis de Código Estático (SAST):** Evalúa fragmentos de código en busca de patrones inseguros.
+*   **Análisis de Aplicaciones Dinámicas (DAST):** Simula pruebas dinámicas en URLs de aplicaciones para encontrar vulnerabilidades.
+*   **Análisis de Configuración Cloud:** Analiza descripciones de configuraciones para AWS, Azure y GCP.
+*   **Análisis de Seguridad de Contenedores:** Evalúa la seguridad de imágenes Docker, Dockerfiles y manifiestos de Kubernetes.
+*   **Análisis de Dependencias:** Identifica vulnerabilidades conocidas en dependencias de software (npm, pip, maven, gem).
 *   **Generación de Informes:** Crea informes de seguridad completos basados en los análisis.
 *   **Generación de Vectores de Ataque:** Ilustra posibles escenarios de ataque para las vulnerabilidades encontradas (función premium).
+*   **Generación de Playbooks de Remediación:** Proporciona guías paso a paso para corregir vulnerabilidades (función premium).
 *   **Asistente de Chat IA:** Proporciona respuestas a consultas de seguridad y sobre la plataforma.
 *   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados y descarga de resultados.
 

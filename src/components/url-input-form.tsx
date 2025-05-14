@@ -25,15 +25,17 @@ const formSchema = z.object({
   databaseDescription: z.string().min(10, {message: "La descripción de la base de datos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
   codeSnippet: z.string().min(20, {message: "El fragmento de código debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   sastLanguage: z.string().optional(),
-  repositoryUrl: z.string().url({message: "Por favor, ingrese una URL de repositorio válida."}).optional().or(z.literal('')),
+  repositoryUrl: z.string().url({message: "Por favor, ingrese una URL de repositorio válida."}).optional().or(z.literal('')), // Not currently used in actions.ts but kept for future
   dastTargetUrl: z.string().url({message: "Por favor, ingrese una URL válida para el análisis DAST."}).optional().or(z.literal('')),
   
   cloudProvider: z.enum(["AWS", "Azure", "GCP", "Other"]).optional(),
   cloudConfigDescription: z.string().min(20, {message: "La descripción de la configuración cloud debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
+  cloudRegion: z.string().optional().or(z.literal('')),
   
   containerImageName: z.string().optional().or(z.literal('')),
   dockerfileContent: z.string().min(20, {message: "El contenido del Dockerfile debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   kubernetesManifestContent: z.string().min(20, {message: "El contenido del manifiesto K8s debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
+  containerAdditionalContext: z.string().optional().or(z.literal('')),
 
   dependencyFileContent: z.string().min(20, {message: "El contenido del archivo de dependencias debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   dependencyFileType: z.enum(["npm", "pip", "maven", "gem", "other"]).optional(),
@@ -45,12 +47,12 @@ const formSchema = z.object({
     !!data.databaseDescription ||
     !!data.codeSnippet ||
     !!data.dastTargetUrl ||
-    !!data.cloudConfigDescription ||
+    (!!data.cloudProvider && !!data.cloudConfigDescription) || // cloudProvider requires configDescription
     !!data.containerImageName ||
     !!data.dockerfileContent ||
     !!data.kubernetesManifestContent ||
-    !!data.dependencyFileContent, {
-  message: "Debes proporcionar al menos un objetivo de análisis.",
+    (!!data.dependencyFileType && !!data.dependencyFileContent), { // dependencyFileType requires fileContent
+  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración).",
   path: ["url"], 
 });
 
@@ -76,16 +78,17 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
       dastTargetUrl: "",
       cloudProvider: undefined,
       cloudConfigDescription: "",
+      cloudRegion: "",
       containerImageName: "",
       dockerfileContent: "",
       kubernetesManifestContent: "",
+      containerAdditionalContext: "",
       dependencyFileContent: "",
       dependencyFileType: undefined,
     },
   });
 
   async function handleSubmit(values: UrlInputFormValues) {
-    // Filter out empty optional fields so they don't get sent as empty strings if not touched
     const cleanedValues = Object.fromEntries(
         Object.entries(values).filter(([_, v]) => v != null && v !== '')
     ) as UrlInputFormValues;
@@ -272,6 +275,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
           )}
         />
 
+        {/* Cloud Analysis Fields */}
         <FormField
           control={form.control}
           name="cloudProvider"
@@ -314,13 +318,35 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
                 />
               </FormControl>
               <FormDescription>
-                Proporcione detalles sobre políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure, etc.
+                Proporcione detalles sobre políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure, etc. (Se requiere si se selecciona un Proveedor Cloud).
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        
+         <FormField
+          control={form.control}
+          name="cloudRegion"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor="cloud-region-input" className="text-base flex items-center"><CloudIcon className="mr-2 h-4 w-4 text-primary"/>Región Cloud (Opcional)</FormLabel>
+              <FormControl>
+                <Input
+                  id="cloud-region-input"
+                  placeholder="ej., us-east-1, West Europe"
+                  {...field}
+                  className="text-sm"
+                />
+              </FormControl>
+              <FormDescription>
+                Región de la nube donde residen los recursos, si es aplicable.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Container Analysis Fields */}
         <FormField
           control={form.control}
           name="containerImageName"
@@ -386,7 +412,30 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
             </FormItem>
           )}
         />
+         <FormField
+          control={form.control}
+          name="containerAdditionalContext"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor="container-additional-context-input" className="text-base flex items-center"><BoxIcon className="mr-2 h-4 w-4 text-primary"/>Contexto Adicional de Contenedores (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea
+                  id="container-additional-context-input"
+                  placeholder="Proporcione cualquier contexto adicional sobre el despliegue del contenedor o la imagen."
+                  {...field}
+                  className="text-sm min-h-[80px]"
+                />
+              </FormControl>
+              <FormDescription>
+                Contexto adicional puede ayudar a mejorar la precisión del análisis del contenedor.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+
+        {/* Dependency Analysis Fields */}
         <FormField
           control={form.control}
           name="dependencyFileType"
@@ -430,7 +479,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
                 />
               </FormControl>
               <FormDescription>
-                Para análisis de vulnerabilidades en dependencias de software.
+                Para análisis de vulnerabilidades en dependencias de software. (Se requiere si se selecciona un Tipo de Archivo).
               </FormDescription>
               <FormMessage />
             </FormItem>

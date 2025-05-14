@@ -235,3 +235,18 @@ export const GeneralQueryOutputSchema = z.object({
 });
 export type GeneralQueryOutput = z.infer<typeof GeneralQueryOutputSchema>;
 
+// Specific input/output schemas for new analysis flows
+export { CloudConfigInputSchema as AnalyzeCloudConfigInputSchema };
+export type { CloudConfigInput as AnalyzeCloudConfigInput };
+export { CloudConfigAnalysisOutputSchema as AnalyzeCloudConfigOutputSchema };
+export type { CloudConfigAnalysisOutput as AnalyzeCloudConfigOutput };
+
+export { ContainerAnalysisInputSchema as AnalyzeContainerSecurityInputSchema };
+export type { ContainerAnalysisInput as AnalyzeContainerSecurityInput };
+export { ContainerAnalysisOutputSchema as AnalyzeContainerSecurityOutputSchema };
+export type { ContainerAnalysisOutput as AnalyzeContainerSecurityOutput };
+
+export { DependencyAnalysisInputSchema as AnalyzeDependenciesInputSchema };
+export type { DependencyAnalysisInput as AnalyzeDependenciesInput };
+export { DependencyAnalysisOutputSchema as AnalyzeDependenciesOutputSchema };
+export type { DependencyAnalysisOutput as AnalyzeDependenciesOutput };

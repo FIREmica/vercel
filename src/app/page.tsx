@@ -114,9 +114,9 @@ export default function HomePage() {
     if (values.databaseDescription) descriptionParts.push("Base de Datos");
     if (values.codeSnippet) descriptionParts.push("Análisis SAST");
     if (values.dastTargetUrl) descriptionParts.push("Análisis DAST");
-    if (values.cloudConfigDescription) descriptionParts.push(`Cloud (${values.cloudProvider || 'N/A'})`);
+    if (values.cloudProvider && values.cloudConfigDescription) descriptionParts.push(`Cloud (${values.cloudProvider}${values.cloudRegion ? `/${values.cloudRegion}` : ''})`);
     if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
-    if (values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType || 'N/A'})`);
+    if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
 
     
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
@@ -149,11 +149,16 @@ export default function HomePage() {
       if (values.codeSnippet) params.codeSnippet = values.codeSnippet;
       if (values.sastLanguage) params.sastLanguage = values.sastLanguage;
       if (values.dastTargetUrl) params.dastTargetUrl = values.dastTargetUrl;
+      
       if (values.cloudProvider) params.cloudProvider = values.cloudProvider;
       if (values.cloudConfigDescription) params.cloudConfigDescription = values.cloudConfigDescription;
+      if (values.cloudRegion) params.cloudRegion = values.cloudRegion;
+
       if (values.containerImageName) params.containerImageName = values.containerImageName;
       if (values.dockerfileContent) params.dockerfileContent = values.dockerfileContent;
       if (values.kubernetesManifestContent) params.kubernetesManifestContent = values.kubernetesManifestContent;
+      if (values.containerAdditionalContext) params.containerAdditionalContext = values.containerAdditionalContext;
+
       if (values.dependencyFileContent) params.dependencyFileContent = values.dependencyFileContent;
       if (values.dependencyFileType) params.dependencyFileType = values.dependencyFileType;
 
@@ -196,7 +201,7 @@ export default function HomePage() {
           toast({
             title: "Análisis Completo",
             description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descarga ZIP disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default",
+            variant: vulnerableCount > 0 ? "default" : "default", // Consider changing variant based on severity for more impact
             duration: 7000,
           });
       }
@@ -228,8 +233,9 @@ export default function HomePage() {
     
     if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
         await generateZipFile(analysisResult, submittedTargetDescription);
-        // Si los playbooks no se generaron inicialmente, se podrían generar aquí si es necesario y los datos están disponibles.
-        // Por ahora, la generación de playbooks se hace en performAnalysisAction si premium está activo.
+        // If playbooks/attack vectors were not generated initially due to non-premium status,
+        // you might consider regenerating them here, or simply rely on the next full analysis.
+        // For now, this only re-triggers ZIP generation.
     }
      if (!newPremiumStatus && zipUrl) {
         URL.revokeObjectURL(zipUrl);
