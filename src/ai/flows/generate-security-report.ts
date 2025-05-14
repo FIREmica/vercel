@@ -1,9 +1,8 @@
-
 'use server';
 
 /**
  * @fileOverview A Genkit flow for generating a detailed and comprehensive security report
- * from various analysis results (URL, server, database, SAST, DAST).
+ * from various analysis results (URL, server, database, SAST, DAST, Cloud, Container, Dependency).
  *
  * - generateSecurityReport - A function that handles the generation of the security report.
  */
@@ -15,8 +14,7 @@ import {
   GenerateSecurityReportOutputSchema,
   type GenerateSecurityReportOutput,
   VulnerabilityFindingSchema, 
-  SastAnalysisOutputSchema, // Import for typing
-  DastAnalysisOutputSchema, // Import for typing
+  // Import specific output schemas for typing if needed, already in GenerateSecurityReportInputSchema
 } from '@/types/ai-schemas';
 
 export async function generateSecurityReport(
@@ -31,14 +29,14 @@ const generateSecurityReportPrompt = ai.definePrompt({
   input: {schema: GenerateSecurityReportInputSchema},
   output: {schema: GenerateSecurityReportOutputSchema},
   prompt: `
-  You are a senior cybersecurity consultant tasked with creating a comprehensive, professional, and actionable security report for an enterprise client.
-  This report synthesizes findings from automated scans and analyses of different aspects of a system: a web URL, a server configuration, a database configuration, a code snippet (SAST), and/or a dynamic application scan (DAST).
+  You are a senior cybersecurity consultant. Create a comprehensive, professional, and actionable security report in Markdown.
+  Synthesize findings from automated scans: URL, server, database, SAST, DAST, Cloud Config, Container Security, and/or Dependency Analysis.
 
   Target Description: {{#if analyzedTargetDescription}} {{{analyzedTargetDescription}}} {{else}} Not specified {{/if}}
 
   {{#if urlAnalysis}}
   URL Analysis Summary:
-  - Analyzed URL: {{{input.urlAnalysis.findings.0.source}}} (This should reflect the actual input URL if available, otherwise use this placeholder if only one source is present for URL findings.)
+  - Analyzed URL: {{{input.urlAnalysis.findings.0.source}}} (Placeholder if URL not directly in input context for prompt)
   - Overall Risk for URL: {{{urlAnalysis.overallRiskAssessment}}}
   - URL Scan Executive Summary: {{{urlAnalysis.executiveSummary}}}
     {{#if urlAnalysis.vulnerableFindingsCount}}
@@ -59,21 +57,17 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Server Analysis Summary:
   - Overall Risk for Server: {{{serverAnalysis.overallRiskAssessment}}}
   - Server Scan Executive Summary: {{{serverAnalysis.executiveSummary}}}
-    {{#if serverAnalysis.findings.length}}
-      {{#if (lookup (filter serverAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter serverAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
   Key Server Vulnerable Findings:
-        {{#each serverAnalysis.findings}}
-          {{#if this.isVulnerable}}
+      {{#each serverAnalysis.findings}}
+        {{#if this.isVulnerable}}
   - Source: Server, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
     - Remediation: {{this.remediation}}
-          {{/if}}
-        {{/each}}
-      {{else}}
-  No active vulnerabilities identified in the server analysis.
-      {{/if}}
+        {{/if}}
+      {{/each}}
     {{else}}
-  No findings reported from server analysis.
+  No active vulnerabilities identified in the server analysis.
     {{/if}}
   {{/if}}
 
@@ -81,21 +75,17 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Database Analysis Summary:
   - Overall Risk for Database: {{{databaseAnalysis.overallRiskAssessment}}}
   - Database Scan Executive Summary: {{{databaseAnalysis.executiveSummary}}}
-    {{#if databaseAnalysis.findings.length}}
-      {{#if (lookup (filter databaseAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter databaseAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
   Key Database Vulnerable Findings:
-        {{#each databaseAnalysis.findings}}
-          {{#if this.isVulnerable}}
+      {{#each databaseAnalysis.findings}}
+        {{#if this.isVulnerable}}
   - Source: Database, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
     - Remediation: {{this.remediation}}
-          {{/if}}
-        {{/each}}
-      {{else}}
-  No active vulnerabilities identified in the database analysis.
-      {{/if}}
+        {{/if}}
+      {{/each}}
     {{else}}
-  No findings reported from database analysis.
+  No active vulnerabilities identified in the database analysis.
     {{/if}}
   {{/if}}
 
@@ -103,22 +93,18 @@ const generateSecurityReportPrompt = ai.definePrompt({
   SAST Analysis (Code Snippet) Summary:
   - Overall Risk for Code: {{{sastAnalysis.overallRiskAssessment}}}
   - SAST Scan Executive Summary: {{{sastAnalysis.executiveSummary}}}
-    {{#if sastAnalysis.findings.length}}
-      {{#if (lookup (filter sastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter sastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
   Key SAST Vulnerable Findings:
-        {{#each sastAnalysis.findings}}
-          {{#if this.isVulnerable}}
+      {{#each sastAnalysis.findings}}
+        {{#if this.isVulnerable}}
   - Source: SAST, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
-            {{#if this.filePath}}- File: {{this.filePath}} {{/if}}{{#if this.lineNumber}}Line: {{this.lineNumber}}{{/if}}
+          {{#if this.filePath}}- File: {{this.filePath}} {{/if}}{{#if this.lineNumber}}Line: {{this.lineNumber}}{{/if}}
     - Remediation: {{this.remediation}}
-          {{/if}}
-        {{/each}}
-      {{else}}
-  No active vulnerabilities identified in the SAST analysis of the code snippet.
-      {{/if}}
+        {{/if}}
+      {{/each}}
     {{else}}
-  No findings reported from SAST analysis.
+  No active vulnerabilities identified in the SAST analysis.
     {{/if}}
   {{/if}}
 
@@ -126,24 +112,78 @@ const generateSecurityReportPrompt = ai.definePrompt({
   DAST Analysis (Dynamic Application Scan) Summary:
   - Overall Risk for Application: {{{dastAnalysis.overallRiskAssessment}}}
   - DAST Scan Executive Summary: {{{dastAnalysis.executiveSummary}}}
-    {{#if dastAnalysis.findings.length}}
-      {{#if (lookup (filter dastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter dastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
   Key DAST Vulnerable Findings:
-        {{#each dastAnalysis.findings}}
-          {{#if this.isVulnerable}}
+      {{#each dastAnalysis.findings}}
+        {{#if this.isVulnerable}}
   - Source: DAST, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
     - Observation: {{this.description}}
-            {{#if this.affectedParameter}}- Parameter: {{this.affectedParameter}}{{/if}}
+          {{#if this.affectedParameter}}- Parameter: {{this.affectedParameter}}{{/if}}
     - Remediation: {{this.remediation}}
-          {{/if}}
-        {{/each}}
-      {{else}}
-  No active vulnerabilities identified in the DAST analysis.
-      {{/if}}
+        {{/if}}
+      {{/each}}
     {{else}}
-  No findings reported from DAST analysis.
+  No active vulnerabilities identified in the DAST analysis.
     {{/if}}
   {{/if}}
+
+  {{#if cloudAnalysis}}
+  Cloud Configuration Analysis Summary ({{{cloudAnalysis.findings.0.cloudProvider}}}):
+  - Overall Risk for Cloud Config: {{{cloudAnalysis.overallRiskAssessment}}}
+  - Cloud Scan Executive Summary: {{{cloudAnalysis.executiveSummary}}}
+    {{#if (lookup (filter cloudAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+  Key Cloud Vulnerable Findings:
+      {{#each cloudAnalysis.findings}}
+        {{#if this.isVulnerable}}
+  - Source: Cloud, Provider: {{this.cloudProvider}}, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
+    - Observation: {{this.description}}
+          {{#if this.affectedResource}}- Resource: {{this.affectedResource}}{{/if}}
+    - Remediation: {{this.remediation}}
+        {{/if}}
+      {{/each}}
+    {{else}}
+  No active vulnerabilities identified in the Cloud configuration analysis.
+    {{/if}}
+  {{/if}}
+
+  {{#if containerAnalysis}}
+  Container Security Analysis Summary:
+  - Overall Risk for Container(s): {{{containerAnalysis.overallRiskAssessment}}}
+  - Container Scan Executive Summary: {{{containerAnalysis.executiveSummary}}}
+    {{#if (lookup (filter containerAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+  Key Container Vulnerable Findings:
+      {{#each containerAnalysis.findings}}
+        {{#if this.isVulnerable}}
+  - Source: Container, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
+    - Observation: {{this.description}}
+          {{#if this.imageName}}- Image: {{this.imageName}}{{/if}}
+    - Remediation: {{this.remediation}}
+        {{/if}}
+      {{/each}}
+    {{else}}
+  No active vulnerabilities identified in the Container security analysis.
+    {{/if}}
+  {{/if}}
+
+  {{#if dependencyAnalysis}}
+  Dependency Analysis Summary ({{{dependencyAnalysis.findings.0.fileType}}}):
+  - Overall Risk for Dependencies: {{{dependencyAnalysis.overallRiskAssessment}}}
+  - Dependency Scan Executive Summary: {{{dependencyAnalysis.executiveSummary}}}
+    {{#if (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+  Key Vulnerable Dependencies:
+      {{#each dependencyAnalysis.findings}}
+        {{#if this.isVulnerable}}
+  - Source: Dependency, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
+    - Observation: {{this.description}}
+          {{#if this.dependencyName}}- Dependency: {{this.dependencyName}} {{/if}}{{#if this.dependencyVersion}}@{{this.dependencyVersion}}{{/if}}
+    - Remediation: {{this.remediation}}
+        {{/if}}
+      {{/each}}
+    {{else}}
+  No active vulnerabilities identified in the Dependency analysis.
+    {{/if}}
+  {{/if}}
+
 
   {{#if overallVulnerableFindings.length}}
   Consolidated List of All Vulnerable Findings ({{overallVulnerableFindings.length}} total):
@@ -154,15 +194,21 @@ const generateSecurityReportPrompt = ai.definePrompt({
     {{/each}}
   {{else}}
     {{#unless urlAnalysis.vulnerableFindingsCount}}
-      {{#unless (lookup (filter serverAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-        {{#unless (lookup (filter databaseAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-          {{#unless (lookup (filter sastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-            {{#unless (lookup (filter dastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-  No specific active vulnerabilities were identified by the performed scans/analyses based on the provided descriptions or inputs.
-            {{/unless}}
+     {{#unless (lookup (filter serverAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+      {{#unless (lookup (filter databaseAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+       {{#unless (lookup (filter sastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+        {{#unless (lookup (filter dastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+         {{#unless (lookup (filter cloudAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+          {{#unless (lookup (filter containerAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+           {{#unless (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+  No specific active vulnerabilities were identified by the performed scans/analyses.
+           {{/unless}}
           {{/unless}}
+         {{/unless}}
         {{/unless}}
+       {{/unless}}
       {{/unless}}
+     {{/unless}}
     {{/unless}}
   {{/if}}
 
@@ -170,33 +216,30 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Instructions for the Report:
   Generate a comprehensive security report based *only* on the provided scan results. Structure the report logically using Markdown:
   1.  **# Overall Executive Summary (Report):**
-      - Start by stating the overall security posture of the analyzed components, considering the highest risk identified (Severity and CVSS score if available).
-      - Briefly summarize the most significant risks across URL, server, database, SAST, and/or DAST. Mention key themes if apparent.
-      - State the total number of *active* vulnerabilities found across all sources.
-      - Conclude with a call to action regarding remediation.
+      - State overall security posture, highest risk (Severity, CVSS).
+      - Summarize most significant risks across all sources. Total active vulnerabilities. Call to action.
   2.  **# Detailed Findings and Analysis:**
-      Organize this section by source (e.g., ## URL Analysis, ## Server Configuration Analysis, ## Database Security Analysis, ## SAST Analysis, ## DAST Analysis).
-      If analysis for a source was not performed or yielded no findings, state "No [Source Type] analysis was performed or no findings were reported for this component."
+      Organize by source (## URL Analysis, ## Server Configuration, ## Database Security, ## SAST Analysis, ## DAST Analysis, ## Cloud Configuration, ## Container Security, ## Dependency Analysis).
+      If no analysis or no findings for a source, state "No [Source Type] analysis was performed or no findings were reported."
       For each source with *vulnerable* findings:
-      *   Restate its specific executive summary and overall risk assessment from the input, if available.
+      *   Restate its specific executive summary and overall risk.
       *   For *each vulnerable* finding ('isVulnerable' is true):
           *   **### [Vulnerability Category] (Severity: [Severity]{{#if cvssScore}}, CVSS: {{cvssScore}} {{cvssVector}}{{/if}})**
-          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}
-          *   **Specific Finding:** Detail the observation from the 'description' field of the finding.
-          *   **Potential Business Impact:** (Use 'businessImpact' field if available) Explain.
-          *   **Technical Details:** (Use 'technicalDetails' field if available) Provide technical explanation.
-          *   **Evidence:** (Use 'evidence', 'codeSnippetContext', 'requestExample', 'responseExample' fields as appropriate) List or quote specific evidence.
-          *   **Recommended Remediation:** List the specific, actionable remediation steps from the 'remediation' field.
+          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}{{#if cloudProvider}}(Provider: {{cloudProvider}}, Resource: {{affectedResource}}){{/if}}{{#if imageName}}(Image: {{imageName}}){{/if}}{{#if dependencyName}}(Dependency: {{dependencyName}}@{{dependencyVersion}}){{/if}}
+          *   **Specific Finding:** Detail 'description'.
+          *   **Potential Business Impact:** ('businessImpact').
+          *   **Technical Details:** ('technicalDetails').
+          *   **Evidence:** ('evidence', 'codeSnippetContext', 'requestExample', 'responseExample').
+          *   **Recommended Remediation:** ('remediation').
   3.  **# Prioritized Recommendations:**
-      - List the top 3-5 vulnerabilities that should be addressed first.
+      - List top 3-5 vulnerabilities to address first (based on severity and potential impact from inputs).
   4.  **# Compliance Considerations (General Overview):**
-      - Briefly mention general compliance impacts.
+      - Briefly mention general compliance impacts if vulnerabilities are relevant to common standards (e.g. PII exposure for GDPR/CCPA). Do not invent compliance issues.
   5.  **# Conclusion:**
-      - Reiterate overall posture and importance of proactive security.
-      - Recommend ongoing practices.
+      - Reiterate overall posture and importance of proactive security. Recommend ongoing practices.
 
-  Format the report using markdown. Ensure a professional tone. Focus solely on provided input.
-  If a specific analysis (URL, Server, Database, SAST, DAST) was not provided, gracefully omit its detailed section.
+  Format using markdown. Professional tone. Focus solely on provided input.
+  Gracefully omit sections for which no analysis was provided.
   `,
 });
 
@@ -208,36 +251,30 @@ const generateSecurityReportFlow = ai.defineFlow(
     outputSchema: GenerateSecurityReportOutputSchema,
   },
   async (input): Promise<GenerateSecurityReportOutput> => {
-    // Consolidate all vulnerable findings for the prompt
     let overallVulnerableFindings: VulnerabilityFinding[] = []; 
-    if (input.urlAnalysis?.findings) {
-      overallVulnerableFindings = overallVulnerableFindings.concat(input.urlAnalysis.findings.filter(f => f.isVulnerable));
-    }
-    if (input.serverAnalysis?.findings) {
-      overallVulnerableFindings = overallVulnerableFindings.concat(input.serverAnalysis.findings.filter(f => f.isVulnerable));
-    }
-    if (input.databaseAnalysis?.findings) {
-      overallVulnerableFindings = overallVulnerableFindings.concat(input.databaseAnalysis.findings.filter(f => f.isVulnerable));
-    }
-    if (input.sastAnalysis?.findings) {
-      overallVulnerableFindings = overallVulnerableFindings.concat(input.sastAnalysis.findings.filter(f => f.isVulnerable));
-    }
-    if (input.dastAnalysis?.findings) {
-      overallVulnerableFindings = overallVulnerableFindings.concat(input.dastAnalysis.findings.filter(f => f.isVulnerable));
-    }
+    if (input.urlAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.urlAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.serverAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.serverAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.databaseAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.databaseAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.sastAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.sastAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.dastAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.dastAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.cloudAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.cloudAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.containerAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.containerAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.dependencyAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.dependencyAnalysis.findings.filter(f => f.isVulnerable));
     
     overallVulnerableFindings = overallVulnerableFindings.map(f => {
         let findingSource = f.source; 
         if (!findingSource) { 
-            if (input.urlAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "URL";
+                 if (input.urlAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "URL";
             else if (input.serverAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Server";
             else if (input.databaseAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Database";
             else if (input.sastAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "SAST";
             else if (input.dastAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "DAST";
+            else if (input.cloudAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Cloud";
+            else if (input.containerAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Container";
+            else if (input.dependencyAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Dependency";
         }
         return { ...f, source: findingSource || "Unknown" as const };
     });
-
 
     const promptInput = {
       analyzedTargetDescription: input.analyzedTargetDescription || "System components",
@@ -246,8 +283,11 @@ const generateSecurityReportFlow = ai.defineFlow(
       databaseAnalysis: input.databaseAnalysis,
       sastAnalysis: input.sastAnalysis,
       dastAnalysis: input.dastAnalysis,
+      cloudAnalysis: input.cloudAnalysis,
+      containerAnalysis: input.containerAnalysis,
+      dependencyAnalysis: input.dependencyAnalysis,
       overallVulnerableFindings: overallVulnerableFindings,
-      input: input 
+      input: input // Keep original input for context if needed by Handlebars template pathing
     };
 
     const {output} = await generateSecurityReportPrompt(promptInput);
@@ -261,4 +301,3 @@ const generateSecurityReportFlow = ai.defineFlow(
     return output;
   }
 );
-

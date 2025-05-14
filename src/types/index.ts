@@ -1,21 +1,28 @@
-
 import type {
   UrlVulnerabilityAnalysisOutput,
   ServerSecurityAnalysisOutput,
   DatabaseSecurityAnalysisOutput,
   SastAnalysisOutput,
   DastAnalysisOutput,
+  CloudConfigAnalysisOutput,
+  ContainerAnalysisOutput,
+  DependencyAnalysisOutput,
   VulnerabilityFinding as SingleVulnerabilityFinding,
   GenerateAttackVectorsOutput as FullGenerateAttackVectorsOutput,
-  AttackVectorItem as SingleAttackVectorItem
+  AttackVectorItem as SingleAttackVectorItem,
+  RemediationPlaybookOutput as SingleRemediationPlaybookOutput
 } from "@/types/ai-schemas";
 
-// Re-exporting the structured output from analyze-url-vulnerabilities directly
+// Re-exporting the structured output from individual analyses directly
 export type { UrlVulnerabilityAnalysisOutput };
 export type { ServerSecurityAnalysisOutput };
 export type { DatabaseSecurityAnalysisOutput };
 export type { SastAnalysisOutput };
 export type { DastAnalysisOutput };
+export type { CloudConfigAnalysisOutput };
+export type { ContainerAnalysisOutput };
+export type { DependencyAnalysisOutput };
+export type { SingleRemediationPlaybookOutput as RemediationPlaybook };
 
 
 export interface AnalysisResult {
@@ -24,10 +31,15 @@ export interface AnalysisResult {
   databaseAnalysis: DatabaseSecurityAnalysisOutput | null;
   sastAnalysis: SastAnalysisOutput | null;
   dastAnalysis: DastAnalysisOutput | null;
+  cloudAnalysis: CloudConfigAnalysisOutput | null;
+  containerAnalysis: ContainerAnalysisOutput | null;
+  dependencyAnalysis: DependencyAnalysisOutput | null;
   // The comprehensive report text generated from all available analyses
   reportText: string | null;
   // Attack vectors generated from any vulnerable findings across all analyses
-  attackVectors: FullGenerateAttackVectorsOutput | null;
+  attackVectors: FullGenerateAttackVectorsOutput | null; // This is already an array of AttackVectorItem
+  // Remediation Playbooks (Premium Feature)
+  remediationPlaybooks: SingleRemediationPlaybookOutput[] | null;
   error: string | null;
   // Combined list of all findings from all sources for easier top-level access if needed by UI
   allFindings?: SingleVulnerabilityFinding[] | null;
@@ -44,4 +56,3 @@ export type VulnerabilityFinding = SingleVulnerabilityFinding;
  * This type alias points to the one defined in ai-schemas.ts
  */
 export type AttackVector = SingleAttackVectorItem;
-

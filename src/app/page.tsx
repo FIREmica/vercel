@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,20 +6,22 @@ import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
+import { RemediationPlaybooksDisplay } from "@/components/remediation-playbooks-display";
 import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
 import { performAnalysisAction } from "./actions";
-import type { AnalysisResult } from "@/types";
+import type { AnalysisResult, RemediationPlaybook } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
+import { cn } from "@/lib/utils";
 
 
 export default function HomePage() {
@@ -65,21 +66,28 @@ export default function HomePage() {
     }
     if (result.allFindings && result.allFindings.length > 0) {
       folder.file("todos_los_hallazgos.json", JSON.stringify(result.allFindings, null, 2));
-    } else {
-        if (result.urlAnalysis?.findings) folder.file("hallazgos_url.json", JSON.stringify(result.urlAnalysis.findings, null, 2));
-        if (result.serverAnalysis?.findings) folder.file("hallazgos_servidor.json", JSON.stringify(result.serverAnalysis.findings, null, 2));
-        if (result.databaseAnalysis?.findings) folder.file("hallazgos_db.json", JSON.stringify(result.databaseAnalysis.findings, null, 2));
-        if (result.sastAnalysis?.findings) folder.file("hallazgos_sast.json", JSON.stringify(result.sastAnalysis.findings, null, 2));
-        if (result.dastAnalysis?.findings) folder.file("hallazgos_dast.json", JSON.stringify(result.dastAnalysis.findings, null, 2));
     }
     if (result.attackVectors && result.attackVectors.length > 0) { 
       folder.file("vectores_ataque_ilustrativos.json", JSON.stringify(result.attackVectors, null, 2));
     }
+    if (result.remediationPlaybooks && result.remediationPlaybooks.length > 0) {
+        const playbooksFolder = folder.folder("playbooks_remediacion");
+        if (playbooksFolder) {
+            result.remediationPlaybooks.forEach((playbook, index) => {
+                const safeTitle = playbook.playbookTitle.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0, 40) || `playbook_${index}`;
+                playbooksFolder.file(`${safeTitle}.md`, playbook.playbookMarkdown);
+            });
+        }
+    }
+    
      if (result.urlAnalysis?.executiveSummary) folder.file("resumen_url.txt", result.urlAnalysis.executiveSummary);
      if (result.serverAnalysis?.executiveSummary) folder.file("resumen_servidor.txt", result.serverAnalysis.executiveSummary);
      if (result.databaseAnalysis?.executiveSummary) folder.file("resumen_db.txt", result.databaseAnalysis.executiveSummary);
      if (result.sastAnalysis?.executiveSummary) folder.file("resumen_sast.txt", result.sastAnalysis.executiveSummary);
      if (result.dastAnalysis?.executiveSummary) folder.file("resumen_dast.txt", result.dastAnalysis.executiveSummary);
+     if (result.cloudAnalysis?.executiveSummary) folder.file("resumen_cloud.txt", result.cloudAnalysis.executiveSummary);
+     if (result.containerAnalysis?.executiveSummary) folder.file("resumen_container.txt", result.containerAnalysis.executiveSummary);
+     if (result.dependencyAnalysis?.executiveSummary) folder.file("resumen_dependencies.txt", result.dependencyAnalysis.executiveSummary);
 
 
     try {
@@ -104,8 +112,12 @@ export default function HomePage() {
     if (values.serverDescription) descriptionParts.push("Servidor General");
     if (values.gameServerDescription) descriptionParts.push("Servidor de Juegos");
     if (values.databaseDescription) descriptionParts.push("Base de Datos");
-    if (values.codeSnippet || values.repositoryUrl) descriptionParts.push("Análisis SAST");
+    if (values.codeSnippet) descriptionParts.push("Análisis SAST");
     if (values.dastTargetUrl) descriptionParts.push("Análisis DAST");
+    if (values.cloudConfigDescription) descriptionParts.push(`Cloud (${values.cloudProvider || 'N/A'})`);
+    if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
+    if (values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType || 'N/A'})`);
+
     
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
@@ -136,18 +148,23 @@ export default function HomePage() {
       if (values.databaseDescription) params.databaseDescription = values.databaseDescription;
       if (values.codeSnippet) params.codeSnippet = values.codeSnippet;
       if (values.sastLanguage) params.sastLanguage = values.sastLanguage;
-      // Note: repositoryUrl is not directly used in actions yet, but captured from form.
-      // SAST flow currently uses codeSnippet. Future enhancement could use repoUrl.
       if (values.dastTargetUrl) params.dastTargetUrl = values.dastTargetUrl;
+      if (values.cloudProvider) params.cloudProvider = values.cloudProvider;
+      if (values.cloudConfigDescription) params.cloudConfigDescription = values.cloudConfigDescription;
+      if (values.containerImageName) params.containerImageName = values.containerImageName;
+      if (values.dockerfileContent) params.dockerfileContent = values.dockerfileContent;
+      if (values.kubernetesManifestContent) params.kubernetesManifestContent = values.kubernetesManifestContent;
+      if (values.dependencyFileContent) params.dependencyFileContent = values.dependencyFileContent;
+      if (values.dependencyFileType) params.dependencyFileType = values.dependencyFileType;
 
 
       if (Object.keys(params).length === 0) {
-        toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos un objetivo de análisis (URL, descripción de servidor/BD, fragmento de código, URL para DAST)."});
+        toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos un objetivo de análisis."});
         setIsLoading(false);
         return;
       }
 
-      const result = await performAnalysisAction(params);
+      const result = await performAnalysisAction(params, isPremiumUser);
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) { 
@@ -159,13 +176,18 @@ export default function HomePage() {
         });
       } else {
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
+          const summaryItems = [
+              result.urlAnalysis?.executiveSummary,
+              result.serverAnalysis?.executiveSummary,
+              result.databaseAnalysis?.executiveSummary,
+              result.sastAnalysis?.executiveSummary,
+              result.dastAnalysis?.executiveSummary,
+              result.cloudAnalysis?.executiveSummary,
+              result.containerAnalysis?.executiveSummary,
+              result.dependencyAnalysis?.executiveSummary,
+          ];
           const primarySummary = result.reportText ? "Informe completo generado." : 
-            (result.urlAnalysis?.executiveSummary || 
-             result.serverAnalysis?.executiveSummary || 
-             result.databaseAnalysis?.executiveSummary || 
-             result.sastAnalysis?.executiveSummary ||
-             result.dastAnalysis?.executiveSummary ||
-             (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
+            (summaryItems.find(s => s) || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
           
           if (isPremiumUser && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
             await generateZipFile(result, currentTargetDesc);
@@ -173,7 +195,7 @@ export default function HomePage() {
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe completo y descarga ZIP disponibles.' : 'Active el Modo Premium para acceder a escenarios de ataque, detalles técnicos y descarga.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descarga ZIP disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
             variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
@@ -182,7 +204,11 @@ export default function HomePage() {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
       const errorMessage = error.message || "Ocurrió un error inesperado durante el análisis.";
-      setAnalysisResult({ urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, reportText: null, attackVectors: null, error: errorMessage, allFindings: null });
+      setAnalysisResult({ 
+        urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
+        cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null,
+        reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: null 
+      });
       toast({ variant: "destructive", title: "Error Crítico de Análisis", description: errorMessage, duration: 8000 });
     } finally {
       setIsLoading(false);
@@ -195,13 +221,15 @@ export default function HomePage() {
     toast({ 
         title: newPremiumStatus ? "¡Modo Premium Activado!" : "Modo Premium Desactivado", 
         description: newPremiumStatus 
-          ? "Ahora tienes acceso completo a informes técnicos detallados, escenarios de ataque ilustrativos, descarga de resultados y futuras capacidades avanzadas." 
-          : "El acceso a funciones avanzadas como escenarios de ataque, detalles técnicos completos y descarga ZIP ha sido limitado.",
+          ? "Acceso completo a informes técnicos, escenarios de ataque, playbooks de remediación y descarga de resultados." 
+          : "El acceso a funciones avanzadas ha sido limitado.",
         variant: "default"
     });
     
     if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
         await generateZipFile(analysisResult, submittedTargetDescription);
+        // Si los playbooks no se generaron inicialmente, se podrían generar aquí si es necesario y los datos están disponibles.
+        // Por ahora, la generación de playbooks se hace en performAnalysisAction si premium está activo.
     }
      if (!newPremiumStatus && zipUrl) {
         URL.revokeObjectURL(zipUrl);
@@ -209,7 +237,7 @@ export default function HomePage() {
     }
   };
   
-  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || null;
+  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || analysisResult?.cloudAnalysis || analysisResult?.containerAnalysis || analysisResult?.dependencyAnalysis || null;
 
   return (
     <TooltipProvider>
@@ -230,9 +258,8 @@ export default function HomePage() {
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
-              Nuestra plataforma utiliza Inteligencia Artificial para analizar exhaustivamente la seguridad de sus URLs, aplicaciones web, configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia, etc.), bases de datos, fragmentos de código (SAST simulado) y aplicaciones en ejecución (DAST simulado).
-              Identificamos vulnerabilidades, generamos informes detallados y sugerimos remediaciones.
-              <strong className="text-foreground"> Active el Modo Premium para desbloquear informes técnicos completos, escenarios de ataque ilustrativos y la descarga de resultados.</strong>
+              Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s) y dependencias de software.
+              <strong className="text-foreground"> Active Premium para informes técnicos, escenarios de ataque, playbooks de remediación y descarga.</strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -253,70 +280,40 @@ export default function HomePage() {
                         Capacidades Empresariales Avanzadas
                     </CardTitle>
                     <CardDescription>
-                        Expandimos continuamente nuestra plataforma para ofrecer herramientas de seguridad de nivel empresarial. Funcionalidades en desarrollo, simulación y planificación:
+                        Nuestra plataforma ofrece herramientas de seguridad de nivel empresarial, con muchas funcionalidades en desarrollo activo, simulación y planificación estratégica:
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <SearchCode className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <span className="font-semibold text-foreground">Análisis SAST (Estático)</span>
-                          <p className="text-muted-foreground">Análisis de fragmentos de código para identificar vulnerabilidades (simulado). Próximamente: análisis de repositorios completos.</p>
-                          <Badge variant="outline" className="mt-1 border-green-500 text-green-500">Simulado</Badge>
+                    {[
+                        { icon: SearchCode, title: "Análisis SAST (Estático)", desc: "Análisis de fragmentos de código para identificar vulnerabilidades. Próximamente: análisis de repositorios.", status: "Simulado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: Network, title: "Análisis DAST (Dinámico)", desc: "Pruebas de seguridad en aplicaciones web en ejecución para encontrar vulnerabilidades.", status: "Simulado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: Cloud, title: "Análisis Config. Cloud (AWS, Azure, GCP)", desc: "Evaluación de seguridad para infraestructuras en la nube.", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
+                        { icon: BoxIcon, title: "Análisis Seguridad Contenedores", desc: "Análisis de imágenes Docker y configuraciones Kubernetes.", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
+                        { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks de terceros.", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
+                        { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
+                        { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
+                        { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
+                        { icon: ShieldEllipsis, title: "Políticas de Seguridad Corporativas", desc: "Generación de informes de cumplimiento basados en políticas internas.", status: "Planificado" },
+                        { icon: Waypoints, title: "Integración SIEM/SOAR", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Planificado" },
+                        { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado" },
+                        { icon: BarChart3, title: "Paneles de Control Avanzados", desc: "Visualizaciones y analítica de riesgos personalizables.", status: "Planificado" },
+                        { icon: GitBranch, title: "Integración con CI/CD", desc: "Automatización de análisis en pipelines de desarrollo (DevSecOps).", status: "Explorando" },
+                        { icon: Columns, title: "Interfaz de Línea de Comandos (CLI)", desc: "Automatización y gestión de análisis desde la terminal.", status: "Considerando" },
+                        { icon: Gamepad2, title: "Mejoras Específicas Servidores de Juegos", desc: "Análisis de protocolos, detección de trampas, análisis de mods/scripts.", status: "Planificado" },
+                        { icon: ShieldCheck, title: "Informes de Cumplimiento (PCI, HIPAA)", desc: "Mapeo de hallazgos a normativas y generación de informes.", status: "Considerando" },
+                    ].map(item => (
+                        <div key={item.title} className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
+                            <item.icon className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                            <div>
+                                <span className="font-semibold text-foreground">{item.title}</span>
+                                <p className="text-muted-foreground">{item.desc}</p>
+                                <Badge variant="outline" className={cn("mt-1", item.badgeColor || "border-gray-400 text-gray-500")}>{item.status}</Badge>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <Network className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <span className="font-semibold text-foreground">Análisis DAST (Dinámico)</span>
-                          <p className="text-muted-foreground">Pruebas de seguridad en aplicaciones web en ejecución para encontrar vulnerabilidades (simulado).</p>
-                          <Badge variant="outline" className="mt-1 border-green-500 text-green-500">Simulado</Badge>
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <BarChart3 className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                         <div>
-                          <span className="font-semibold text-foreground">Paneles de Control Avanzados</span>
-                          <p className="text-muted-foreground">Visualizaciones y analítica de riesgos personalizables para una gestión de seguridad proactiva.</p>
-                          <Badge variant="outline" className="mt-1">Planificado</Badge>
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <Zap className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <span className="font-semibold text-foreground">Integración con CI/CD</span>
-                          <p className="text-muted-foreground">Automatización de análisis de seguridad en pipelines de desarrollo para DevSecOps.</p>
-                          <Badge variant="outline" className="mt-1">Explorando</Badge>
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <ShieldCheck className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <span className="font-semibold text-foreground">Informes de Cumplimiento</span>
-                          <p className="text-muted-foreground">Mapeo de hallazgos a normativas (PCI, HIPAA, GDPR) y generación de informes de cumplimiento.</p>
-                          <Badge variant="outline" className="mt-1">Considerando</Badge>
-                        </div>
-                    </div>
-                     <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <Cloud className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <span className="font-semibold text-foreground">Análisis de Configuración Cloud</span>
-                          <p className="text-muted-foreground">Evaluación de seguridad para infraestructuras en AWS, Azure y GCP.</p>
-                          <Badge variant="outline" className="mt-1">Planificado</Badge>
-                        </div>
-                    </div>
-                     <div className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                        <SlidersHorizontal className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <span className="font-semibold text-foreground">Reglas de Análisis Personalizadas</span>
-                          <p className="text-muted-foreground">Permitir a las empresas definir políticas y reglas de detección específicas.</p>
-                          <Badge variant="outline" className="mt-1">En Desarrollo</Badge>
-                        </div>
-                    </div>
+                    ))}
                 </CardContent>
             </Card>
           </section>
-
 
           <section className="max-w-4xl mx-auto">
             {isLoading && (
@@ -346,7 +343,8 @@ export default function HomePage() {
               <div className="space-y-8">
                 <AnalysisSummaryCard 
                   analysisInput={summaryCardData} 
-                  allFindings={analysisResult.allFindings} 
+                  allFindings={analysisResult.allFindings}
+                  result={analysisResult}
                 />
                 
                 <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremiumUser} />
@@ -357,6 +355,13 @@ export default function HomePage() {
                     <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
                   </>
                 )}
+                {isPremiumUser && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
+                  <>
+                    <Separator className="my-8 md:my-12" />
+                    <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
+                  </>
+                )}
+
 
                  {!isPremiumUser && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                   <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
@@ -366,7 +371,7 @@ export default function HomePage() {
                         Desbloquee Todo el Potencial con Premium
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha generado información valiosa. Para profundizar y obtener una visión completa de su postura de seguridad, considere activar el Modo Premium.
+                        Su análisis ha generado información valiosa. Active el Modo Premium para una visión completa de su postura de seguridad.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -375,23 +380,27 @@ export default function HomePage() {
                         <ul className="space-y-2 text-muted-foreground text-sm">
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Informe Técnico Detallado:</strong> Acceso completo al análisis de la IA, incluyendo razonamiento y justificaciones.</span>
+                            <span><strong className="text-foreground">Informe Técnico Detallado:</strong> Acceso completo al análisis de la IA.</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Escenarios de Ataque Ilustrativos:</strong> Comprenda cómo las vulnerabilidades podrían ser explotadas con ejemplos prácticos.</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Detalles Técnicos Exhaustivos:</strong> Visualice CVSS, impacto de negocio, evidencia (si aplica) y remediaciones para todos los hallazgos.</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Descarga de Resultados (ZIP):</strong> Obtenga todos los artefactos del análisis (informe, hallazgos JSON, vectores de ataque JSON) para su documentación y uso offline.</span>
+                            <span><strong className="text-foreground">Escenarios de Ataque Ilustrativos:</strong> Comprenda cómo las vulnerabilidades podrían ser explotadas.</span>
                           </li>
                            <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Futuras Funcionalidades Avanzadas:</strong> Acceso prioritario a nuevas herramientas y características de nivel empresarial.</span>
+                            <span><strong className="text-foreground">Playbooks de Remediación:</strong> Guías paso a paso para corregir vulnerabilidades.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Detalles Técnicos Exhaustivos:</strong> CVSS, impacto, evidencia para todos los hallazgos.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Descarga de Resultados (ZIP):</strong> Todos los artefactos del análisis para uso offline.</span>
+                          </li>
+                           <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Futuras Funcionalidades Avanzadas:</strong> Acceso prioritario a nuevas herramientas.</span>
                           </li>
                         </ul>
                       </div>
@@ -400,7 +409,7 @@ export default function HomePage() {
                         <Sparkles className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
                       </Button>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        La activación es simulada para demostración. En un entorno real, esto podría implicar un proceso de pago.
+                        La activación es simulada para demostración.
                       </p>
                     </CardContent>
                   </Card>
@@ -414,7 +423,7 @@ export default function HomePage() {
                       </a>
                     </Button>
                     <p className="text-xs text-muted-foreground mt-2">
-                      El ZIP contiene el informe completo (.md), detalles de hallazgos (.json) y escenarios de ataque (.json) si fueron generados.
+                      El ZIP contiene informe, hallazgos, vectores de ataque y playbooks (si fueron generados).
                     </p>
                   </div>
                 )}
@@ -429,28 +438,31 @@ export default function HomePage() {
                         Plataforma Integral de Análisis de Seguridad Asistido por IA
                     </CardTitle>
                     <CardDescription>
-                        Fortalezca la seguridad de sus aplicaciones web, servidores (incluyendo servidores de juegos populares como Lineage 2, Roblox, Tibia, servidores privados, etc.), bases de datos, código fuente (SAST) y aplicaciones en ejecución (DAST) con nuestra solución de análisis inteligente y automatizado.
+                        Fortalezca la seguridad de sus aplicaciones web, servidores (juegos populares como Lineage 2, Roblox, Tibia, etc.), bases de datos, código (SAST), aplicaciones (DAST), Cloud, Contenedores y Dependencias.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
-                        Proporcione detalles de su URL, la configuración de su servidor, las características de su base de datos, fragmentos de código o URLs para análisis dinámico. Nuestro motor de IA identificará vulnerabilidades comunes y específicas,
-                        generará un informe detallado y, con el Modo Premium, proporcionará escenarios de ataque ilustrativos, detalles técnicos profundos y la capacidad de descargar todos los resultados.
+                        Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores o archivos de dependencias. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
+                        Con Modo Premium, obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis de URL y Web.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis Web/URL.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis Específico para Servidores de Juegos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis Servidores de Juegos.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <SearchCode className="h-5 w-5 text-primary"/> Análisis de Código (SAST).</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Network className="h-5 w-5 text-primary"/> Análisis Dinámico (DAST).</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Cloud className="h-5 w-5 text-primary"/> Análisis Config. Cloud.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <BoxIcon className="h-5 w-5 text-primary"/> Análisis Contenedores.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <LibraryIcon className="h-5 w-5 text-primary"/> Análisis Dependencias.</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
-                        Ideal para equipos de desarrollo, profesionales de ciberseguridad, administradores de servidores de juegos y empresas que buscan proteger sus activos digitales de manera proactiva, eficiente y con la potencia de la IA.
+                        Ideal para equipos DevSecOps, profesionales de ciberseguridad, administradores de sistemas y empresas que buscan proteger sus activos digitales de forma proactiva, eficiente y con la potencia de la IA.
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-primary font-medium">
                         <Sparkles className="h-5 w-5" />
-                        <span>Active el "Modo Premium" para desbloquear informes técnicos completos, escenarios de ataque detallados, descarga de resultados y acceso a futuras funcionalidades avanzadas.</span>
+                        <span>Active el "Modo Premium" para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.</span>
                     </div>
                 </CardContent>
                </Card>
@@ -489,3 +501,4 @@ export default function HomePage() {
   );
 }
 
+    

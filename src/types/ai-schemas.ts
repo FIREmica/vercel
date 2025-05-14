@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Centralized Zod schemas and TypeScript types for AI flows.
  * This file does not use 'use server' and can be safely imported by server components/actions
@@ -8,8 +7,8 @@ import { z } from 'zod';
 
 // Schemas and types for analyze-url-vulnerabilities flow (renamed from analyze-vulnerabilities)
 export const VulnerabilityFindingSchema = z.object({
-  source: z.enum(["URL", "Server", "Database", "SAST", "DAST"]).optional().describe("The source of the finding."),
-  vulnerability: z.string().describe('The identified vulnerability category (e.g., Cross-Site Scripting (XSS), SQL Injection, Weak Password Policy, Missing Rate Limiting, Insecure Configuration, Outdated OS, Exposed Database Port, Insecure Code Pattern, Dynamic Application Flaw).'),
+  source: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Cloud", "Container", "Dependency", "Unknown"]).optional().describe("The source of the finding."),
+  vulnerability: z.string().describe('The identified vulnerability category (e.g., Cross-Site Scripting (XSS), SQL Injection, Weak Password Policy, Missing Rate Limiting, Insecure Configuration, Outdated OS, Exposed Database Port, Insecure Code Pattern, Dynamic Application Flaw, IAM Misconfiguration, Exposed Container Port, Vulnerable Dependency).'),
   description: z.string().describe('A brief description of the specific finding related to the vulnerability category.'),
   isVulnerable: z.boolean().describe('Whether the target shows signs of being vulnerable to this specific finding.'),
   severity: z.enum(['Low', 'Medium', 'High', 'Critical', 'Informational']).describe('The estimated severity of the vulnerability finding. Critical may be used by AI if multiple Highs or exceptionally severe single High.'),
@@ -31,6 +30,14 @@ export const VulnerabilityFindingSchema = z.object({
   affectedParameter: z.string().optional().describe("For DAST findings, the affected parameter or input field."),
   requestExample: z.string().optional().describe("For DAST findings, an example HTTP request that triggered the vulnerability."),
   responseExample: z.string().optional().describe("For DAST findings, a relevant snippet from the server's HTTP response."),
+  // Cloud specific fields
+  cloudProvider: z.enum(["AWS", "Azure", "GCP", "Other"]).optional().describe("Cloud provider if applicable."),
+  affectedResource: z.string().optional().describe("Specific cloud resource affected (e.g., S3 Bucket Name, VM ID)."),
+  // Container specific fields
+  imageName: z.string().optional().describe("Container image name and tag if applicable."),
+  // Dependency specific fields
+  dependencyName: z.string().optional().describe("Name of the vulnerable dependency."),
+  dependencyVersion: z.string().optional().describe("Version of the vulnerable dependency."),
 });
 export type VulnerabilityFinding = z.infer<typeof VulnerabilityFindingSchema>;
 
@@ -111,11 +118,59 @@ export const DastAnalysisOutputSchema = z.object({
 });
 export type DastAnalysisOutput = z.infer<typeof DastAnalysisOutputSchema>;
 
+// Schemas for Cloud Configuration Analysis
+export const CloudConfigInputSchema = z.object({
+  provider: z.enum(["AWS", "Azure", "GCP", "Other"]).describe("Cloud provider."),
+  configDescription: z.string().min(50, "La descripción de la configuración cloud debe tener al menos 50 caracteres.").describe("Descripción detallada de la configuración de la infraestructura cloud (ej. políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure Functions, etc.). Incluir extractos de archivos de configuración si es posible (Terraform, CloudFormation, JSON)."),
+  region: z.string().optional().describe("Región de la nube donde residen los recursos, si es aplicable."),
+});
+export type CloudConfigInput = z.infer<typeof CloudConfigInputSchema>;
+
+export const CloudConfigAnalysisOutputSchema = z.object({
+  findings: z.array(VulnerabilityFindingSchema.extend({ source: z.literal("Cloud").default("Cloud") })).describe("Lista de vulnerabilidades o malas configuraciones encontradas en la infraestructura cloud."),
+  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación general del riesgo de la configuración cloud."),
+  executiveSummary: z.string().describe("Resumen ejecutivo de la seguridad de la configuración cloud."),
+});
+export type CloudConfigAnalysisOutput = z.infer<typeof CloudConfigAnalysisOutputSchema>;
+
+// Schemas for Container Security Analysis
+export const ContainerAnalysisInputSchema = z.object({
+  imageName: z.string().optional().describe("Nombre e etiqueta de la imagen del contenedor (ej. 'nginx:latest')."),
+  dockerfileContent: z.string().optional().describe("Contenido del Dockerfile como un string. Proporcionar si se analiza un Dockerfile."),
+  kubernetesManifestContent: z.string().optional().describe("Contenido del manifiesto de Kubernetes (YAML o JSON) como un string. Proporcionar si se analizan configuraciones de K8s."),
+  additionalContext: z.string().optional().describe("Contexto adicional sobre el despliegue del contenedor o la imagen."),
+}).refine(data => !!data.imageName || !!data.dockerfileContent || !!data.kubernetesManifestContent, {
+  message: "Debe proporcionar al menos el nombre de la imagen, el contenido del Dockerfile o el contenido del manifiesto de Kubernetes.",
+  path: ["imageName"],
+});
+export type ContainerAnalysisInput = z.infer<typeof ContainerAnalysisInputSchema>;
+
+export const ContainerAnalysisOutputSchema = z.object({
+  findings: z.array(VulnerabilityFindingSchema.extend({ source: z.literal("Container").default("Container") })).describe("Lista de vulnerabilidades encontradas en la imagen del contenedor, Dockerfile o manifiestos de K8s."),
+  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación general del riesgo del contenedor/configuración."),
+  executiveSummary: z.string().describe("Resumen ejecutivo de la seguridad del contenedor."),
+});
+export type ContainerAnalysisOutput = z.infer<typeof ContainerAnalysisOutputSchema>;
+
+// Schemas for Dependency Analysis
+export const DependencyAnalysisInputSchema = z.object({
+  dependencyFileContent: z.string().min(20, "El contenido del archivo de dependencias debe tener al menos 20 caracteres.").describe("Contenido del archivo de dependencias (ej. package-lock.json, requirements.txt, pom.xml, Gemfile.lock)."),
+  fileType: z.enum(["npm", "pip", "maven", "gem", "other"]).describe("Tipo de archivo de dependencias."),
+});
+export type DependencyAnalysisInput = z.infer<typeof DependencyAnalysisInputSchema>;
+
+export const DependencyAnalysisOutputSchema = z.object({
+  findings: z.array(VulnerabilityFindingSchema.extend({ source: z.literal("Dependency").default("Dependency") })).describe("Lista de dependencias vulnerables encontradas."),
+  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación general del riesgo de las dependencias."),
+  executiveSummary: z.string().describe("Resumen ejecutivo de la seguridad de las dependencias."),
+});
+export type DependencyAnalysisOutput = z.infer<typeof DependencyAnalysisOutputSchema>;
+
 
 // Schemas and types for generate-attack-vectors flow
 export const AttackVectorItemSchema = z.object({
   vulnerabilityName: z.string().describe('The name/category of the vulnerability this attack vector is based on.'),
-  source: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Unknown"]).optional().describe("The source of the original finding for this attack vector."),
+  source: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Cloud", "Container", "Dependency", "Unknown"]).optional().describe("The source of the original finding for this attack vector."),
   attackScenarioDescription: z.string().describe('A description of how an attacker might exploit this vulnerability. Tailor to the vulnerability type and source.'),
   examplePayloadOrTechnique: z.string().describe('An example of a malicious payload, code snippet, or technique an attacker might use. This should be illustrative and for educational purposes only.'),
   expectedOutcomeIfSuccessful: z.string().describe('The expected outcome if the attack is successful, e.g., "Account lockout", "Unauthorized data access", "Cross-Site Scripting execution", "SQL Injection successful", "Server compromise".'),
@@ -128,15 +183,32 @@ export type GenerateAttackVectorsInput = z.infer<typeof GenerateAttackVectorsInp
 export const GenerateAttackVectorsOutputSchema = z.array(AttackVectorItemSchema);
 export type GenerateAttackVectorsOutput = z.infer<typeof GenerateAttackVectorsOutputSchema>;
 
+// Schemas for Remediation Playbook Generation
+export const RemediationPlaybookInputSchema = z.object({
+  vulnerabilityFinding: VulnerabilityFindingSchema.describe("La vulnerabilidad específica para la cual generar un playbook."),
+  // Можно добавить контекст, например, технологии используемые в компании
+  // companyTechStack: z.array(z.string()).optional().describe("Stack tecnológico de la empresa para adaptar el playbook.")
+});
+export type RemediationPlaybookInput = z.infer<typeof RemediationPlaybookInputSchema>;
+
+export const RemediationPlaybookOutputSchema = z.object({
+  playbookTitle: z.string().describe("Título del playbook de remediación."),
+  playbookMarkdown: z.string().describe("Playbook de remediación detallado en formato Markdown, con pasos, comandos, y ejemplos de código si aplica."),
+});
+export type RemediationPlaybookOutput = z.infer<typeof RemediationPlaybookOutputSchema>;
+
 
 // Schemas and types for the comprehensive security report
 export const GenerateSecurityReportInputSchema = z.object({
-  analyzedTargetDescription: z.string().optional().describe("A brief overall description of what was targeted for analysis, e.g., 'Registration page for MyService', 'Production Web Server', 'Customer Database Server', 'Code Snippet Analysis', 'Dynamic Application Scan'"),
+  analyzedTargetDescription: z.string().optional().describe("A brief overall description of what was targeted for analysis, e.g., 'Registration page for MyService', 'Production Web Server', 'Customer Database Server', 'Code Snippet Analysis', 'Dynamic Application Scan', 'AWS S3 Buckets Configuration', 'Nginx Container Image', 'Node.js Project Dependencies'"),
   urlAnalysis: UrlVulnerabilityAnalysisOutputSchema.optional().describe("Results from the URL vulnerability analysis, if performed."),
   serverAnalysis: ServerSecurityAnalysisOutputSchema.optional().describe("Results from the server security analysis, if performed."),
   databaseAnalysis: DatabaseSecurityAnalysisOutputSchema.optional().describe("Results from the database security analysis, if performed."),
   sastAnalysis: SastAnalysisOutputSchema.optional().describe("Results from the SAST analysis, if performed."),
   dastAnalysis: DastAnalysisOutputSchema.optional().describe("Results from the DAST analysis, if performed."),
+  cloudAnalysis: CloudConfigAnalysisOutputSchema.optional().describe("Results from the Cloud configuration analysis, if performed."),
+  containerAnalysis: ContainerAnalysisOutputSchema.optional().describe("Results from the Container security analysis, if performed."),
+  dependencyAnalysis: DependencyAnalysisOutputSchema.optional().describe("Results from the Dependency analysis, if performed."),
   overallVulnerableFindings: z.array(VulnerabilityFindingSchema).optional().describe("A combined list of all findings marked as isVulnerable from all analysis types.")
 });
 export type GenerateSecurityReportInput = z.infer<typeof GenerateSecurityReportInputSchema>;
@@ -145,7 +217,7 @@ export const GenerateSecurityReportOutputSchema = z.object({
   report: z
     .string()
     .describe(
-      'A comprehensive, well-structured security report in Markdown. It should synthesize findings from all provided analyses (URL, server, database, SAST, DAST), offer an overall executive summary, detail findings with impacts and remediations, and conclude with prioritized recommendations.'
+      'A comprehensive, well-structured security report in Markdown. It should synthesize findings from all provided analyses (URL, server, database, SAST, DAST, Cloud, Container, Dependency), offer an overall executive summary, detail findings with impacts and remediations, and conclude with prioritized recommendations.'
     ),
 });
 export type GenerateSecurityReportOutput = z.infer<typeof GenerateSecurityReportOutputSchema>;
@@ -162,4 +234,3 @@ export const GeneralQueryOutputSchema = z.object({
   aiResponse: z.string().describe('The AI assistant\'s response to the user\'s message.'),
 });
 export type GeneralQueryOutput = z.infer<typeof GeneralQueryOutputSchema>;
-
