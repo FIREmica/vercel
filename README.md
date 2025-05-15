@@ -112,15 +112,23 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 
 ## Modo Premium y Monetización (Simulado)
 
-La plataforma incluye un "Modo Premium" simulado. Cuando está activado, los usuarios obtienen acceso a:
+La plataforma incluye un "Modo Premium" simulado, que se activa/desactiva con un botón en la interfaz. Este modo representa conceptualmente un **usuario autenticado con una suscripción activa**. Cuando está activado, los usuarios obtienen acceso a:
 
-*   **Informes Técnicos Detallados:** El informe de seguridad completo generado por la IA, sin truncamiento.
+*   **Informe Técnico Detallado:** El informe de seguridad completo generado por la IA, sin truncamiento.
 *   **Detalles Completos de Hallazgos:** Incluye CVSS, impacto técnico y de negocio, evidencia y recomendaciones detalladas para todas las vulnerabilidades.
 *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
 *   **Generación de Playbooks de Remediación:** Guías paso a paso para corregir los problemas identificados.
 *   **Descarga Completa de Resultados (ZIP):** Un archivo ZIP que contiene el informe, todos los hallazgos en JSON, los escenarios de ataque y los playbooks.
 
 La descarga de todos los hallazgos en formato JSON está disponible para todos los usuarios como una forma de facilitar la integración con herramientas externas.
+
+**Pasos Futuros para Monetización Real:**
+
+Para una monetización real, los siguientes pasos serían críticos:
+
+1.  **Implementar Autenticación de Usuarios:** Utilizar soluciones como NextAuth.js o Firebase Authentication para permitir el registro e inicio de sesión de usuarios.
+2.  **Integrar una Pasarela de Pagos:** Conectar con servicios como Stripe o PayPal para gestionar suscripciones y pagos.
+3.  **Desarrollar un Panel de Administración:** Para gestionar usuarios, suscripciones, y posiblemente configuraciones de la plataforma.
 
 **Potenciales Estrategias de Monetización (Si el proyecto escalara):**
 
@@ -132,6 +140,8 @@ La descarga de todos los hallazgos en formato JSON está disponible para todos l
 
 ## Roadmap (Posibles Mejoras Futuras)
 
+*   **Autenticación y Gestión de Usuarios Real:** Implementar un sistema de autenticación robusto (ej. NextAuth.js, Firebase Auth).
+*   **Integración de Pasarela de Pagos:** Conectar con Stripe o PayPal para monetización real.
 *   **Documentación Técnica Detallada:** Crear una carpeta `/docs` o una Wiki del proyecto con explicaciones sobre la arquitectura, los flujos de IA, y cómo extender la plataforma.
 *   **Automatizaciones y Testing:**
     *   Agregar Prettier, ESLint y Husky para mantener la calidad del código.
@@ -144,15 +154,13 @@ La descarga de todos los hallazgos en formato JSON está disponible para todos l
 *   **Mapeo Detallado con OWASP Top 10 y otros frameworks (ej. MITRE ATT&CK).**
 *   **Panel administrativo para gestión de la plataforma.**
 *   **Integraciones SIEM/SOAR (Avanzado):** Más allá de la exportación JSON, webhooks directos o APIs para sistemas específicos.
-*   **Gestión de usuarios y RBAC (Control de Acceso Basado en Roles).**
+*   **Control de Acceso Basado en Roles (RBAC).**
 *   **Interfaz de Línea de Comandos (CLI).**
 *   **Historial de análisis por usuario (requiere autenticación de usuarios).**
-*   **Implementación de sistema de pagos real (ej. PayPal, Stripe) para servicios premium.**
+*   **Mejoras Específicas Servidores de Juegos:** Análisis de protocolos, detección de trampas, análisis de mods/scripts.
 
 ## Licencia
 
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-
-    

@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, LogOut } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -151,8 +151,6 @@ export default function HomePage() {
     if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
     if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
     if (values.networkDescription || values.networkScanResults || values.networkFirewallRules) descriptionParts.push('Red');
-
-
     
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
@@ -246,10 +244,9 @@ export default function HomePage() {
             await generateZipFile(result, currentTargetDesc);
           }
 
-
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funcionalidades Premium.'}`,
             variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
@@ -282,14 +279,14 @@ export default function HomePage() {
     }
   };
 
-  const handlePremiumToggle = async () => {
+  const handleAuthToggle = async () => {
     const newPremiumStatus = !isPremiumUser;
     setIsPremiumUser(newPremiumStatus);
     toast({ 
-        title: newPremiumStatus ? "¡Modo Premium Activado!" : "Modo Premium Desactivado", 
+        title: newPremiumStatus ? "¡Sesión Premium Iniciada (Simulada)!" : "Sesión Cerrada (Simulada)", 
         description: newPremiumStatus 
           ? "Acceso completo a informes técnicos, escenarios de ataque, playbooks de remediación y descarga de resultados." 
-          : "El acceso a funciones avanzadas ha sido limitado.",
+          : "Las funciones Premium han sido desactivadas. Vuelva a iniciar sesión para reactivarlas.",
         variant: "default"
     });
     
@@ -317,11 +314,11 @@ export default function HomePage() {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
-          <Sparkles className="mr-2 h-5 w-5" /> Activar Modo Premium
+        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleAuthToggle}>
+          <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Activar Premium (Simulado)
         </Button>
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          La activación es simulada para demostración.
+          El inicio de sesión y la activación son simulados para demostración.
         </p>
       </CardContent>
     </Card>
@@ -332,7 +329,7 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader 
           isPremiumUser={isPremiumUser} 
-          onAuthToggle={handlePremiumToggle}
+          onAuthToggle={handleAuthToggle}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
@@ -340,14 +337,22 @@ export default function HomePage() {
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
                 Centro de Análisis de Seguridad Integral
                 </h2>
-                <Button variant={isPremiumUser ? "default" : "outline"} onClick={handlePremiumToggle} size="sm" className={cn("self-start sm:self-center", isPremiumUser ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "")}>
-                    {isPremiumUser ? <Unlock className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    {isPremiumUser ? "Premium Activado" : "Activar Premium"}
+                <Button 
+                    variant={isPremiumUser ? "outline" : "default"} 
+                    onClick={handleAuthToggle} 
+                    size="sm" 
+                    className={cn(
+                        "self-start sm:self-center", 
+                        isPremiumUser ? "border-green-500 text-green-600 hover:bg-green-500/10" : "bg-accent hover:bg-accent/90 text-accent-foreground"
+                    )}
+                >
+                    {isPremiumUser ? <LogOut className="mr-2 h-4 w-4" /> : <LogIn className="mr-2 h-4 w-4" />}
+                    {isPremiumUser ? "Cerrar Sesión (Simulado)" : "Iniciar Sesión / Premium (Simulado)"}
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
               Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias de software y configuraciones de red.
-              <strong className="text-foreground block mt-1"> Active Premium para informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa.</strong>
+              <strong className="text-foreground block mt-1"> Inicie sesión (simulado) para acceder a informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa.</strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -444,7 +449,7 @@ export default function HomePage() {
                     <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
                   </>
                 )}
-                {!isPremiumUser && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
+                {!isPremiumUser && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
                    <PremiumFeatureCard 
                     title="Escenarios de Ataque Ilustrativos"
                     description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
@@ -458,7 +463,7 @@ export default function HomePage() {
                     <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
                   </>
                 )}
-                 {!isPremiumUser && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
+                 {!isPremiumUser && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.remediationPlaybooks || analysisResult.remediationPlaybooks.length === 0) &&(
                    <PremiumFeatureCard 
                     title="Playbooks de Remediación Sugeridos"
                     description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
@@ -472,15 +477,15 @@ export default function HomePage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
                         <Unlock className="h-6 w-6" />
-                        Desbloquee Todo el Potencial con Premium
+                        Desbloquee Todo el Potencial Iniciando Sesión (Premium)
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha generado información valiosa. Active el Modo Premium para una visión completa de su postura de seguridad.
+                        Su análisis ha generado información valiosa. Inicie sesión (simulado) para una visión completa de su postura de seguridad y acceso a todas las funcionalidades.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <h3 className="font-semibold text-foreground mb-2">Con el Modo Premium, usted obtiene:</h3>
+                        <h3 className="font-semibold text-foreground mb-2">Con una sesión Premium (simulada), usted obtiene:</h3>
                         <ul className="space-y-2 text-muted-foreground text-sm">
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
@@ -513,11 +518,11 @@ export default function HomePage() {
                         </ul>
                       </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
-                      <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
-                        <Sparkles className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
+                      <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleAuthToggle}>
+                        <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium (Simulado)
                       </Button>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        La activación es simulada para demostración. No se procesarán pagos reales.
+                        El inicio de sesión y la activación son simulados para demostración. No se procesarán pagos reales.
                       </p>
                     </CardContent>
                   </Card>
@@ -535,11 +540,11 @@ export default function HomePage() {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed" disabled>
-                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Premium
+                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Sesión Premium
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Active Premium para descargar el paquete completo de resultados.</p>
+                                <p>Inicie sesión (simulado) para descargar el paquete completo de resultados.</p>
                             </TooltipContent>
                         </Tooltip>
                     )}
@@ -559,7 +564,7 @@ export default function HomePage() {
                  )}
                   {jsonExportUrl && !zipUrl && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                      El JSON contiene todos los hallazgos. Active Premium para la descarga ZIP completa.
+                      El JSON contiene todos los hallazgos. Inicie sesión (simulado) para la descarga ZIP completa.
                     </p>
                  )}
               </div>
@@ -579,7 +584,7 @@ export default function HomePage() {
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
                         Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
-                        Con Modo Premium, obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
+                        Con una Sesión Premium (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis Web/URL.</div>
@@ -596,9 +601,9 @@ export default function HomePage() {
                     <p className="text-muted-foreground mt-3">
                         Ideal para equipos DevSecOps, profesionales de ciberseguridad, administradores de sistemas y empresas que buscan proteger sus activos digitales de forma proactiva, eficiente y con la potencia de la IA.
                     </p>
-                     <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-primary font-medium">
-                        <Sparkles className="h-5 w-5" />
-                        <span>Active el "Modo Premium" para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.</span>
+                     <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-accent font-medium">
+                        <LogIn className="h-5 w-5" />
+                        <span>Inicie sesión (simulado) para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.</span>
                     </div>
                 </CardContent>
                </Card>
@@ -636,5 +641,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
-    

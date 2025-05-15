@@ -1,5 +1,5 @@
 
-import { ShieldCheck, Sparkles, Unlock } from 'lucide-react';
+import { ShieldCheck, Sparkles, Unlock, LogIn, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
 type AppHeaderProps = {
@@ -14,12 +14,17 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
         <div className="flex items-center gap-3">
           <ShieldCheck className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-semibold text-foreground">
-            Analizador de Seguridad Integral
+            Centro de Análisis de Seguridad Integral
           </h1>
         </div>
-        <Button variant="outline" size="sm" onClick={onAuthToggle} className={isPremiumUser ? "border-accent text-accent hover:bg-accent/10" : ""}>
-          {isPremiumUser ? <Unlock className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-          {isPremiumUser ? "Premium Activo" : "Activar Premium"}
+        <Button 
+          variant={isPremiumUser ? "outline" : "default"} 
+          size="sm" 
+          onClick={onAuthToggle} 
+          className={isPremiumUser ? "border-green-500 text-green-600 hover:bg-green-500/10" : "bg-accent hover:bg-accent/90 text-accent-foreground"}
+        >
+          {isPremiumUser ? <LogOut className="mr-2 h-4 w-4" /> : <LogIn className="mr-2 h-4 w-4" />}
+          {isPremiumUser ? "Cerrar Sesión (Simulado)" : "Iniciar Sesión / Premium (Simulado)"}
         </Button>
       </div>
     </header>
