@@ -12,7 +12,7 @@ export const VulnerabilityFindingSchema = z.object({
   description: z.string().describe('A brief description of the specific finding related to the vulnerability category.'),
   isVulnerable: z.boolean().describe('Whether the target shows signs of being vulnerable to this specific finding.'),
   severity: z.enum(['Low', 'Medium', 'High', 'Critical', 'Informational']).describe('The estimated severity of the vulnerability finding. Critical may be used by AI if multiple Highs or exceptionally severe single High.'),
-  cvssScore: z.number().optional().describe("The CVSS 3.1 base score, if applicable (e.g., 7.5)."),
+  cvssScore: z.number().min(0).max(10).optional().describe("The CVSS 3.1 base score, if applicable (e.g., 7.5)."),
   cvssVector: z.string().optional().describe("The CVSS 3.1 vector string, if applicable (e.g., CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N)."),
   businessImpact: z.string().optional().describe("Potential business impact if this vulnerability is exploited (e.g., data breach, service disruption, reputational damage)."),
   technicalDetails: z.string().optional().describe("In-depth technical explanation of the vulnerability, how it occurs, and relevant technical context."),
@@ -155,7 +155,7 @@ export type ContainerAnalysisOutput = z.infer<typeof ContainerAnalysisOutputSche
 
 // Schemas for Dependency Analysis
 export const DependencyAnalysisInputSchema = z.object({
-  dependencyFileContent: z.string().min(20).optional().or(z.literal('')).describe("Contenido del archivo de dependencias (ej. package-lock.json, requirements.txt, pom.xml, Gemfile.lock)."),
+  dependencyFileContent: z.string().min(20, "El contenido del archivo de dependencias debe tener al menos 20 caracteres.").optional().or(z.literal('')).describe("Contenido del archivo de dependencias (ej. package-lock.json, requirements.txt, pom.xml, Gemfile.lock)."),
   fileType: z.enum(["npm", "pip", "maven", "gem", "other"]).optional().describe("Tipo de archivo de dependencias."),
 });
 export type DependencyAnalysisInput = z.infer<typeof DependencyAnalysisInputSchema>;
