@@ -155,8 +155,8 @@ export type ContainerAnalysisOutput = z.infer<typeof ContainerAnalysisOutputSche
 
 // Schemas for Dependency Analysis
 export const DependencyAnalysisInputSchema = z.object({
-  dependencyFileContent: z.string().min(20, "El contenido del archivo de dependencias debe tener al menos 20 caracteres.").describe("Contenido del archivo de dependencias (ej. package-lock.json, requirements.txt, pom.xml, Gemfile.lock)."),
-  fileType: z.enum(["npm", "pip", "maven", "gem", "other"]).describe("Tipo de archivo de dependencias."),
+  dependencyFileContent: z.string().min(20).optional().or(z.literal('')).describe("Contenido del archivo de dependencias (ej. package-lock.json, requirements.txt, pom.xml, Gemfile.lock)."),
+  fileType: z.enum(["npm", "pip", "maven", "gem", "other"]).optional().describe("Tipo de archivo de dependencias."),
 });
 export type DependencyAnalysisInput = z.infer<typeof DependencyAnalysisInputSchema>;
 

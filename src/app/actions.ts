@@ -250,7 +250,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   } catch (error: any) { 
     console.error("Error crítico en performAnalysisAction:", error);
     let errorMessage = "Ocurrió un error crítico inesperado durante el proceso de análisis. El modelo de IA podría no estar disponible o la entrada podría ser inválida.";
-     if (process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || !process.env.GOOGLE_API_KEY){
+     if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE"){
         errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
      } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
         errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";
@@ -278,7 +278,7 @@ export async function askGeneralAssistantAction(input: GeneralQueryInput): Promi
   } catch (error: any) {
     console.error("Error interacting with General Assistant:", error);
     let errorMessage = "Lo siento, no pude procesar tu pregunta en este momento. Por favor, intenta de nuevo más tarde.";
-    if (process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || !process.env.GOOGLE_API_KEY){
+    if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE"){
         errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
         errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";

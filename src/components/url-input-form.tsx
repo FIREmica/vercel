@@ -30,7 +30,7 @@ const formSchema = z.object({
   dastTargetUrl: z.string().url({message: "Por favor, ingrese una URL válida para el análisis DAST."}).optional().or(z.literal('')),
   
   cloudProvider: z.enum(["AWS", "Azure", "GCP", "Other"]).optional(),
-  cloudConfigDescription: z.string().optional().or(z.literal('')), // Min length handled by refine
+  cloudConfigDescription: z.string().optional().or(z.literal('')), 
   cloudRegion: z.string().optional().or(z.literal('')),
   
   containerImageName: z.string().optional().or(z.literal('')),
@@ -38,7 +38,7 @@ const formSchema = z.object({
   kubernetesManifestContent: z.string().min(20, {message: "El contenido del manifiesto K8s debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   containerAdditionalContext: z.string().optional().or(z.literal('')),
 
-  dependencyFileContent: z.string().optional().or(z.literal('')), // Min length handled by refine
+  dependencyFileContent: z.string().min(20, { message: "El contenido del archivo de dependencias debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   dependencyFileType: z.enum(["npm", "pip", "maven", "gem", "other"]).optional(),
 
 }).refine(data => {
@@ -48,21 +48,28 @@ const formSchema = z.object({
     const isDependencyAnalysisAttempted = !!data.dependencyFileType;
     const isDependencyAnalysisValid = isDependencyAnalysisAttempted ? !!data.dependencyFileContent && data.dependencyFileContent.length >=20 : true;
 
-    return (
+    const isContainerAnalysisAttempted = !!data.containerImageName || !!data.dockerfileContent || !!data.kubernetesManifestContent;
+    const isContainerAnalysisValid = isContainerAnalysisAttempted ? (
+        (!!data.containerImageName && data.containerImageName.length > 0) || 
+        (!!data.dockerfileContent && data.dockerfileContent.length >= 20) || 
+        (!!data.kubernetesManifestContent && data.kubernetesManifestContent.length >= 20)
+    ) : true;
+
+
+    return ( // At least one field from any category must be present for the form to be valid
       !!data.url || 
       !!data.serverDescription || 
       !!data.gameServerDescription || 
       !!data.databaseDescription ||
       !!data.codeSnippet ||
       !!data.dastTargetUrl ||
-      (isCloudAnalysisAttempted && isCloudAnalysisValid) || // Valid if attempted and description is present
-      (!isCloudAnalysisAttempted) || // Valid if not attempted
-      !!data.containerImageName ||
-      !!data.dockerfileContent ||
-      !!data.kubernetesManifestContent ||
-      (isDependencyAnalysisAttempted && isDependencyAnalysisValid) || // Valid if attempted and content is present
-      (!isDependencyAnalysisAttempted) // Valid if not attempted
-    ) && ( // Overall check: at least one valid section must be filled
+      (isCloudAnalysisAttempted && isCloudAnalysisValid) || 
+      (!isCloudAnalysisAttempted) || 
+      (isContainerAnalysisAttempted && isContainerAnalysisValid) ||
+      (!isContainerAnalysisAttempted) ||
+      (isDependencyAnalysisAttempted && isDependencyAnalysisValid) || 
+      (!isDependencyAnalysisAttempted)
+    ) && ( // Overall check: at least one valid *and complete* section must be filled
       !!data.url || 
       !!data.serverDescription || 
       !!data.gameServerDescription || 
@@ -70,13 +77,11 @@ const formSchema = z.object({
       !!data.codeSnippet ||
       !!data.dastTargetUrl ||
       (!!data.cloudProvider && !!data.cloudConfigDescription && data.cloudConfigDescription.length >= 20) ||
-      !!data.containerImageName ||
-      !!data.dockerfileContent ||
-      !!data.kubernetesManifestContent ||
+      (!!data.containerImageName || (!!data.dockerfileContent && data.dockerfileContent.length >=20) || (!!data.kubernetesManifestContent && data.kubernetesManifestContent.length >=20)) ||
       (!!data.dependencyFileType && !!data.dependencyFileContent && data.dependencyFileContent.length >= 20)
     );
   }, {
-  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración con al menos 20 caracteres; si seleccionas tipo de dependencia, provee el contenido con al menos 20 caracteres).",
+  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración con al menos 20 caracteres; si seleccionas tipo de dependencia, provee el contenido con al menos 20 caracteres; si inicias análisis de contenedor, provee al menos un dato válido para este).",
   path: ["url"], // General error path
 }).superRefine((data, ctx) => {
   if (data.cloudProvider && (!data.cloudConfigDescription || data.cloudConfigDescription.length < 20)) {
@@ -93,6 +98,37 @@ const formSchema = z.object({
       path: ["dependencyFileContent"],
     });
   }
+   if ((data.dockerfileContent && data.dockerfileContent.length > 0 && data.dockerfileContent.length < 20)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El contenido del Dockerfile debe tener al menos 20 caracteres si se proporciona.",
+      path: ["dockerfileContent"],
+    });
+  }
+  if ((data.kubernetesManifestContent && data.kubernetesManifestContent.length > 0 && data.kubernetesManifestContent.length < 20)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El contenido del manifiesto K8s debe tener al menos 20 caracteres si se proporciona.",
+      path: ["kubernetesManifestContent"],
+    });
+  }
+  if (!data.imageName && !data.dockerfileContent && !data.kubernetesManifestContent && (data.containerImageName === '' || data.dockerfileContent === '' || data.kubernetesManifestContent === '')) {
+     // This case might be too broad or might conflict with the .refine above if any of these are just empty strings vs undefined
+     // Only trigger if user started filling one and then cleared it, or if they are *all* explicitly empty strings *and* no other analysis types are filled.
+     // The main .refine should handle the "at least one analysis type"
+  } else if ((data.containerImageName || data.dockerfileContent || data.kubernetesManifestContent) &&
+             !(data.containerImageName && data.containerImageName.length > 0) &&
+             !(data.dockerfileContent && data.dockerfileContent.length >= 20) &&
+             !(data.kubernetesManifestContent && data.kubernetesManifestContent.length >= 20)
+            ) {
+     ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Si inicia un análisis de contenedor, debe proporcionar un nombre de imagen, o contenido de Dockerfile (mín. 20 caracteres), o contenido de manifiesto K8s (mín. 20 caracteres).",
+        path: ["containerImageName"], 
+      });
+  }
+
+
 });
 
 export type UrlInputFormValues = z.infer<typeof formSchema>;
