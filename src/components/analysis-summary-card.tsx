@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { AnalysisResult, VulnerabilityFinding } from "@/types"; 
@@ -148,15 +149,15 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
   ];
 
   const analysisTypesPerformed = result ? [
-    result.urlAnalysis && { name: "URL" as const, count: result.urlAnalysis.findings.length },
-    result.serverAnalysis && { name: "Servidor" as const, count: result.serverAnalysis.findings.length },
-    result.databaseAnalysis && { name: "Base de Datos" as const, count: result.databaseAnalysis.findings.length },
-    result.sastAnalysis && { name: "SAST (Código)" as const, count: result.sastAnalysis.findings.length },
-    result.dastAnalysis && { name: "DAST (App)" as const, count: result.dastAnalysis.findings.length },
-    result.cloudAnalysis && { name: "Cloud" as const, count: result.cloudAnalysis.findings.length },
-    result.containerAnalysis && { name: "Contenedor" as const, count: result.containerAnalysis.findings.length },
-    result.dependencyAnalysis && { name: "Dependencias" as const, count: result.dependencyAnalysis.findings.length },
-  ].filter(Boolean) as { name: VulnerabilityFinding['source'], count: number }[] : [];
+    result.urlAnalysis && { name: "URL" as const, count: result.urlAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.serverAnalysis && { name: "Servidor" as const, count: result.serverAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.databaseAnalysis && { name: "Base de Datos" as const, count: result.databaseAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.sastAnalysis && { name: "SAST (Código)" as const, count: result.sastAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.dastAnalysis && { name: "DAST (App)" as const, count: result.dastAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.cloudAnalysis && { name: "Cloud" as const, count: result.cloudAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.containerAnalysis && { name: "Contenedor" as const, count: result.containerAnalysis.findings.filter(f=>f.isVulnerable).length },
+    result.dependencyAnalysis && { name: "Dependencias" as const, count: result.dependencyAnalysis.findings.filter(f=>f.isVulnerable).length },
+  ].filter(item => item && item.count > 0) as { name: VulnerabilityFinding['source'], count: number }[] : [];
 
 
   return (
@@ -220,15 +221,13 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
 
         {analysisTypesPerformed.length > 0 && (
             <div className="mt-4 pt-4 border-t">
-                <h4 className="text-md font-semibold mb-2 text-foreground">Distribución de Hallazgos Totales por Origen del Análisis:</h4>
+                <h4 className="text-md font-semibold mb-2 text-foreground">Resumen de Vulnerabilidades Activas por Origen del Análisis:</h4>
                 <div className="flex flex-wrap gap-3">
                     {analysisTypesPerformed.map(sourceType => {
                         if (!sourceType || !sourceType.name) return null; // Defensive check
-                        const totalCountForSource = findingsToSummarize.filter(f => f.source === sourceType.name).length;
-                        if (totalCountForSource === 0) return null; // Only show if there are actual findings from this source
                         return (
                             <Badge key={sourceType.name} variant="secondary" className="text-sm py-1 px-3">
-                                {getIconForSource(sourceType.name)} {sourceType.name}: {totalCountForSource}
+                                {getIconForSource(sourceType.name)} {sourceType.name}: {sourceType.count}
                             </Badge>
                         );
                     })}
@@ -243,3 +242,4 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
     </Card>
   );
 }
+

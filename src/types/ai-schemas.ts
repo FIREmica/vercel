@@ -92,7 +92,7 @@ export type DatabaseSecurityAnalysisOutput = z.infer<typeof DatabaseSecurityAnal
 
 // Schemas and types for SAST (Static Application Security Testing)
 export const SastAnalysisInputSchema = z.object({
-  codeSnippet: z.string().min(20, "El fragmento de código debe tener al menos 20 caracteres.").describe("El fragmento de código fuente a analizar."), // Min length lowered slightly as per form
+  codeSnippet: z.string().min(10, "El fragmento de código debe tener al menos 10 caracteres.").describe("El fragmento de código fuente a analizar."),
   language: z.string().optional().describe("El lenguaje de programación del fragmento de código (ej: Python, JavaScript, Java). Ayuda a la IA a ser más precisa."),
 });
 export type SastAnalysisInput = z.infer<typeof SastAnalysisInputSchema>;
@@ -249,3 +249,8 @@ export { DependencyAnalysisInputSchema as AnalyzeDependenciesInputSchema };
 export type { DependencyAnalysisInput as AnalyzeDependenciesInput };
 export { DependencyAnalysisOutputSchema as AnalyzeDependenciesOutputSchema };
 export type { DependencyAnalysisOutput as AnalyzeDependenciesOutput };
+
+export { DastAnalysisInputSchema as AnalyzeDastSecurityInputSchema };
+export type { DastAnalysisInput as AnalyzeDastSecurityInput };
+export { DastAnalysisOutputSchema as AnalyzeDastSecurityOutputSchema };
+export type { DastAnalysisOutput as AnalyzeDastSecurityOutput };

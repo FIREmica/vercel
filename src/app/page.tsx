@@ -145,7 +145,7 @@ export default function HomePage() {
     if (values.gameServerDescription) descriptionParts.push("Servidor de Juegos");
     if (values.databaseDescription) descriptionParts.push("Base de Datos");
     if (values.codeSnippet) descriptionParts.push("Análisis SAST");
-    if (values.dastTargetUrl) descriptionParts.push("Análisis DAST");
+    if (values.dastTargetUrl) descriptionParts.push(`Análisis DAST (${values.dastTargetUrl})`);
     if (values.cloudProvider && values.cloudConfigDescription) descriptionParts.push(`Cloud (${values.cloudProvider}${values.cloudRegion ? `/${values.cloudRegion}` : ''})`);
     if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
     if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
@@ -334,12 +334,12 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {[
-                        { icon: SearchCode, title: "Análisis SAST (Estático)", desc: "Análisis de fragmentos de código para identificar vulnerabilidades. Próximamente: análisis de repositorios.", status: "Simulado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: Network, title: "Análisis DAST (Dinámico)", desc: "Pruebas de seguridad en aplicaciones web en ejecución para encontrar vulnerabilidades.", status: "Simulado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: Cloud, title: "Análisis Config. Cloud (AWS, Azure, GCP)", desc: "Evaluación de seguridad para infraestructuras en la nube.", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: BoxIcon, title: "Análisis Seguridad Contenedores", desc: "Análisis de imágenes Docker y configuraciones Kubernetes.", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks de terceros.", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "En Desarrollo", badgeColor: "border-blue-500 text-blue-500" },
+                        { icon: SearchCode, title: "Análisis SAST (Estático)", desc: "Análisis de fragmentos de código para identificar vulnerabilidades. Próximamente: análisis de repositorios.", status: "Mejorado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: Network, title: "Análisis DAST (Dinámico)", desc: "Pruebas de seguridad en aplicaciones web en ejecución para encontrar vulnerabilidades.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: Cloud, title: "Análisis Config. Cloud (AWS, Azure, GCP)", desc: "Evaluación de seguridad para infraestructuras en la nube.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: BoxIcon, title: "Análisis Seguridad Contenedores", desc: "Análisis de imágenes Docker y configuraciones Kubernetes.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks de terceros.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
                         { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
                         { icon: ShieldEllipsis, title: "Políticas de Seguridad Corporativas", desc: "Generación de informes de cumplimiento basados en políticas internas.", status: "Planificado" },
@@ -569,3 +569,4 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+

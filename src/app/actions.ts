@@ -130,7 +130,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
 
     if (dastTargetUrl) {
       try {
-        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" };
+        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" }; // Defaulting to Quick Scan
         dastAnalysisResult = await analyzeDastSecurity(dastInput);
         if (dastAnalysisResult?.findings) allFindings.push(...dastAnalysisResult.findings);
       } catch (e: any) { collectedErrorMessages += `DAST: ${e.message}. `; errorOccurred = true; }
@@ -298,3 +298,4 @@ export async function exportAllFindingsAsJsonAction(allFindings: VulnerabilityFi
     return JSON.stringify({ error: "Error al generar el archivo JSON.", details: error.message }, null, 2);
   }
 }
+

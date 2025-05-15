@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +24,7 @@ const formSchema = z.object({
   serverDescription: z.string().min(10, {message: "La descripción del servidor debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
   gameServerDescription: z.string().min(10, {message: "La descripción del servidor de juegos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
   databaseDescription: z.string().min(10, {message: "La descripción de la base de datos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
-  codeSnippet: z.string().min(20, {message: "El fragmento de código debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
+  codeSnippet: z.string().min(10, {message: "El fragmento de código debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')), // Adjusted min length
   sastLanguage: z.string().optional(),
   repositoryUrl: z.string().url({message: "Por favor, ingrese una URL de repositorio válida."}).optional().or(z.literal('')), // Not currently used in actions.ts but kept for future
   dastTargetUrl: z.string().url({message: "Por favor, ingrese una URL válida para el análisis DAST."}).optional().or(z.literal('')),
@@ -205,7 +206,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
               <FormControl>
                 <Textarea
                   id="code-snippet-input"
-                  placeholder="Pega aquí un fragmento de código para análisis estático (SAST). Mínimo 20 caracteres."
+                  placeholder="Pega aquí un fragmento de código para análisis estático (SAST). Mínimo 10 caracteres."
                   {...field}
                   className="text-sm min-h-[120px] font-mono"
                   aria-describedby="code-snippet-form-message"
@@ -503,3 +504,4 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
     </Form>
   );
 }
+
