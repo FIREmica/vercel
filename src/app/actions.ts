@@ -1,3 +1,4 @@
+
 "use server";
 
 import { analyzeUrlVulnerabilities } from "@/ai/flows/analyze-url-vulnerabilities";
@@ -24,7 +25,7 @@ import type {
   CloudConfigAnalysisOutput,
   ContainerAnalysisOutput,
   DependencyAnalysisOutput,
-  RemediationPlaybook // Renamed from SingleRemediationPlaybookOutput for clarity
+  RemediationPlaybook
 } from "@/types";
 import type { 
   GeneralQueryInput, 
@@ -129,7 +130,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
 
     if (dastTargetUrl) {
       try {
-        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" }; // Defaulting to Quick, could be configurable
+        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" };
         dastAnalysisResult = await analyzeDastSecurity(dastInput);
         if (dastAnalysisResult?.findings) allFindings.push(...dastAnalysisResult.findings);
       } catch (e: any) { collectedErrorMessages += `DAST: ${e.message}. `; errorOccurred = true; }
@@ -152,7 +153,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         if (kubernetesManifestContent) containerInput.kubernetesManifestContent = kubernetesManifestContent;
         if (containerAdditionalContext) containerInput.additionalContext = containerAdditionalContext;
         
-        if(Object.keys(containerInput).length > 0 && (containerInput.imageName || containerInput.dockerfileContent || containerInput.kubernetesManifestContent)) { // Ensure valid input
+        if(Object.keys(containerInput).length > 0 && (containerInput.imageName || containerInput.dockerfileContent || containerInput.kubernetesManifestContent)) {
             containerAnalysisResult = await analyzeContainerSecurity(containerInput);
             if (containerAnalysisResult?.findings) allFindings.push(...containerAnalysisResult.findings);
         }
@@ -176,7 +177,6 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
        };
     }
 
-    // Step 2: Generate the comprehensive report
     let targetDescParts = [];
     if (url) targetDescParts.push(`URL (${url})`);
     if (serverDescription) targetDescParts.push('Servidor');
@@ -209,7 +209,6 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         errorOccurred = true; 
     }
 
-    // Step 3 & 4: Generate attack vectors and remediation playbooks (Premium Features)
     let attackVectorsResult: GenerateAttackVectorsInput | null = null; 
     let remediationPlaybooksResult: RemediationPlaybook[] = [];
     const vulnerableFindingsForPremium = allFindings.filter(v => v.isVulnerable);
@@ -232,7 +231,6 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       }
     }
 
-    // Step 5: Return combined results
     return {
         urlAnalysis: urlAnalysisResult,
         serverAnalysis: serverAnalysisResult,
@@ -252,8 +250,10 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   } catch (error: any) { 
     console.error("Error crítico en performAnalysisAction:", error);
     let errorMessage = "Ocurrió un error crítico inesperado durante el proceso de análisis. El modelo de IA podría no estar disponible o la entrada podría ser inválida.";
-     if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
-        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no está configurada o no es válida. Por favor, contacte al administrador de la plataforma.";
+     if (process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || !process.env.GOOGLE_API_KEY){
+        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
+     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
+        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";
       } else if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
         errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión e inténtalo de nuevo.";
       } else if (error.message && error.message.includes('quota')) {
@@ -278,9 +278,23 @@ export async function askGeneralAssistantAction(input: GeneralQueryInput): Promi
   } catch (error: any) {
     console.error("Error interacting with General Assistant:", error);
     let errorMessage = "Lo siento, no pude procesar tu pregunta en este momento. Por favor, intenta de nuevo más tarde.";
-    if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
-        errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no está configurada o no es válida. Por favor, contacte al administrador de la plataforma.";
+    if (process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || !process.env.GOOGLE_API_KEY){
+        errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
+    } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
+        errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";
     }
     return errorMessage;
+  }
+}
+
+export async function exportAllFindingsAsJsonAction(allFindings: VulnerabilityFinding[]): Promise<string> {
+  if (!allFindings || allFindings.length === 0) {
+    return JSON.stringify({ message: "No hay hallazgos para exportar." }, null, 2);
+  }
+  try {
+    return JSON.stringify(allFindings, null, 2);
+  } catch (error: any) {
+    console.error("Error al convertir hallazgos a JSON:", error);
+    return JSON.stringify({ error: "Error al generar el archivo JSON.", details: error.message }, null, 2);
   }
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,15 +9,15 @@ import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-di
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
 import { RemediationPlaybooksDisplay } from "@/components/remediation-playbooks-display";
 import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
-import { performAnalysisAction } from "./actions";
-import type { AnalysisResult, RemediationPlaybook } from "@/types";
+import { performAnalysisAction, exportAllFindingsAsJsonAction } from "./actions";
+import type { AnalysisResult, RemediationPlaybook, VulnerabilityFinding } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
+  const [jsonExportUrl, setJsonExportUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
   const [isPremiumUser, setIsPremiumUser] = useState(false); 
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -37,12 +39,16 @@ export default function HomePage() {
 
   useEffect(() => {
     const currentZipUrl = zipUrl;
+    const currentJsonUrl = jsonExportUrl;
     return () => {
       if (currentZipUrl) {
         URL.revokeObjectURL(currentZipUrl);
       }
+      if (currentJsonUrl) {
+        URL.revokeObjectURL(currentJsonUrl);
+      }
     };
-  }, [zipUrl]);
+  }, [zipUrl, jsonExportUrl]);
 
   const generateZipFile = async (result: AnalysisResult, targetDesc: string) => {
     if (!result || (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0))) return; 
@@ -65,7 +71,13 @@ export default function HomePage() {
       folder.file("informe_completo_seguridad.md", result.reportText);
     }
     if (result.allFindings && result.allFindings.length > 0) {
-      folder.file("todos_los_hallazgos.json", JSON.stringify(result.allFindings, null, 2));
+      try {
+        const allFindingsJson = await exportAllFindingsAsJsonAction(result.allFindings);
+        folder.file("todos_los_hallazgos.json", allFindingsJson);
+      } catch (e) {
+        console.error("Error al exportar hallazgos a JSON para ZIP:", e);
+        folder.file("error_exportando_hallazgos.txt", "No se pudieron exportar los hallazgos a JSON.");
+      }
     }
     if (result.attackVectors && result.attackVectors.length > 0) { 
       folder.file("vectores_ataque_ilustrativos.json", JSON.stringify(result.attackVectors, null, 2));
@@ -103,6 +115,26 @@ export default function HomePage() {
     }
   };
 
+  const generateJsonExportFile = async (findings: VulnerabilityFinding[], targetDesc: string) => {
+    if (!findings || findings.length === 0) {
+        toast({ variant: "default", title: "Sin Hallazgos", description: "No hay hallazgos para exportar en JSON." });
+        return;
+    }
+    try {
+        const jsonString = await exportAllFindingsAsJsonAction(findings);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const newJsonUrl = URL.createObjectURL(blob);
+        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
+        setJsonExportUrl(newJsonUrl);
+        toast({ title: "Archivo JSON Listo", description: "Los hallazgos están listos para descargar en formato JSON.", variant: "default" });
+    } catch (error) {
+        console.error("Error generando archivo JSON:", error);
+        toast({ variant: "destructive", title: "Error al Generar JSON", description: "Ocurrió un error." });
+        setJsonExportUrl(null);
+    }
+  };
+
+
   const handleFormSubmit = async (values: UrlInputFormValues) => {
     setIsLoading(true);
     setAnalysisResult(null);
@@ -125,6 +157,10 @@ export default function HomePage() {
     if (zipUrl) {
         URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
+    }
+    if (jsonExportUrl) {
+        URL.revokeObjectURL(jsonExportUrl);
+        setJsonExportUrl(null);
     }
 
     toast({
@@ -194,14 +230,19 @@ export default function HomePage() {
           const primarySummary = result.reportText ? "Informe completo generado." : 
             (summaryItems.find(s => s) || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
           
+          if (result.allFindings && result.allFindings.length > 0) {
+             await generateJsonExportFile(result.allFindings, currentTargetDesc); // Generate JSON for all findings
+          }
+
           if (isPremiumUser && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
             await generateZipFile(result, currentTargetDesc);
           }
 
+
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descarga ZIP disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default", // Consider changing variant based on severity for more impact
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
+            variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
@@ -233,13 +274,15 @@ export default function HomePage() {
     
     if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
         await generateZipFile(analysisResult, submittedTargetDescription);
-        // If playbooks/attack vectors were not generated initially due to non-premium status,
-        // you might consider regenerating them here, or simply rely on the next full analysis.
-        // For now, this only re-triggers ZIP generation.
+        if(analysisResult.allFindings && analysisResult.allFindings.length > 0) {
+           await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
+        }
     }
-     if (!newPremiumStatus && zipUrl) {
-        URL.revokeObjectURL(zipUrl);
+     if (!newPremiumStatus) {
+        if(zipUrl) URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
+        if(jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
+        setJsonExportUrl(null);
     }
   };
   
@@ -406,6 +449,10 @@ export default function HomePage() {
                           </li>
                            <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                            <span><strong className="text-foreground">Descarga de Hallazgos (JSON):</strong> Datos estructurados para SIEM y otras herramientas.</span>
+                          </li>
+                           <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
                             <span><strong className="text-foreground">Futuras Funcionalidades Avanzadas:</strong> Acceso prioritario a nuevas herramientas.</span>
                           </li>
                         </ul>
@@ -415,24 +462,40 @@ export default function HomePage() {
                         <Sparkles className="mr-2 h-5 w-5" /> Activar Modo Premium (Simulado)
                       </Button>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        La activación es simulada para demostración.
+                        La activación es simulada para demostración. No se procesarán pagos reales.
                       </p>
                     </CardContent>
                   </Card>
                 )}
                 
-                {isPremiumUser && zipUrl && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0 )) && ( 
-                  <div className="text-center mt-8">
-                    <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                      <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
-                        <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
-                      </a>
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      El ZIP contiene informe, hallazgos, vectores de ataque y playbooks (si fueron generados).
+                {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
+                    {isPremiumUser && zipUrl && (
+                        <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
+                        <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
+                            <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
+                        </a>
+                        </Button>
+                    )}
+                    {jsonExportUrl && (
+                        <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                        <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}>
+                            <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON)
+                        </a>
+                        </Button>
+                    )}
+                </div>
+                 )}
+                 {isPremiumUser && zipUrl && (
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      El ZIP contiene informe, hallazgos, vectores de ataque y playbooks (si fueron generados). El JSON contiene todos los hallazgos.
                     </p>
-                  </div>
-                )}
+                 )}
+                  {jsonExportUrl && !zipUrl && (
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      El JSON contiene todos los hallazgos. Active Premium para la descarga ZIP completa.
+                    </p>
+                 )}
               </div>
             )}
 
@@ -506,5 +569,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
-    
