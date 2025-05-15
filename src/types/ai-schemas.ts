@@ -19,13 +19,14 @@ export const VulnerabilityFindingSchema = z.object({
   evidence: z.string().optional().describe("Specific evidence or observations that support the finding (e.g., specific log entry, configuration snippet, problematic URL parameter)."),
   potentialForAccountLockout: z
     .boolean()
-    .optional() // Making this optional as it's more relevant to URL auth flows
+    .optional() 
     .describe('Whether this specific finding could directly contribute to account lockouts (primarily for URL auth vulnerabilities).'),
   remediation: z.string().describe('Suggested remediation steps to address the finding.'),
   // SAST specific fields
-  filePath: z.string().optional().describe("For SAST findings, the path to the vulnerable file."),
-  lineNumber: z.number().int().min(1).optional().describe("For SAST findings, the line number of the vulnerability."),
-  codeSnippetContext: z.string().optional().describe("For SAST findings, a snippet of the vulnerable code with context."),
+  filePath: z.string().optional().describe("For SAST findings, the conceptual path to the vulnerable file (e.g., 'auth/service.py')."),
+  lineNumber: z.number().int().min(1).optional().describe("For SAST findings, the conceptual line number of the vulnerability within the snippet."),
+  codeSnippetContext: z.string().optional().describe("For SAST findings, a small snippet (3-5 lines) from the input that clearly shows the vulnerable code pattern."),
+  suggestedFix: z.string().optional().describe("For SAST findings, a conceptual example of how the vulnerable code could be fixed. Could be a corrected code snippet."),
   // DAST specific fields
   affectedParameter: z.string().optional().describe("For DAST findings, the affected parameter or input field."),
   requestExample: z.string().optional().describe("For DAST findings, an example HTTP request that triggered the vulnerability."),
@@ -91,8 +92,8 @@ export type DatabaseSecurityAnalysisOutput = z.infer<typeof DatabaseSecurityAnal
 
 // Schemas and types for SAST (Static Application Security Testing)
 export const SastAnalysisInputSchema = z.object({
-  codeSnippet: z.string().min(50, "El fragmento de código debe tener al menos 50 caracteres.").describe("El fragmento de código fuente a analizar."),
-  language: z.string().optional().describe("El lenguaje de programación del fragmento de código (ej: Python, JavaScript, Java)."),
+  codeSnippet: z.string().min(20, "El fragmento de código debe tener al menos 20 caracteres.").describe("El fragmento de código fuente a analizar."), // Min length lowered slightly as per form
+  language: z.string().optional().describe("El lenguaje de programación del fragmento de código (ej: Python, JavaScript, Java). Ayuda a la IA a ser más precisa."),
 });
 export type SastAnalysisInput = z.infer<typeof SastAnalysisInputSchema>;
 
@@ -121,7 +122,7 @@ export type DastAnalysisOutput = z.infer<typeof DastAnalysisOutputSchema>;
 // Schemas for Cloud Configuration Analysis
 export const CloudConfigInputSchema = z.object({
   provider: z.enum(["AWS", "Azure", "GCP", "Other"]).describe("Cloud provider."),
-  configDescription: z.string().min(50, "La descripción de la configuración cloud debe tener al menos 50 caracteres.").describe("Descripción detallada de la configuración de la infraestructura cloud (ej. políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure Functions, etc.). Incluir extractos de archivos de configuración si es posible (Terraform, CloudFormation, JSON)."),
+  configDescription: z.string().min(20, "La descripción de la configuración cloud debe tener al menos 20 caracteres.").describe("Descripción detallada de la configuración de la infraestructura cloud (ej. políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure Functions, etc.). Incluir extractos de archivos de configuración si es posible (Terraform, CloudFormation, JSON)."),
   region: z.string().optional().describe("Región de la nube donde residen los recursos, si es aplicable."),
 });
 export type CloudConfigInput = z.infer<typeof CloudConfigInputSchema>;
@@ -136,12 +137,12 @@ export type CloudConfigAnalysisOutput = z.infer<typeof CloudConfigAnalysisOutput
 // Schemas for Container Security Analysis
 export const ContainerAnalysisInputSchema = z.object({
   imageName: z.string().optional().describe("Nombre e etiqueta de la imagen del contenedor (ej. 'nginx:latest')."),
-  dockerfileContent: z.string().optional().describe("Contenido del Dockerfile como un string. Proporcionar si se analiza un Dockerfile."),
-  kubernetesManifestContent: z.string().optional().describe("Contenido del manifiesto de Kubernetes (YAML o JSON) como un string. Proporcionar si se analizan configuraciones de K8s."),
+  dockerfileContent: z.string().min(20, "El contenido del Dockerfile debe tener al menos 20 caracteres si se proporciona.").optional().or(z.literal('')).describe("Contenido del Dockerfile como un string. Proporcionar si se analiza un Dockerfile."),
+  kubernetesManifestContent: z.string().min(20, "El contenido del manifiesto K8s debe tener al menos 20 caracteres si se proporciona.").optional().or(z.literal('')).describe("Contenido del manifiesto de Kubernetes (YAML o JSON) como un string. Proporcionar si se analizan configuraciones de K8s."),
   additionalContext: z.string().optional().describe("Contexto adicional sobre el despliegue del contenedor o la imagen."),
 }).refine(data => !!data.imageName || !!data.dockerfileContent || !!data.kubernetesManifestContent, {
   message: "Debe proporcionar al menos el nombre de la imagen, el contenido del Dockerfile o el contenido del manifiesto de Kubernetes.",
-  path: ["imageName"],
+  path: ["imageName"], // Path to associate error with if refine fails
 });
 export type ContainerAnalysisInput = z.infer<typeof ContainerAnalysisInputSchema>;
 
@@ -186,8 +187,6 @@ export type GenerateAttackVectorsOutput = z.infer<typeof GenerateAttackVectorsOu
 // Schemas for Remediation Playbook Generation
 export const RemediationPlaybookInputSchema = z.object({
   vulnerabilityFinding: VulnerabilityFindingSchema.describe("La vulnerabilidad específica para la cual generar un playbook."),
-  // Можно добавить контекст, например, технологии используемые в компании
-  // companyTechStack: z.array(z.string()).optional().describe("Stack tecnológico de la empresa para adaptar el playbook.")
 });
 export type RemediationPlaybookInput = z.infer<typeof RemediationPlaybookInputSchema>;
 
@@ -226,7 +225,7 @@ export type GenerateSecurityReportOutput = z.infer<typeof GenerateSecurityReport
 // Schemas and types for general-query-assistant-flow
 export const GeneralQueryInputSchema = z.object({
   userMessage: z.string().min(1, "El mensaje no puede estar vacío.").describe('The user\'s query or message to the AI assistant.'),
-  // conversationHistory: z.array(z.object({ sender: z.enum(["user", "ai"]), message: z.string() })).optional().describe("Optional history of the conversation so far.")
+  conversationHistory: z.array(z.object({ sender: z.enum(["user", "ai"]), message: z.string() })).optional().describe("Optional history of the conversation so far to provide context to the AI.")
 });
 export type GeneralQueryInput = z.infer<typeof GeneralQueryInputSchema>;
 
