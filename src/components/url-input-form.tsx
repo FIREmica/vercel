@@ -30,7 +30,7 @@ const formSchema = z.object({
   dastTargetUrl: z.string().url({message: "Por favor, ingrese una URL válida para el análisis DAST."}).optional().or(z.literal('')),
   
   cloudProvider: z.enum(["AWS", "Azure", "GCP", "Other"]).optional(),
-  cloudConfigDescription: z.string().min(20, {message: "La descripción de la configuración cloud debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
+  cloudConfigDescription: z.string().optional().or(z.literal('')), // Min length handled by refine
   cloudRegion: z.string().optional().or(z.literal('')),
   
   containerImageName: z.string().optional().or(z.literal('')),
@@ -38,23 +38,61 @@ const formSchema = z.object({
   kubernetesManifestContent: z.string().min(20, {message: "El contenido del manifiesto K8s debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   containerAdditionalContext: z.string().optional().or(z.literal('')),
 
-  dependencyFileContent: z.string().min(20, {message: "El contenido del archivo de dependencias debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
+  dependencyFileContent: z.string().optional().or(z.literal('')), // Min length handled by refine
   dependencyFileType: z.enum(["npm", "pip", "maven", "gem", "other"]).optional(),
 
-}).refine(data => 
-    !!data.url || 
-    !!data.serverDescription || 
-    !!data.gameServerDescription || 
-    !!data.databaseDescription ||
-    !!data.codeSnippet ||
-    !!data.dastTargetUrl ||
-    (!!data.cloudProvider && !!data.cloudConfigDescription) || // cloudProvider requires configDescription
-    !!data.containerImageName ||
-    !!data.dockerfileContent ||
-    !!data.kubernetesManifestContent ||
-    (!!data.dependencyFileType && !!data.dependencyFileContent), { // dependencyFileType requires fileContent
-  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración).",
-  path: ["url"], 
+}).refine(data => {
+    const isCloudAnalysisAttempted = !!data.cloudProvider;
+    const isCloudAnalysisValid = isCloudAnalysisAttempted ? !!data.cloudConfigDescription && data.cloudConfigDescription.length >= 20 : true;
+    
+    const isDependencyAnalysisAttempted = !!data.dependencyFileType;
+    const isDependencyAnalysisValid = isDependencyAnalysisAttempted ? !!data.dependencyFileContent && data.dependencyFileContent.length >=20 : true;
+
+    return (
+      !!data.url || 
+      !!data.serverDescription || 
+      !!data.gameServerDescription || 
+      !!data.databaseDescription ||
+      !!data.codeSnippet ||
+      !!data.dastTargetUrl ||
+      (isCloudAnalysisAttempted && isCloudAnalysisValid) || // Valid if attempted and description is present
+      (!isCloudAnalysisAttempted) || // Valid if not attempted
+      !!data.containerImageName ||
+      !!data.dockerfileContent ||
+      !!data.kubernetesManifestContent ||
+      (isDependencyAnalysisAttempted && isDependencyAnalysisValid) || // Valid if attempted and content is present
+      (!isDependencyAnalysisAttempted) // Valid if not attempted
+    ) && ( // Overall check: at least one valid section must be filled
+      !!data.url || 
+      !!data.serverDescription || 
+      !!data.gameServerDescription || 
+      !!data.databaseDescription ||
+      !!data.codeSnippet ||
+      !!data.dastTargetUrl ||
+      (!!data.cloudProvider && !!data.cloudConfigDescription && data.cloudConfigDescription.length >= 20) ||
+      !!data.containerImageName ||
+      !!data.dockerfileContent ||
+      !!data.kubernetesManifestContent ||
+      (!!data.dependencyFileType && !!data.dependencyFileContent && data.dependencyFileContent.length >= 20)
+    );
+  }, {
+  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración con al menos 20 caracteres; si seleccionas tipo de dependencia, provee el contenido con al menos 20 caracteres).",
+  path: ["url"], // General error path
+}).superRefine((data, ctx) => {
+  if (data.cloudProvider && (!data.cloudConfigDescription || data.cloudConfigDescription.length < 20)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La descripción de la configuración Cloud es requerida (mínimo 20 caracteres) si se selecciona un proveedor.",
+      path: ["cloudConfigDescription"],
+    });
+  }
+  if (data.dependencyFileType && (!data.dependencyFileContent || data.dependencyFileContent.length < 20)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El contenido del archivo de dependencias es requerido (mínimo 20 caracteres) si se selecciona un tipo.",
+      path: ["dependencyFileContent"],
+    });
+  }
 });
 
 export type UrlInputFormValues = z.infer<typeof formSchema>;
@@ -319,7 +357,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
                 />
               </FormControl>
               <FormDescription>
-                Proporcione detalles sobre políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure, etc. (Se requiere si se selecciona un Proveedor Cloud).
+                Proporcione detalles sobre políticas IAM, grupos de seguridad, configuración de almacenamiento S3/Blob, funciones Lambda/Azure, etc. (Requerida si se selecciona un Proveedor Cloud).
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -480,13 +518,14 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
                 />
               </FormControl>
               <FormDescription>
-                Para análisis de vulnerabilidades en dependencias de software. (Se requiere si se selecciona un Tipo de Archivo).
+                Para análisis de vulnerabilidades en dependencias de software. (Requerido si se selecciona un Tipo de Archivo).
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
         
+        {/* Display general form error if refine fails */}
         {form.formState.errors.url && (form.formState.errors.url.type === "custom" || form.formState.errors.url.message?.includes("objetivo de análisis")) && (
             <FormMessage>{form.formState.errors.url.message}</FormMessage>
         )}
@@ -504,4 +543,3 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
     </Form>
   );
 }
-

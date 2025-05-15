@@ -258,7 +258,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión e inténtalo de nuevo.";
       } else if (error.message && error.message.includes('quota')) {
         errorMessage = "Se ha excedido una cuota del servicio de análisis. Por favor, inténtalo de nuevo más tarde.";
-      } else if (error.message && (error.message.toLowerCase().includes('json') || error.message.includes('Unexpected token') || error.message.includes('output.findings'))) {
+      } else if (error.message && (error.message.toLowerCase().includes('json') || error.message.includes('Unexpected token') || error.message.includes('output.findings') || error.message.includes('output!'))) {
           errorMessage = `La IA devolvió un formato inválido o inesperado. Por favor, inténtalo de nuevo. Detalles: ${error.message}. Si el problema persiste, el modelo podría estar temporalmente no disponible o mal configurado.`;
       } else {
         errorMessage = `El análisis falló catastróficamente: ${error.message}`;
@@ -298,4 +298,3 @@ export async function exportAllFindingsAsJsonAction(allFindings: VulnerabilityFi
     return JSON.stringify({ error: "Error al generar el archivo JSON.", details: error.message }, null, 2);
   }
 }
-

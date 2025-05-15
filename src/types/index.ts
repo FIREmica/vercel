@@ -56,4 +56,3 @@ export type VulnerabilityFinding = SingleVulnerabilityFinding;
  * This type alias points to the one defined in ai-schemas.ts
  */
 export type AttackVector = SingleAttackVectorItem;
-

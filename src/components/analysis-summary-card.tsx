@@ -242,4 +242,3 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
     </Card>
   );
 }
-

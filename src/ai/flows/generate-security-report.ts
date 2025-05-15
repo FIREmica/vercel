@@ -225,7 +225,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
       *   Restate its specific executive summary and overall risk.
       *   For *each vulnerable* finding ('isVulnerable' is true):
           *   **### [Vulnerability Category] (Severity: [Severity]{{#if cvssScore}}, CVSS: {{cvssScore}} {{cvssVector}}{{/if}})**
-          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}{{#if cloudProvider}}(Provider: {{cloudProvider}}, Resource: {{affectedResource}}){{/if}}{{#if imageName}}(Image: {{imageName}}){{/if}}{{#if dependencyName}}(Dependency: {{dependencyName}}@{{dependencyVersion}}){{/if}}
+          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}{{#if cloudProvider}}(Provider: {{cloudProvider}}{{#if affectedResource}}, Resource: {{affectedResource}}{{/if}}){{/if}}{{#if imageName}}(Image: {{imageName}}){{/if}}{{#if dependencyName}}(Dependency: {{dependencyName}}@{{dependencyVersion}}){{/if}}
           *   **Specific Finding:** Detail 'description'.
           *   **Potential Business Impact:** ('businessImpact').
           *   **Technical Details:** ('technicalDetails').
