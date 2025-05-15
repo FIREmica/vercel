@@ -9,6 +9,7 @@ import { analyzeDastSecurity } from "@/ai/flows/analyze-dast-security";
 import { analyzeCloudConfig } from "@/ai/flows/analyze-cloud-config";
 import { analyzeContainerSecurity } from "@/ai/flows/analyze-container-security";
 import { analyzeDependencies } from "@/ai/flows/analyze-dependencies";
+import { analyzeNetworkSecurity } from "@/ai/flows/analyze-network-security";
 import { generateSecurityReport } from "@/ai/flows/generate-security-report";
 import { generateAttackVectors } from "@/ai/flows/generate-attack-vectors";
 import { generalQueryAssistant } from "@/ai/flows/general-query-assistant-flow";
@@ -25,6 +26,7 @@ import type {
   CloudConfigAnalysisOutput,
   ContainerAnalysisOutput,
   DependencyAnalysisOutput,
+  NetworkSecurityAnalysisOutput,
   RemediationPlaybook
 } from "@/types";
 import type { 
@@ -38,6 +40,7 @@ import type {
   CloudConfigInput,
   ContainerAnalysisInput,
   DependencyAnalysisInput,
+  NetworkSecurityAnalysisInput,
   RemediationPlaybookInput,
   GenerateAttackVectorsInput,
 } from "@/types/ai-schemas";
@@ -58,6 +61,9 @@ interface PerformAnalysisParams {
   containerAdditionalContext?: string;
   dependencyFileContent?: string;
   dependencyFileType?: "npm" | "pip" | "maven" | "gem" | "other";
+  networkDescription?: string;
+  networkScanResults?: string;
+  networkFirewallRules?: string;
 }
 
 export async function performAnalysisAction(params: PerformAnalysisParams, isPremium: boolean): Promise<AnalysisResult> {
@@ -66,14 +72,15 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
     codeSnippet, sastLanguage, dastTargetUrl,
     cloudProvider, cloudConfigDescription, cloudRegion,
     containerImageName, dockerfileContent, kubernetesManifestContent, containerAdditionalContext,
-    dependencyFileContent, dependencyFileType
+    dependencyFileContent, dependencyFileType,
+    networkDescription, networkScanResults, networkFirewallRules
   } = params;
 
-  if (!url && !serverDescription && !databaseDescription && !codeSnippet && !dastTargetUrl && !cloudConfigDescription && (!containerImageName && !dockerfileContent && !kubernetesManifestContent) && !dependencyFileContent) {
+  if (!url && !serverDescription && !databaseDescription && !codeSnippet && !dastTargetUrl && !cloudConfigDescription && (!containerImageName && !dockerfileContent && !kubernetesManifestContent) && !dependencyFileContent && !networkDescription && !networkScanResults && !networkFirewallRules) {
     return { 
       urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null,
       sastAnalysis: null, dastAnalysis: null, 
-      cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null,
+      cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
       reportText: null, attackVectors: null, remediationPlaybooks: null,
       error: "Al menos uno de los objetivos de análisis debe ser proporcionado." 
     };
@@ -90,6 +97,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   let cloudAnalysisResult: CloudConfigAnalysisOutput | null = null;
   let containerAnalysisResult: ContainerAnalysisOutput | null = null;
   let dependencyAnalysisResult: DependencyAnalysisOutput | null = null;
+  let networkAnalysisResult: NetworkSecurityAnalysisOutput | null = null;
   
   const allFindings: VulnerabilityFinding[] = [];
 
@@ -130,7 +138,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
 
     if (dastTargetUrl) {
       try {
-        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" }; // Defaulting to Quick Scan
+        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" }; 
         dastAnalysisResult = await analyzeDastSecurity(dastInput);
         if (dastAnalysisResult?.findings) allFindings.push(...dastAnalysisResult.findings);
       } catch (e: any) { collectedErrorMessages += `DAST: ${e.message}. `; errorOccurred = true; }
@@ -168,10 +176,25 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       } catch (e: any) { collectedErrorMessages += `Dependencias: ${e.message}. `; errorOccurred = true; }
     }
 
+    if (networkDescription || networkScanResults || networkFirewallRules) {
+        try {
+            const networkInput: NetworkSecurityAnalysisInput = {};
+            if (networkDescription) networkInput.networkDescription = networkDescription;
+            if (networkScanResults) networkInput.scanResults = networkScanResults;
+            if (networkFirewallRules) networkInput.firewallRules = networkFirewallRules;
+
+            if (Object.keys(networkInput).length > 0) {
+                networkAnalysisResult = await analyzeNetworkSecurity(networkInput);
+                if (networkAnalysisResult?.findings) allFindings.push(...networkAnalysisResult.findings);
+            }
+        } catch (e: any) { collectedErrorMessages += `Red: ${e.message}. `; errorOccurred = true; }
+    }
+
+
     if (errorOccurred && allFindings.length === 0) {
        return { 
          urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
-         cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null,
+         cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
          reportText: null, attackVectors: null, remediationPlaybooks: null, 
          error: `Todos los análisis fallaron. Errores: ${collectedErrorMessages}` 
        };
@@ -186,6 +209,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
     if (cloudProvider && cloudConfigDescription) targetDescParts.push(`Configuración Cloud (${cloudProvider}${cloudRegion ? `/${cloudRegion}` : ''})`);
     if (containerImageName || dockerfileContent || kubernetesManifestContent) targetDescParts.push('Contenedor/K8s');
     if (dependencyFileContent && dependencyFileType) targetDescParts.push(`Dependencias de Software (${dependencyFileType})`);
+    if (networkDescription || networkScanResults || networkFirewallRules) targetDescParts.push('Configuración de Red');
     
     const reportInput: GenerateSecurityReportInput = {
         analyzedTargetDescription: `Análisis para ${targetDescParts.join(', ')}`.replace(/, $/, ''),
@@ -197,6 +221,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         cloudAnalysis: cloudAnalysisResult ?? undefined,
         containerAnalysis: containerAnalysisResult ?? undefined,
         dependencyAnalysis: dependencyAnalysisResult ?? undefined,
+        networkAnalysis: networkAnalysisResult ?? undefined,
         overallVulnerableFindings: allFindings.filter(f => f.isVulnerable)
     };
     
@@ -240,6 +265,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         cloudAnalysis: cloudAnalysisResult,
         containerAnalysis: containerAnalysisResult,
         dependencyAnalysis: dependencyAnalysisResult,
+        networkAnalysis: networkAnalysisResult,
         reportText: reportResultText,
         attackVectors: attackVectorsResult,
         remediationPlaybooks: remediationPlaybooksResult.length > 0 ? remediationPlaybooksResult : null,
@@ -250,7 +276,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   } catch (error: any) { 
     console.error("Error crítico en performAnalysisAction:", error);
     let errorMessage = "Ocurrió un error crítico inesperado durante el proceso de análisis. El modelo de IA podría no estar disponible o la entrada podría ser inválida.";
-     if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE"){
+     if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || process.env.GOOGLE_API_KEY.trim() === ""){
         errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
      } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
         errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";
@@ -265,7 +291,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       }
     return { 
       urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
-      cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null,
+      cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
       reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: null 
     };
   }
@@ -278,7 +304,7 @@ export async function askGeneralAssistantAction(input: GeneralQueryInput): Promi
   } catch (error: any) {
     console.error("Error interacting with General Assistant:", error);
     let errorMessage = "Lo siento, no pude procesar tu pregunta en este momento. Por favor, intenta de nuevo más tarde.";
-    if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE"){
+    if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || process.env.GOOGLE_API_KEY.trim() === ""){
         errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
         errorMessage = "Error de Configuración del Asistente: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";

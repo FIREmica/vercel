@@ -17,16 +17,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Loader2, ServerIcon, Database, Globe, Gamepad2, SearchCode, Network, CloudIcon, BoxIcon, LibraryIcon } from "lucide-react";
+import { Search, Loader2, ServerIcon, Database, Globe, Gamepad2, SearchCode, Network as NetworkIconLucide, CloudIcon, BoxIcon, LibraryIcon, Wifi } from "lucide-react"; // Renamed Network to NetworkIconLucide
 
 const formSchema = z.object({
   url: z.string().url({ message: "Por favor, ingresa una URL válida." }).optional().or(z.literal('')),
   serverDescription: z.string().min(10, {message: "La descripción del servidor debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
   gameServerDescription: z.string().min(10, {message: "La descripción del servidor de juegos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
   databaseDescription: z.string().min(10, {message: "La descripción de la base de datos debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')),
-  codeSnippet: z.string().min(10, {message: "El fragmento de código debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')), // Adjusted min length
+  codeSnippet: z.string().min(10, {message: "El fragmento de código debe tener al menos 10 caracteres si se proporciona."}).optional().or(z.literal('')), 
   sastLanguage: z.string().optional(),
-  repositoryUrl: z.string().url({message: "Por favor, ingrese una URL de repositorio válida."}).optional().or(z.literal('')), // Not currently used in actions.ts but kept for future
+  repositoryUrl: z.string().url({message: "Por favor, ingrese una URL de repositorio válida."}).optional().or(z.literal('')), 
   dastTargetUrl: z.string().url({message: "Por favor, ingrese una URL válida para el análisis DAST."}).optional().or(z.literal('')),
   
   cloudProvider: z.enum(["AWS", "Azure", "GCP", "Other"]).optional(),
@@ -40,6 +40,11 @@ const formSchema = z.object({
 
   dependencyFileContent: z.string().min(20, { message: "El contenido del archivo de dependencias debe tener al menos 20 caracteres si se proporciona."}).optional().or(z.literal('')),
   dependencyFileType: z.enum(["npm", "pip", "maven", "gem", "other"]).optional(),
+
+  networkDescription: z.string().min(10, { message: "La descripción de la red debe tener al menos 10 caracteres si se proporciona." }).optional().or(z.literal('')),
+  networkScanResults: z.string().min(10, { message: "Los resultados del escaneo de red deben tener al menos 10 caracteres si se proporcionan." }).optional().or(z.literal('')),
+  networkFirewallRules: z.string().min(10, { message: "Las reglas del firewall deben tener al menos 10 caracteres si se proporcionan." }).optional().or(z.literal('')),
+
 
 }).refine(data => {
     const isCloudAnalysisAttempted = !!data.cloudProvider;
@@ -55,8 +60,15 @@ const formSchema = z.object({
         (!!data.kubernetesManifestContent && data.kubernetesManifestContent.length >= 20)
     ) : true;
 
+    const isNetworkAnalysisAttempted = !!data.networkDescription || !!data.networkScanResults || !!data.networkFirewallRules;
+    const isNetworkAnalysisValid = isNetworkAnalysisAttempted ? (
+        (!!data.networkDescription && data.networkDescription.length >=10) ||
+        (!!data.networkScanResults && data.networkScanResults.length >=10) ||
+        (!!data.networkFirewallRules && data.networkFirewallRules.length >=10)
+    ) : true;
 
-    return ( // At least one field from any category must be present for the form to be valid
+
+    return ( 
       !!data.url || 
       !!data.serverDescription || 
       !!data.gameServerDescription || 
@@ -68,8 +80,10 @@ const formSchema = z.object({
       (isContainerAnalysisAttempted && isContainerAnalysisValid) ||
       (!isContainerAnalysisAttempted) ||
       (isDependencyAnalysisAttempted && isDependencyAnalysisValid) || 
-      (!isDependencyAnalysisAttempted)
-    ) && ( // Overall check: at least one valid *and complete* section must be filled
+      (!isDependencyAnalysisAttempted) ||
+      (isNetworkAnalysisAttempted && isNetworkAnalysisValid) ||
+      (!isNetworkAnalysisAttempted)
+    ) && ( 
       !!data.url || 
       !!data.serverDescription || 
       !!data.gameServerDescription || 
@@ -78,11 +92,12 @@ const formSchema = z.object({
       !!data.dastTargetUrl ||
       (!!data.cloudProvider && !!data.cloudConfigDescription && data.cloudConfigDescription.length >= 20) ||
       (!!data.containerImageName || (!!data.dockerfileContent && data.dockerfileContent.length >=20) || (!!data.kubernetesManifestContent && data.kubernetesManifestContent.length >=20)) ||
-      (!!data.dependencyFileType && !!data.dependencyFileContent && data.dependencyFileContent.length >= 20)
+      (!!data.dependencyFileType && !!data.dependencyFileContent && data.dependencyFileContent.length >= 20) ||
+      ( (!!data.networkDescription && data.networkDescription.length >=10) || (!!data.networkScanResults && data.networkScanResults.length >=10) || (!!data.networkFirewallRules && data.networkFirewallRules.length >=10) )
     );
   }, {
-  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración con al menos 20 caracteres; si seleccionas tipo de dependencia, provee el contenido con al menos 20 caracteres; si inicias análisis de contenedor, provee al menos un dato válido para este).",
-  path: ["url"], // General error path
+  message: "Debes proporcionar al menos un objetivo de análisis completo (ej. si seleccionas Cloud, describe la configuración con al menos 20 caracteres; si inicias análisis de red, provee al menos un campo con 10+ caracteres, etc.).",
+  path: ["url"], 
 }).superRefine((data, ctx) => {
   if (data.cloudProvider && (!data.cloudConfigDescription || data.cloudConfigDescription.length < 20)) {
     ctx.addIssue({
@@ -112,11 +127,7 @@ const formSchema = z.object({
       path: ["kubernetesManifestContent"],
     });
   }
-  if (!data.imageName && !data.dockerfileContent && !data.kubernetesManifestContent && (data.containerImageName === '' || data.dockerfileContent === '' || data.kubernetesManifestContent === '')) {
-     // This case might be too broad or might conflict with the .refine above if any of these are just empty strings vs undefined
-     // Only trigger if user started filling one and then cleared it, or if they are *all* explicitly empty strings *and* no other analysis types are filled.
-     // The main .refine should handle the "at least one analysis type"
-  } else if ((data.containerImageName || data.dockerfileContent || data.kubernetesManifestContent) &&
+  if ((data.containerImageName || data.dockerfileContent || data.kubernetesManifestContent) &&
              !(data.containerImageName && data.containerImageName.length > 0) &&
              !(data.dockerfileContent && data.dockerfileContent.length >= 20) &&
              !(data.kubernetesManifestContent && data.kubernetesManifestContent.length >= 20)
@@ -127,7 +138,17 @@ const formSchema = z.object({
         path: ["containerImageName"], 
       });
   }
-
+  if ((data.networkDescription || data.networkScanResults || data.networkFirewallRules) &&
+      !(data.networkDescription && data.networkDescription.length >= 10) &&
+      !(data.networkScanResults && data.networkScanResults.length >= 10) &&
+      !(data.networkFirewallRules && data.networkFirewallRules.length >= 10)
+    ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Si inicia un análisis de red, al menos uno de los campos (descripción, resultados de escaneo, reglas de firewall) debe tener 10+ caracteres.",
+      path: ["networkDescription"],
+    });
+  }
 
 });
 
@@ -160,6 +181,9 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
       containerAdditionalContext: "",
       dependencyFileContent: "",
       dependencyFileType: undefined,
+      networkDescription: "",
+      networkScanResults: "",
+      networkFirewallRules: "",
     },
   });
 
@@ -332,7 +356,7 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
           name="dastTargetUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel htmlFor="dast-target-url-input" className="text-base flex items-center"><Network className="mr-2 h-4 w-4 text-primary"/>URL para Análisis DAST (Opcional)</FormLabel>
+              <FormLabel htmlFor="dast-target-url-input" className="text-base flex items-center"><NetworkIconLucide className="mr-2 h-4 w-4 text-primary"/>URL para Análisis DAST (Opcional)</FormLabel>
               <FormControl>
                 <Input 
                   id="dast-target-url-input"
@@ -560,8 +584,73 @@ export function UrlInputForm({ onSubmit, isLoading, defaultUrl }: UrlInputFormPr
             </FormItem>
           )}
         />
+
+         {/* Network Analysis Fields */}
+        <FormField
+          control={form.control}
+          name="networkDescription"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor="network-description-input" className="text-base flex items-center"><Wifi className="mr-2 h-4 w-4 text-primary"/>Descripción de Red (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea
+                  id="network-description-input"
+                  placeholder="Describe la arquitectura de red, topología, segmentos, DMZ, VLANs, etc. Mínimo 10 caracteres si se proporciona."
+                  {...field}
+                  className="text-sm min-h-[100px]"
+                />
+              </FormControl>
+              <FormDescription>
+                Proporciona una visión general de cómo está estructurada la red.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="networkScanResults"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor="network-scan-results-input" className="text-base flex items-center"><Wifi className="mr-2 h-4 w-4 text-primary"/>Resultados de Escaneo de Red (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea
+                  id="network-scan-results-input"
+                  placeholder="Pega aquí un resumen de resultados de herramientas como Nmap (puertos abiertos, servicios, versiones). Mínimo 10 caracteres si se proporciona."
+                  {...field}
+                  className="text-sm min-h-[120px] font-mono"
+                />
+              </FormControl>
+              <FormDescription>
+                Información sobre puertos abiertos, servicios detectados y sus versiones.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="networkFirewallRules"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor="network-firewall-rules-input" className="text-base flex items-center"><Wifi className="mr-2 h-4 w-4 text-primary"/>Reglas de Firewall (Resumen) (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea
+                  id="network-firewall-rules-input"
+                  placeholder="Describe las reglas de firewall clave, especialmente las de entrada y salida a internet, o pega un extracto relevante. Mínimo 10 caracteres si se proporciona."
+                  {...field}
+                  className="text-sm min-h-[120px]"
+                />
+              </FormControl>
+              <FormDescription>
+                Permite analizar la configuración del firewall en busca de posibles debilidades.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
-        {/* Display general form error if refine fails */}
+        
         {form.formState.errors.url && (form.formState.errors.url.type === "custom" || form.formState.errors.url.message?.includes("objetivo de análisis")) && (
             <FormMessage>{form.formState.errors.url.message}</FormMessage>
         )}

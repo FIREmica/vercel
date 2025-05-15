@@ -1,8 +1,9 @@
+
 'use server';
 
 /**
  * @fileOverview A Genkit flow for generating a detailed and comprehensive security report
- * from various analysis results (URL, server, database, SAST, DAST, Cloud, Container, Dependency).
+ * from various analysis results (URL, server, database, SAST, DAST, Cloud, Container, Dependency, Network).
  *
  * - generateSecurityReport - A function that handles the generation of the security report.
  */
@@ -14,7 +15,6 @@ import {
   GenerateSecurityReportOutputSchema,
   type GenerateSecurityReportOutput,
   VulnerabilityFindingSchema, 
-  // Import specific output schemas for typing if needed, already in GenerateSecurityReportInputSchema
 } from '@/types/ai-schemas';
 
 export async function generateSecurityReport(
@@ -30,13 +30,14 @@ const generateSecurityReportPrompt = ai.definePrompt({
   output: {schema: GenerateSecurityReportOutputSchema},
   prompt: `
   You are a senior cybersecurity consultant. Create a comprehensive, professional, and actionable security report in Markdown.
-  Synthesize findings from automated scans: URL, server, database, SAST, DAST, Cloud Config, Container Security, and/or Dependency Analysis.
+  Synthesize findings from automated scans: URL, server, database, SAST, DAST, Cloud Config, Container Security, Dependency Analysis, and/or Network Security Analysis.
+  Ensure CVSS scores and vectors are included for findings if provided in the input data.
 
   Target Description: {{#if analyzedTargetDescription}} {{{analyzedTargetDescription}}} {{else}} Not specified {{/if}}
 
   {{#if urlAnalysis}}
   URL Analysis Summary:
-  - Analyzed URL: {{{input.urlAnalysis.findings.0.source}}} (Placeholder if URL not directly in input context for prompt)
+  - Analyzed URL: (URL is part of the individual finding objects if available)
   - Overall Risk for URL: {{{urlAnalysis.overallRiskAssessment}}}
   - URL Scan Executive Summary: {{{urlAnalysis.executiveSummary}}}
     {{#if urlAnalysis.vulnerableFindingsCount}}
@@ -166,7 +167,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   {{/if}}
 
   {{#if dependencyAnalysis}}
-  Dependency Analysis Summary ({{{dependencyAnalysis.findings.0.fileType}}}):
+  Dependency Analysis Summary (File Type: {{dependencyAnalysis.findings.0.fileType}}):
   - Overall Risk for Dependencies: {{{dependencyAnalysis.overallRiskAssessment}}}
   - Dependency Scan Executive Summary: {{{dependencyAnalysis.executiveSummary}}}
     {{#if (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
@@ -181,6 +182,25 @@ const generateSecurityReportPrompt = ai.definePrompt({
       {{/each}}
     {{else}}
   No active vulnerabilities identified in the Dependency analysis.
+    {{/if}}
+  {{/if}}
+
+  {{#if networkAnalysis}}
+  Network Security Analysis Summary:
+  - Overall Risk for Network: {{{networkAnalysis.overallRiskAssessment}}}
+  - Network Scan Executive Summary: {{{networkAnalysis.executiveSummary}}}
+    {{#if (lookup (filter networkAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+  Key Network Vulnerable Findings:
+      {{#each networkAnalysis.findings}}
+        {{#if this.isVulnerable}}
+  - Source: Network, Category: {{this.vulnerability}} (Severity: {{this.severity}}{{#if this.cvssScore}}, CVSS: {{this.cvssScore}}{{/if}})
+    - Observation: {{this.description}}
+          {{#if this.affectedPort}}- Port: {{this.affectedPort}}{{/if}} {{#if this.affectedProtocol}}({{this.affectedProtocol}}){{/if}}
+    - Remediation: {{this.remediation}}
+        {{/if}}
+      {{/each}}
+    {{else}}
+  No active vulnerabilities identified in the Network security analysis.
     {{/if}}
   {{/if}}
 
@@ -201,7 +221,9 @@ const generateSecurityReportPrompt = ai.definePrompt({
          {{#unless (lookup (filter cloudAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
           {{#unless (lookup (filter containerAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
            {{#unless (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+            {{#unless (lookup (filter networkAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
   No specific active vulnerabilities were identified by the performed scans/analyses.
+            {{/unless}}
            {{/unless}}
           {{/unless}}
          {{/unless}}
@@ -216,16 +238,16 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Instructions for the Report:
   Generate a comprehensive security report based *only* on the provided scan results. Structure the report logically using Markdown:
   1.  **# Overall Executive Summary (Report):**
-      - State overall security posture, highest risk (Severity, CVSS).
+      - State overall security posture, highest risk (Severity, CVSS if available for top risks).
       - Summarize most significant risks across all sources. Total active vulnerabilities. Call to action.
   2.  **# Detailed Findings and Analysis:**
-      Organize by source (## URL Analysis, ## Server Configuration, ## Database Security, ## SAST Analysis, ## DAST Analysis, ## Cloud Configuration, ## Container Security, ## Dependency Analysis).
+      Organize by source (## URL Analysis, ## Server Configuration, ## Database Security, ## SAST Analysis, ## DAST Analysis, ## Cloud Configuration, ## Container Security, ## Dependency Analysis, ## Network Security Analysis).
       If no analysis or no findings for a source, state "No [Source Type] analysis was performed or no findings were reported."
       For each source with *vulnerable* findings:
       *   Restate its specific executive summary and overall risk.
       *   For *each vulnerable* finding ('isVulnerable' is true):
-          *   **### [Vulnerability Category] (Severity: [Severity]{{#if cvssScore}}, CVSS: {{cvssScore}} {{cvssVector}}{{/if}})**
-          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}{{#if cloudProvider}}(Provider: {{cloudProvider}}{{#if affectedResource}}, Resource: {{affectedResource}}{{/if}}){{/if}}{{#if imageName}}(Image: {{imageName}}){{/if}}{{#if dependencyName}}(Dependency: {{dependencyName}}@{{dependencyVersion}}){{/if}}
+          *   **### [Vulnerability Category] (Severity: [Severity]{{#if cvssScore}}, CVSS: {{cvssScore}}{{#if cvssVector}} - Vector: {{cvssVector}}{{/if}}{{/if}})**
+          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}{{#if cloudProvider}}(Provider: {{cloudProvider}}{{#if affectedResource}}, Resource: {{affectedResource}}{{/if}}){{/if}}{{#if imageName}}(Image: {{imageName}}){{/if}}{{#if dependencyName}}(Dependency: {{dependencyName}}@{{dependencyVersion}}){{/if}}{{#if affectedPort}}(Port: {{affectedPort}}{{#if affectedProtocol}}, Protocol: {{affectedProtocol}}{{/if}}){{/if}}
           *   **Specific Finding:** Detail 'description'.
           *   **Potential Business Impact:** ('businessImpact').
           *   **Technical Details:** ('technicalDetails').
@@ -234,7 +256,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   3.  **# Prioritized Recommendations:**
       - List top 3-5 vulnerabilities to address first (based on severity and potential impact from inputs).
   4.  **# Compliance Considerations (General Overview):**
-      - Briefly mention general compliance impacts if vulnerabilities are relevant to common standards (e.g. PII exposure for GDPR/CCPA). Do not invent compliance issues.
+      - Briefly mention general compliance impacts if vulnerabilities are relevant to common standards (e.g., PII exposure related to GDPR/CCPA data protection principles, access control issues for ISO 27001/SOC2, network security for PCI-DSS). Do not invent compliance issues or specific control mappings unless directly implied by the vulnerability type (e.g., "unencrypted PII storage" clearly relates to data protection).
   5.  **# Conclusion:**
       - Reiterate overall posture and importance of proactive security. Recommend ongoing practices.
 
@@ -260,6 +282,7 @@ const generateSecurityReportFlow = ai.defineFlow(
     if (input.cloudAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.cloudAnalysis.findings.filter(f => f.isVulnerable));
     if (input.containerAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.containerAnalysis.findings.filter(f => f.isVulnerable));
     if (input.dependencyAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.dependencyAnalysis.findings.filter(f => f.isVulnerable));
+    if (input.networkAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.networkAnalysis.findings.filter(f => f.isVulnerable));
     
     overallVulnerableFindings = overallVulnerableFindings.map(f => {
         let findingSource = f.source; 
@@ -272,6 +295,7 @@ const generateSecurityReportFlow = ai.defineFlow(
             else if (input.cloudAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Cloud";
             else if (input.containerAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Container";
             else if (input.dependencyAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Dependency";
+            else if (input.networkAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Network";
         }
         return { ...f, source: findingSource || "Unknown" as const };
     });
@@ -286,8 +310,9 @@ const generateSecurityReportFlow = ai.defineFlow(
       cloudAnalysis: input.cloudAnalysis,
       containerAnalysis: input.containerAnalysis,
       dependencyAnalysis: input.dependencyAnalysis,
+      networkAnalysis: input.networkAnalysis,
       overallVulnerableFindings: overallVulnerableFindings,
-      input: input // Keep original input for context if needed by Handlebars template pathing
+      input: input 
     };
 
     const {output} = await generateSecurityReportPrompt(promptInput);

@@ -3,14 +3,14 @@
 
 import type { AnalysisResult, VulnerabilityFinding } from "@/types"; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle, CloudIcon, BoxIcon, LibraryIcon, SearchCode, Network } from "lucide-react";
+import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle, CloudIcon, BoxIcon, LibraryIcon, SearchCode, Network as NetworkIconLucide, Wifi } from "lucide-react"; // Renamed Network to NetworkIconLucide
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type AnalysisSummaryCardProps = {
-  analysisInput: AnalysisResult['urlAnalysis'] | AnalysisResult['serverAnalysis'] | AnalysisResult['databaseAnalysis'] | AnalysisResult['sastAnalysis'] | AnalysisResult['dastAnalysis'] | AnalysisResult['cloudAnalysis'] | AnalysisResult['containerAnalysis'] | AnalysisResult['dependencyAnalysis'] | null;
+  analysisInput: AnalysisResult['urlAnalysis'] | AnalysisResult['serverAnalysis'] | AnalysisResult['databaseAnalysis'] | AnalysisResult['sastAnalysis'] | AnalysisResult['dastAnalysis'] | AnalysisResult['cloudAnalysis'] | AnalysisResult['containerAnalysis'] | AnalysisResult['dependencyAnalysis'] | AnalysisResult['networkAnalysis'] | null;
   allFindings?: VulnerabilityFinding[] | null;
-  result?: AnalysisResult | null; // Pass the full result to access all analysis types
+  result?: AnalysisResult | null; 
 };
 
 interface PostureInfo {
@@ -52,7 +52,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
   const informationalCount = findingsToSummarize.filter(f => f.severity === 'Informational').length;
 
   let overallRiskAssessment = analysisInput?.overallRiskAssessment;
-  if (result) { // Derive global risk if full result is available
+  if (result) { 
       const riskLevels = ["Critical", "High", "Medium", "Low", "Informational"];
       const assessments = [
         result.urlAnalysis?.overallRiskAssessment,
@@ -63,9 +63,10 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
         result.cloudAnalysis?.overallRiskAssessment,
         result.containerAnalysis?.overallRiskAssessment,
         result.dependencyAnalysis?.overallRiskAssessment,
+        result.networkAnalysis?.overallRiskAssessment,
       ].filter(Boolean) as ("Low" | "Medium" | "High" | "Critical" | "Informational")[];
       
-      if (highCount > 0) assessments.push("High"); // Ensure highCount influences overall risk if not reflected by individual assessments
+      if (highCount > 0) assessments.push("High"); 
 
       for (const level of riskLevels) {
         if (assessments.includes(level as any)) {
@@ -73,8 +74,8 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
           break;
         }
       }
-      if (!overallRiskAssessment) { // Fallback if no individual assessments
-         if (highCount > 0) overallRiskAssessment = "Critical"; // Treat any high as critical for overall if not specified
+      if (!overallRiskAssessment) { 
+         if (highCount > 0) overallRiskAssessment = "Critical"; 
          else if (mediumCount > 0) overallRiskAssessment = "Medium";
          else if (lowCount > 0) overallRiskAssessment = "Low";
          else overallRiskAssessment = "Informational";
@@ -134,10 +135,11 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
         case "Server": return <ServerIcon className="h-4 w-4 mr-1 text-green-500" />;
         case "Database": return <Database className="h-4 w-4 mr-1 text-purple-500" />;
         case "SAST": return <SearchCode className="h-4 w-4 mr-1 text-indigo-500" />;
-        case "DAST": return <Network className="h-4 w-4 mr-1 text-pink-500" />; 
+        case "DAST": return <NetworkIconLucide className="h-4 w-4 mr-1 text-pink-500" />; 
         case "Cloud": return <CloudIcon className="h-4 w-4 mr-1 text-sky-500" />;
         case "Container": return <BoxIcon className="h-4 w-4 mr-1 text-teal-500" />;
         case "Dependency": return <LibraryIcon className="h-4 w-4 mr-1 text-rose-500" />;
+        case "Network": return <Wifi className="h-4 w-4 mr-1 text-cyan-500" />;
         default: return <Info className="h-4 w-4 mr-1 text-gray-500" />;
     }
   };
@@ -157,7 +159,8 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
     result.cloudAnalysis && { name: "Cloud" as const, count: result.cloudAnalysis.findings.filter(f=>f.isVulnerable).length },
     result.containerAnalysis && { name: "Contenedor" as const, count: result.containerAnalysis.findings.filter(f=>f.isVulnerable).length },
     result.dependencyAnalysis && { name: "Dependencias" as const, count: result.dependencyAnalysis.findings.filter(f=>f.isVulnerable).length },
-  ].filter(item => item && item.count > 0) as { name: VulnerabilityFinding['source'], count: number }[] : [];
+    result.networkAnalysis && { name: "Red" as const, count: result.networkAnalysis.findings.filter(f=>f.isVulnerable).length },
+  ].filter(item => item && item.count > 0) as { name: Exclude<VulnerabilityFinding['source'], undefined | "Unknown">, count: number }[] : [];
 
 
   return (
@@ -224,7 +227,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
                 <h4 className="text-md font-semibold mb-2 text-foreground">Resumen de Vulnerabilidades Activas por Origen del Análisis:</h4>
                 <div className="flex flex-wrap gap-3">
                     {analysisTypesPerformed.map(sourceType => {
-                        if (!sourceType || !sourceType.name) return null; // Defensive check
+                        if (!sourceType || !sourceType.name) return null; 
                         return (
                             <Badge key={sourceType.name} variant="secondary" className="text-sm py-1 px-3">
                                 {getIconForSource(sourceType.name)} {sourceType.name}: {sourceType.count}

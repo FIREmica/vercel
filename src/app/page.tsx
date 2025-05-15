@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +100,7 @@ export default function HomePage() {
      if (result.cloudAnalysis?.executiveSummary) folder.file("resumen_cloud.txt", result.cloudAnalysis.executiveSummary);
      if (result.containerAnalysis?.executiveSummary) folder.file("resumen_container.txt", result.containerAnalysis.executiveSummary);
      if (result.dependencyAnalysis?.executiveSummary) folder.file("resumen_dependencies.txt", result.dependencyAnalysis.executiveSummary);
+     if (result.networkAnalysis?.executiveSummary) folder.file("resumen_network.txt", result.networkAnalysis.executiveSummary);
 
 
     try {
@@ -149,6 +150,8 @@ export default function HomePage() {
     if (values.cloudProvider && values.cloudConfigDescription) descriptionParts.push(`Cloud (${values.cloudProvider}${values.cloudRegion ? `/${values.cloudRegion}` : ''})`);
     if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
     if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
+    if (values.networkDescription || values.networkScanResults || values.networkFirewallRules) descriptionParts.push('Red');
+
 
     
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
@@ -198,6 +201,10 @@ export default function HomePage() {
       if (values.dependencyFileContent) params.dependencyFileContent = values.dependencyFileContent;
       if (values.dependencyFileType) params.dependencyFileType = values.dependencyFileType;
 
+      if (values.networkDescription) params.networkDescription = values.networkDescription;
+      if (values.networkScanResults) params.networkScanResults = values.networkScanResults;
+      if (values.networkFirewallRules) params.networkFirewallRules = values.networkFirewallRules;
+
 
       if (Object.keys(params).length === 0) {
         toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos un objetivo de análisis."});
@@ -226,6 +233,7 @@ export default function HomePage() {
               result.cloudAnalysis?.executiveSummary,
               result.containerAnalysis?.executiveSummary,
               result.dependencyAnalysis?.executiveSummary,
+              result.networkAnalysis?.executiveSummary,
           ];
           const primarySummary = result.reportText ? "Informe completo generado." : 
             (summaryItems.find(s => s) || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
@@ -242,7 +250,7 @@ export default function HomePage() {
           toast({
             title: "Análisis Completo",
             description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default",
+            variant: vulnerableCount > 0 ? "default" : "default", // Could be "destructive" if vulnerableCount > 0 for more impact
             duration: 7000,
           });
       }
@@ -252,7 +260,7 @@ export default function HomePage() {
       const errorMessage = error.message || "Ocurrió un error inesperado durante el análisis.";
       setAnalysisResult({ 
         urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
-        cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null,
+        cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
         reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: null 
       });
       toast({ variant: "destructive", title: "Error Crítico de Análisis", description: errorMessage, duration: 8000 });
@@ -272,21 +280,24 @@ export default function HomePage() {
         variant: "default"
     });
     
+    // Re-generate files if premium is activated and results exist
     if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
         await generateZipFile(analysisResult, submittedTargetDescription);
         if(analysisResult.allFindings && analysisResult.allFindings.length > 0) {
            await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
         }
     }
+     // Clear download URLs if premium is deactivated
      if (!newPremiumStatus) {
         if(zipUrl) URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
-        if(jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
-        setJsonExportUrl(null);
+        // Keep JSON export available for non-premium for now, or clear it too:
+        // if(jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
+        // setJsonExportUrl(null);
     }
   };
   
-  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || analysisResult?.cloudAnalysis || analysisResult?.containerAnalysis || analysisResult?.dependencyAnalysis || null;
+  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || analysisResult?.cloudAnalysis || analysisResult?.containerAnalysis || analysisResult?.dependencyAnalysis || analysisResult?.networkAnalysis || null;
 
   return (
     <TooltipProvider>
@@ -307,8 +318,8 @@ export default function HomePage() {
                 </Button>
             </div>
             <p className="text-muted-foreground mb-6">
-              Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s) y dependencias de software.
-              <strong className="text-foreground"> Active Premium para informes técnicos, escenarios de ataque, playbooks de remediación y descarga.</strong>
+              Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias de software y configuraciones de red.
+              <strong className="text-foreground block mt-1"> Active Premium para informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa.</strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -334,22 +345,23 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {[
-                        { icon: SearchCode, title: "Análisis SAST (Estático)", desc: "Análisis de fragmentos de código para identificar vulnerabilidades. Próximamente: análisis de repositorios.", status: "Mejorado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: Network, title: "Análisis DAST (Dinámico)", desc: "Pruebas de seguridad en aplicaciones web en ejecución para encontrar vulnerabilidades.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: SearchCode, title: "Análisis SAST (Estático)", desc: "Análisis de fragmentos de código para identificar vulnerabilidades.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: Network, title: "Análisis DAST (Dinámico App)", desc: "Pruebas de seguridad en aplicaciones web en ejecución.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: Cloud, title: "Análisis Config. Cloud (AWS, Azure, GCP)", desc: "Evaluación de seguridad para infraestructuras en la nube.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: BoxIcon, title: "Análisis Seguridad Contenedores", desc: "Análisis de imágenes Docker y configuraciones Kubernetes.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks de terceros.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: Wifi, title: "Análisis de Configuración de Red", desc: "Evaluación de descripciones de red, reglas de firewall y resultados de escaneos.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
+                        { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (Premium, con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
                         { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
-                        { icon: ShieldEllipsis, title: "Políticas de Seguridad Corporativas", desc: "Generación de informes de cumplimiento basados en políticas internas.", status: "Planificado" },
-                        { icon: Waypoints, title: "Integración SIEM/SOAR", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Planificado" },
+                        { icon: ShieldEllipsis, title: "Mapeo a Controles de Cumplimiento", desc: "Relacionar hallazgos con controles de SOC2, ISO 27001, etc. (Informativo).", status: "Mejorado", badgeColor: "border-yellow-500 text-yellow-500" },
+                        { icon: Waypoints, title: "Integración SIEM/SOAR (vía JSON export)", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Base Implementada", badgeColor: "border-blue-500 text-blue-500" },
                         { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado" },
                         { icon: BarChart3, title: "Paneles de Control Avanzados", desc: "Visualizaciones y analítica de riesgos personalizables.", status: "Planificado" },
                         { icon: GitBranch, title: "Integración con CI/CD", desc: "Automatización de análisis en pipelines de desarrollo (DevSecOps).", status: "Explorando" },
                         { icon: Columns, title: "Interfaz de Línea de Comandos (CLI)", desc: "Automatización y gestión de análisis desde la terminal.", status: "Considerando" },
                         { icon: Gamepad2, title: "Mejoras Específicas Servidores de Juegos", desc: "Análisis de protocolos, detección de trampas, análisis de mods/scripts.", status: "Planificado" },
-                        { icon: ShieldCheck, title: "Informes de Cumplimiento (PCI, HIPAA)", desc: "Mapeo de hallazgos a normativas y generación de informes.", status: "Considerando" },
+                        { icon: ShieldCheck, title: "Informes de Cumplimiento Detallados", desc: "Generación de informes formales mapeados a normativas (PDF vía Markdown).", status: "Mejorado", badgeColor: "border-blue-500 text-blue-500" },
                     ].map(item => (
                         <div key={item.title} className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
                             <item.icon className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
@@ -507,12 +519,12 @@ export default function HomePage() {
                         Plataforma Integral de Análisis de Seguridad Asistido por IA
                     </CardTitle>
                     <CardDescription>
-                        Fortalezca la seguridad de sus aplicaciones web, servidores (juegos populares como Lineage 2, Roblox, Tibia, etc.), bases de datos, código (SAST), aplicaciones (DAST), Cloud, Contenedores y Dependencias.
+                        Fortalezca la seguridad de sus aplicaciones web, servidores (juegos populares como Lineage 2, Roblox, Tibia, etc.), bases de datos, código (SAST), aplicaciones (DAST), Cloud, Contenedores, Dependencias y Redes.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
-                        Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores o archivos de dependencias. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
+                        Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
                         Con Modo Premium, obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
@@ -525,6 +537,7 @@ export default function HomePage() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Cloud className="h-5 w-5 text-primary"/> Análisis Config. Cloud.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <BoxIcon className="h-5 w-5 text-primary"/> Análisis Contenedores.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <LibraryIcon className="h-5 w-5 text-primary"/> Análisis Dependencias.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Wifi className="h-5 w-5 text-primary"/> Análisis Config. Red.</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
                         Ideal para equipos DevSecOps, profesionales de ciberseguridad, administradores de sistemas y empresas que buscan proteger sus activos digitales de forma proactiva, eficiente y con la potencia de la IA.

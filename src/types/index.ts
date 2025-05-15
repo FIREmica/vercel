@@ -1,3 +1,4 @@
+
 import type {
   UrlVulnerabilityAnalysisOutput,
   ServerSecurityAnalysisOutput,
@@ -7,6 +8,7 @@ import type {
   CloudConfigAnalysisOutput,
   ContainerAnalysisOutput,
   DependencyAnalysisOutput,
+  NetworkSecurityAnalysisOutput,
   VulnerabilityFinding as SingleVulnerabilityFinding,
   GenerateAttackVectorsOutput as FullGenerateAttackVectorsOutput,
   AttackVectorItem as SingleAttackVectorItem,
@@ -22,6 +24,7 @@ export type { DastAnalysisOutput };
 export type { CloudConfigAnalysisOutput };
 export type { ContainerAnalysisOutput };
 export type { DependencyAnalysisOutput };
+export type { NetworkSecurityAnalysisOutput };
 export type { SingleRemediationPlaybookOutput as RemediationPlaybook };
 
 
@@ -34,6 +37,7 @@ export interface AnalysisResult {
   cloudAnalysis: CloudConfigAnalysisOutput | null;
   containerAnalysis: ContainerAnalysisOutput | null;
   dependencyAnalysis: DependencyAnalysisOutput | null;
+  networkAnalysis: NetworkSecurityAnalysisOutput | null;
   // The comprehensive report text generated from all available analyses
   reportText: string | null;
   // Attack vectors generated from any vulnerable findings across all analyses

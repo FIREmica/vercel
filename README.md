@@ -1,6 +1,7 @@
+
 # Centro de Análisis de Seguridad Integral
 
-Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos), bases de datos, código (SAST), aplicaciones en ejecución (DAST), configuraciones de nube (AWS, Azure, GCP), seguridad de contenedores (Docker, Kubernetes) y dependencias de software para identificar vulnerabilidades de seguridad utilizando IA.
+Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos), bases de datos, código (SAST), aplicaciones en ejecución (DAST simulado), configuraciones de nube (AWS, Azure, GCP), seguridad de contenedores (Docker, Kubernetes), dependencias de software y descripciones de configuraciones de red para identificar vulnerabilidades de seguridad utilizando IA.
 
 **Idea y Visión:** Ronald Gonzalez Niche
 
@@ -13,16 +14,18 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Análisis de URL:** Evalúa la seguridad de URLs de aplicaciones web.
 *   **Análisis de Servidores:** Analiza descripciones de configuraciones de servidores (generales y de juegos) en busca de vulnerabilidades.
 *   **Análisis de Bases de Datos:** Examina descripciones de configuraciones de bases de datos para identificar riesgos.
-*   **Análisis de Código Estático (SAST):** Evalúa fragmentos de código en busca de patrones inseguros.
-*   **Análisis de Aplicaciones Dinámicas (DAST):** Simula pruebas dinámicas en URLs de aplicaciones para encontrar vulnerabilidades.
+*   **Análisis de Código Estático (SAST):** Evalúa fragmentos de código en busca de patrones inseguros, con sugerencias de corrección.
+*   **Análisis de Aplicaciones Dinámicas (DAST Simulado):** Simula pruebas dinámicas en URLs de aplicaciones para encontrar vulnerabilidades.
 *   **Análisis de Configuración Cloud:** Analiza descripciones de configuraciones para AWS, Azure y GCP.
 *   **Análisis de Seguridad de Contenedores:** Evalúa la seguridad de imágenes Docker, Dockerfiles y manifiestos de Kubernetes.
-*   **Análisis de Dependencias:** Identifica vulnerabilidades conocidas en dependencias de software (npm, pip, maven, gem).
-*   **Generación de Informes:** Crea informes de seguridad completos basados en los análisis.
+*   **Análisis de Dependencias:** Identifica vulnerabilidades conocidas en dependencias de software (npm, pip, maven, gem, etc.).
+*   **Análisis de Seguridad de Red (Conceptual):** Evalúa descripciones de configuraciones de red, reglas de firewall y resultados de escaneos (ej. Nmap) para identificar debilidades.
+*   **Generación de Informes:** Crea informes de seguridad completos en Markdown, incluyendo un resumen ejecutivo, detalles de hallazgos, CVSS (si aplica) y consideraciones generales de cumplimiento.
 *   **Generación de Vectores de Ataque:** Ilustra posibles escenarios de ataque para las vulnerabilidades encontradas (función premium).
 *   **Generación de Playbooks de Remediación:** Proporciona guías paso a paso para corregir vulnerabilidades (función premium).
 *   **Asistente de Chat IA:** Proporciona respuestas a consultas de seguridad y sobre la plataforma.
-*   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados y descarga de resultados.
+*   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados, escenarios de ataque, playbooks y descarga de resultados en ZIP.
+*   **Exportación de Hallazgos en JSON:** Permite descargar todos los hallazgos en formato JSON para integración con otras herramientas (ej. SIEM).
 
 ## Tecnologías Usadas
 
@@ -60,14 +63,14 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 Este proyecto requiere una clave API de Google AI para que funcionen las capacidades de Genkit.
 
 1.  **Crea un archivo `.env`:**
-    Si no existe, crea un archivo llamado `.env` en la raíz del proyecto. Puedes copiar `.env.example` si existe uno.
+    En la raíz del proyecto, crea un archivo llamado `.env`. Puedes copiar y renombrar `.env.example` si existe.
     ```
     GOOGLE_API_KEY=tu_clave_api_aqui
     ```
+    **IMPORTANTE:** Reemplaza `tu_clave_api_aqui` con tu clave API real de Google AI. Asegúrate de que esta variable esté correctamente configurada y no esté vacía. Si la clave no es válida o está ausente, la aplicación mostrará errores relacionados con la IA.
+
 2.  **Obtén tu Clave API de Google AI:**
     Visita [Google AI Studio](https://aistudio.google.com/app/apikey) para generar una clave API si aún no tienes una.
-3.  **Configura la Clave API en `.env`:**
-    Abre el archivo `.env` y reemplaza `tu_clave_api_aqui` con tu clave API real. Guarda el archivo.
 
 ### Ejecutando la Aplicación
 
@@ -109,20 +112,22 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 
 ## Roadmap (Posibles Mejoras Futuras)
 
-*   **Documentación Técnica Detallada:** Crear una carpeta `/docs` o una Wiki del proyecto.
+*   **Documentación Técnica Detallada:** Crear una carpeta `/docs` o una Wiki del proyecto con explicaciones sobre la arquitectura, los flujos de IA, y cómo extender la plataforma.
 *   **Automatizaciones y Testing:**
     *   Agregar Prettier, ESLint y Husky para mantener la calidad del código.
-    *   Implementar tests unitarios (Jest, Vitest).
-    *   Configurar CI/CD con GitHub Actions.
-*   **Análisis de APIs REST y GraphQL.**
-*   **Historial de análisis por usuario (requiere autenticación de usuarios).**
-*   **Exportación de informes en formato PDF.**
-*   **Integración y mapeo con OWASP Top 10.**
+    *   Implementar tests unitarios (Jest, Vitest) para componentes y lógica de negocio.
+    *   Configurar CI/CD con GitHub Actions para automatizar builds y tests.
+*   **Análisis de APIs REST y GraphQL (Profundización).**
+*   **Escaneo de Red Directo (Avanzado):** Integración con herramientas como Nmap para realizar escaneos de red activos (requiere consideraciones de seguridad y permisos).
+*   **Integración Directa con Firewalls/Infraestructura (Avanzado):** Para análisis y sugerencias de configuración automáticas.
+*   **Informes en PDF:** Generación de informes formales en formato PDF (actualmente se generan en Markdown, que puede ser convertido externamente).
+*   **Mapeo Detallado con OWASP Top 10 y otros frameworks (ej. MITRE ATT&CK).**
 *   **Panel administrativo para gestión de la plataforma.**
-*   **Integraciones con SIEM/SOAR.**
+*   **Integraciones SIEM/SOAR (Avanzado):** Más allá de la exportación JSON, webhooks directos o APIs para sistemas específicos.
 *   **Gestión de usuarios y RBAC (Control de Acceso Basado en Roles).**
 *   **Interfaz de Línea de Comandos (CLI).**
-*   **Implementación de sistema de pagos (ej. PayPal, Stripe) para servicios premium.**
+*   **Historial de análisis por usuario (requiere autenticación de usuarios).**
+*   **Implementación de sistema de pagos real (ej. PayPal, Stripe) para servicios premium.**
 
 ## Licencia
 
