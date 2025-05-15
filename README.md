@@ -62,12 +62,12 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 
 Este proyecto requiere una clave API de Google AI para que funcionen las capacidades de Genkit.
 
-1.  **Crea un archivo `.env`:**
-    En la raíz del proyecto, crea un archivo llamado `.env`. Puedes copiar y renombrar `.env.example` si existe.
+1.  **Crea un archivo `.env.local`:** (Anteriormente `.env`)
+    En la raíz del proyecto, crea un archivo llamado `.env.local`.
     ```
-    GOOGLE_API_KEY=tu_clave_api_aqui
+    NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_aqui
     ```
-    **IMPORTANTE:** Reemplaza `tu_clave_api_aqui` con tu clave API real de Google AI. Asegúrate de que esta variable esté correctamente configurada y no esté vacía. Si la clave no es válida o está ausente, la aplicación mostrará errores relacionados con la IA.
+    **IMPORTANTE:** Reemplaza `tu_clave_api_aqui` con tu clave API real de Google AI. Asegúrate de que esta variable esté correctamente configurada y no esté vacía. El prefijo `NEXT_PUBLIC_` es importante si necesitas que la clave sea accesible desde el lado del cliente para alguna funcionalidad de Genkit (aunque generalmente Genkit se ejecuta en el servidor, es buena práctica para variables de entorno de Next.js que podrían necesitar ser expuestas, y crucial si el SDK de cliente de Genkit lo requiere). **Para flujos que se ejecutan exclusivamente en el servidor (la mayoría de los nuestros), esta variable también será leída por el servidor en Next.js.**
 
 2.  **Obtén tu Clave API de Google AI:**
     Visita [Google AI Studio](https://aistudio.google.com/app/apikey) para generar una clave API si aún no tienes una.
@@ -106,9 +106,29 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 
 *   **Vercel:** Ideal para aplicaciones Next.js, con despliegues automáticos desde Git.
 *   **Netlify:** Similar a Vercel, ofrece una buena experiencia de despliegue para Next.js.
-*   **Firebase Hosting:** Si ya usas Firebase para otros servicios, puede ser una opción conveniente.
+*   **Firebase Hosting:** Si ya usas Firebase para otros servicios, puede ser una opción conveniente (requiere configuración para SSR de Next.js con Cloud Functions o Cloud Run).
 *   **Docker:** Puedes crear una imagen Docker de la aplicación para desplegarla en cualquier proveedor de nube (AWS, GCP, Azure) o en tu propia infraestructura. (Un `Dockerfile` necesitaría ser creado).
 *   **Servidores Node.js Tradicionales:** Desplegando la build de Next.js en un servidor Node.js.
+
+## Modo Premium y Monetización (Simulado)
+
+La plataforma incluye un "Modo Premium" simulado. Cuando está activado, los usuarios obtienen acceso a:
+
+*   **Informes Técnicos Detallados:** El informe de seguridad completo generado por la IA, sin truncamiento.
+*   **Detalles Completos de Hallazgos:** Incluye CVSS, impacto técnico y de negocio, evidencia y recomendaciones detalladas para todas las vulnerabilidades.
+*   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
+*   **Generación de Playbooks de Remediación:** Guías paso a paso para corregir los problemas identificados.
+*   **Descarga Completa de Resultados (ZIP):** Un archivo ZIP que contiene el informe, todos los hallazgos en JSON, los escenarios de ataque y los playbooks.
+
+La descarga de todos los hallazgos en formato JSON está disponible para todos los usuarios como una forma de facilitar la integración con herramientas externas.
+
+**Potenciales Estrategias de Monetización (Si el proyecto escalara):**
+
+*   **Suscripciones por Niveles:** Ofrecer diferentes planes (ej. Básico, Profesional, Empresarial) con acceso progresivo a funcionalidades y límites de uso.
+*   **Acceso a API REST:** Vender acceso a una API para análisis automáticos e integración en flujos de DevSecOps.
+*   **Servicios de Consultoría y Auditorías Premium:** Ofrecer análisis más profundos y personalizados realizados por expertos.
+*   **Integraciones Avanzadas:** Funciones de integración directa con SIEM/SOAR como un add-on o parte de niveles superiores.
+*   **Soporte Prioritario:** Ofrecer SLAs y soporte dedicado para clientes empresariales.
 
 ## Roadmap (Posibles Mejoras Futuras)
 
@@ -134,3 +154,5 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
+    

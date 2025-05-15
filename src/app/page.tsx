@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -239,7 +239,7 @@ export default function HomePage() {
             (summaryItems.find(s => s) || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
           
           if (result.allFindings && result.allFindings.length > 0) {
-             await generateJsonExportFile(result.allFindings, currentTargetDesc); // Generate JSON for all findings
+             await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
 
           if (isPremiumUser && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
@@ -250,14 +250,27 @@ export default function HomePage() {
           toast({
             title: "Análisis Completo",
             description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Active Premium para acceder a todas las funcionalidades.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default", // Could be "destructive" if vulnerableCount > 0 for more impact
+            variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
     } catch (e) {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
-      const errorMessage = error.message || "Ocurrió un error inesperado durante el análisis.";
+      let errorMessage = "Ocurrió un error inesperado durante el análisis.";
+      if (!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || process.env.NEXT_PUBLIC_GOOGLE_API_KEY.trim() === ""){
+        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
+      } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
+        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";
+      } else if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
+        errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión e inténtalo de nuevo.";
+      } else if (error.message && error.message.includes('quota')) {
+        errorMessage = "Se ha excedido una cuota del servicio de análisis. Por favor, inténtalo de nuevo más tarde.";
+      } else if (error.message && (error.message.toLowerCase().includes('json') || error.message.includes('Unexpected token') || error.message.includes('output.findings') || error.message.includes('output!'))) {
+          errorMessage = `La IA devolvió un formato inválido o inesperado. Por favor, inténtalo de nuevo. Detalles: ${error.message}. Si el problema persiste, el modelo podría estar temporalmente no disponible o mal configurado.`;
+      } else {
+        errorMessage = `El análisis falló catastróficamente: ${error.message}`;
+      }
       setAnalysisResult({ 
         urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
         cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
@@ -280,24 +293,39 @@ export default function HomePage() {
         variant: "default"
     });
     
-    // Re-generate files if premium is activated and results exist
     if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
         await generateZipFile(analysisResult, submittedTargetDescription);
         if(analysisResult.allFindings && analysisResult.allFindings.length > 0) {
            await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
         }
     }
-     // Clear download URLs if premium is deactivated
      if (!newPremiumStatus) {
         if(zipUrl) URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
-        // Keep JSON export available for non-premium for now, or clear it too:
-        // if(jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
-        // setJsonExportUrl(null);
     }
   };
   
   const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || analysisResult?.cloudAnalysis || analysisResult?.containerAnalysis || analysisResult?.dependencyAnalysis || analysisResult?.networkAnalysis || null;
+
+  const PremiumFeatureCard = ({ title, description, icon: Icon }: { title: string, description: string, icon: React.ElementType }) => (
+    <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-xl text-accent">
+          <Icon className="h-6 w-6" />
+          {title} (Función Premium)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground mb-4">{description}</p>
+        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
+          <Sparkles className="mr-2 h-5 w-5" /> Activar Modo Premium
+        </Button>
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          La activación es simulada para demostración.
+        </p>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <TooltipProvider>
@@ -312,7 +340,7 @@ export default function HomePage() {
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
                 Centro de Análisis de Seguridad Integral
                 </h2>
-                <Button variant={isPremiumUser ? "default" : "outline"} onClick={handlePremiumToggle} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground self-start sm:self-center">
+                <Button variant={isPremiumUser ? "default" : "outline"} onClick={handlePremiumToggle} size="sm" className={cn("self-start sm:self-center", isPremiumUser ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "")}>
                     {isPremiumUser ? <Unlock className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
                     {isPremiumUser ? "Premium Activado" : "Activar Premium"}
                 </Button>
@@ -410,17 +438,32 @@ export default function HomePage() {
                 
                 <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremiumUser} />
                 
-                {isPremiumUser && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
+                {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isPremiumUser && (
                   <>
                     <Separator className="my-8 md:my-12" />
                     <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
                   </>
                 )}
-                {isPremiumUser && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
+                {!isPremiumUser && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
+                   <PremiumFeatureCard 
+                    title="Escenarios de Ataque Ilustrativos"
+                    description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
+                    icon={Zap}
+                   />
+                )}
+
+                {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isPremiumUser && (
                   <>
                     <Separator className="my-8 md:my-12" />
                     <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
                   </>
+                )}
+                 {!isPremiumUser && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
+                   <PremiumFeatureCard 
+                    title="Playbooks de Remediación Sugeridos"
+                    description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
+                    icon={FileLock2}
+                   />
                 )}
 
 
@@ -482,12 +525,23 @@ export default function HomePage() {
                 
                 {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
-                    {isPremiumUser && zipUrl && (
+                    {isPremiumUser && zipUrl ? (
                         <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
                         <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
                             <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
                         </a>
                         </Button>
+                    ) : !isPremiumUser && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed" disabled>
+                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Premium
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Active Premium para descargar el paquete completo de resultados.</p>
+                            </TooltipContent>
+                        </Tooltip>
                     )}
                     {jsonExportUrl && (
                         <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
@@ -582,3 +636,5 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+
+    
