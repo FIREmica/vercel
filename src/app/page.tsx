@@ -10,7 +10,7 @@ import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
 import { RemediationPlaybooksDisplay } from "@/components/remediation-playbooks-display";
 import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
 import { performAnalysisAction, exportAllFindingsAsJsonAction } from "./actions";
-import type { AnalysisResult, RemediationPlaybook, VulnerabilityFinding } from "@/types";
+import type { AnalysisResult, RemediationPlaybook, VulnerabilityFinding, AttackVector } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -246,7 +246,7 @@ export default function HomePage() {
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funcionalidades Premium.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funcionalidades Premium.'}`,
             variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
@@ -255,19 +255,24 @@ export default function HomePage() {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
       let errorMessage = "Ocurrió un error inesperado durante el análisis.";
-      if (!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY === "YOUR_GOOGLE_AI_API_KEY_HERE" || process.env.NEXT_PUBLIC_GOOGLE_API_KEY.trim() === ""){
-        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no está configurada. Por favor, contacte al administrador de la plataforma.";
-      } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("GOOGLE_API_KEY"))) {
-        errorMessage = "Error de Configuración del Servidor: La clave API para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.";
-      } else if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
-        errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión e inténtalo de nuevo.";
+      
+      const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
+      const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
+
+      if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
+        errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no está configurada o es el valor predeterminado. Por favor, revise su archivo .env.local y las instrucciones del README.md.`;
+      } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
+        errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) proporcionada para el servicio de Inteligencia Artificial no es válida. Por favor, verifique la clave en Google AI Studio y asegúrese de que esté correctamente configurada en su archivo .env.local.`;
+      } else if (error.message && (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED'))) {
+        errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión a internet e inténtalo de nuevo.";
       } else if (error.message && error.message.includes('quota')) {
-        errorMessage = "Se ha excedido una cuota del servicio de análisis. Por favor, inténtalo de nuevo más tarde.";
+        errorMessage = "Se ha excedido una cuota del servicio de análisis (posiblemente de Google AI). Por favor, inténtalo de nuevo más tarde o revisa los límites de tu cuenta.";
       } else if (error.message && (error.message.toLowerCase().includes('json') || error.message.includes('Unexpected token') || error.message.includes('output.findings') || error.message.includes('output!'))) {
-          errorMessage = `La IA devolvió un formato inválido o inesperado. Por favor, inténtalo de nuevo. Detalles: ${error.message}. Si el problema persiste, el modelo podría estar temporalmente no disponible o mal configurado.`;
+          errorMessage = `La IA devolvió un formato inválido o inesperado. Detalles: ${error.message}. Esto puede deberse a un problema temporal con el modelo de IA, filtros de contenido, o un prompt mal formado. Inténtalo de nuevo o simplifica la entrada.`;
       } else {
         errorMessage = `El análisis falló catastróficamente: ${error.message}`;
       }
+
       setAnalysisResult({ 
         urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
         cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
@@ -279,7 +284,7 @@ export default function HomePage() {
     }
   };
 
-  const handleAuthToggle = async () => {
+ const handlePremiumToggle = async () => {
     const newPremiumStatus = !isPremiumUser;
     setIsPremiumUser(newPremiumStatus);
     toast({ 
@@ -302,8 +307,6 @@ export default function HomePage() {
     }
   };
   
-  const summaryCardData = analysisResult?.urlAnalysis || analysisResult?.serverAnalysis || analysisResult?.databaseAnalysis || analysisResult?.sastAnalysis || analysisResult?.dastAnalysis || analysisResult?.cloudAnalysis || analysisResult?.containerAnalysis || analysisResult?.dependencyAnalysis || analysisResult?.networkAnalysis || null;
-
   const PremiumFeatureCard = ({ title, description, icon: Icon }: { title: string, description: string, icon: React.ElementType }) => (
     <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
       <CardHeader>
@@ -314,7 +317,7 @@ export default function HomePage() {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleAuthToggle}>
+        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
           <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Activar Premium (Simulado)
         </Button>
         <p className="text-xs text-muted-foreground mt-3 text-center">
@@ -329,7 +332,7 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader 
           isPremiumUser={isPremiumUser} 
-          onAuthToggle={handleAuthToggle}
+          onAuthToggle={handlePremiumToggle}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
@@ -339,7 +342,7 @@ export default function HomePage() {
                 </h2>
                 <Button 
                     variant={isPremiumUser ? "outline" : "default"} 
-                    onClick={handleAuthToggle} 
+                    onClick={handlePremiumToggle} 
                     size="sm" 
                     className={cn(
                         "self-start sm:self-center", 
@@ -387,7 +390,7 @@ export default function HomePage() {
                         { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (Premium, con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
                         { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
-                        { icon: ShieldEllipsis, title: "Mapeo a Controles de Cumplimiento", desc: "Relacionar hallazgos con controles de SOC2, ISO 27001, etc. (Informativo).", status: "Mejorado", badgeColor: "border-yellow-500 text-yellow-500" },
+                        { icon: ShieldEllipsis, title: "Mapeo a Controles de Cumplimiento", desc: "Relacionar hallazgos con controles de SOC2, ISO 27001, etc. (Informativo).", status: "Mejorado", badgeColor: "border-blue-500 text-blue-500" },
                         { icon: Waypoints, title: "Integración SIEM/SOAR (vía JSON export)", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Base Implementada", badgeColor: "border-blue-500 text-blue-500" },
                         { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado" },
                         { icon: BarChart3, title: "Paneles de Control Avanzados", desc: "Visualizaciones y analítica de riesgos personalizables.", status: "Planificado" },
@@ -435,18 +438,14 @@ export default function HomePage() {
 
             {!isLoading && analysisResult && (
               <div className="space-y-8">
-                <AnalysisSummaryCard 
-                  analysisInput={summaryCardData} 
-                  allFindings={analysisResult.allFindings}
-                  result={analysisResult}
-                />
+                <AnalysisSummaryCard result={analysisResult} />
                 
                 <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremiumUser} />
                 
                 {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isPremiumUser && (
                   <>
                     <Separator className="my-8 md:my-12" />
-                    <AttackVectorsDisplay attackVectors={analysisResult.attackVectors} />
+                    <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} />
                   </>
                 )}
                 {!isPremiumUser && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
@@ -518,7 +517,7 @@ export default function HomePage() {
                         </ul>
                       </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
-                      <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleAuthToggle}>
+                      <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
                         <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium (Simulado)
                       </Button>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
@@ -562,7 +561,7 @@ export default function HomePage() {
                       El ZIP contiene informe, hallazgos, vectores de ataque y playbooks (si fueron generados). El JSON contiene todos los hallazgos.
                     </p>
                  )}
-                  {jsonExportUrl && !zipUrl && (
+                  {jsonExportUrl && !zipUrl && !isPremiumUser && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
                       El JSON contiene todos los hallazgos. Inicie sesión (simulado) para la descarga ZIP completa.
                     </p>
@@ -587,16 +586,16 @@ export default function HomePage() {
                         Con una Sesión Premium (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="h-5 w-5 text-primary"/> Análisis Web/URL.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Gamepad2 className="h-5 w-5 text-primary"/> Análisis Servidores de Juegos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <SearchCode className="h-5 w-5 text-primary"/> Análisis de Código (SAST).</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Network className="h-5 w-5 text-primary"/> Análisis Dinámico (DAST).</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Cloud className="h-5 w-5 text-primary"/> Análisis Config. Cloud.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <BoxIcon className="h-5 w-5 text-primary"/> Análisis Contenedores.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <LibraryIcon className="h-5 w-5 text-primary"/> Análisis Dependencias.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Wifi className="h-5 w-5 text-primary"/> Análisis Config. Red.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="mr-2 h-5 w-5 text-primary"/> Análisis Web/URL.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="mr-2 h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="mr-2 h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Gamepad2 className="mr-2 h-5 w-5 text-primary"/> Análisis Servidores de Juegos.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <SearchCode className="mr-2 h-5 w-5 text-primary"/> Análisis de Código (SAST).</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Network className="mr-2 h-5 w-5 text-primary"/> Análisis Dinámico (DAST).</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Cloud className="mr-2 h-5 w-5 text-primary"/> Análisis Config. Cloud.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <BoxIcon className="mr-2 h-5 w-5 text-primary"/> Análisis Contenedores.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <LibraryIcon className="mr-2 h-5 w-5 text-primary"/> Análisis Dependencias.</div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Wifi className="mr-2 h-5 w-5 text-primary"/> Análisis Config. Red.</div>
                     </div>
                     <p className="text-muted-foreground mt-3">
                         Ideal para equipos DevSecOps, profesionales de ciberseguridad, administradores de sistemas y empresas que buscan proteger sus activos digitales de forma proactiva, eficiente y con la potencia de la IA.

@@ -3,14 +3,12 @@
 
 import type { AnalysisResult, VulnerabilityFinding } from "@/types"; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle, CloudIcon, BoxIcon, LibraryIcon, SearchCode, Network as NetworkIconLucide, Wifi } from "lucide-react"; // Renamed Network to NetworkIconLucide
+import { ShieldAlert, AlertTriangle, FileWarning, ShieldCheck, Info, Activity, ServerIcon, Database, Globe, AlertCircle, CloudIcon, BoxIcon, LibraryIcon, SearchCode, Network as NetworkIconLucide, Wifi } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type AnalysisSummaryCardProps = {
-  analysisInput: AnalysisResult['urlAnalysis'] | AnalysisResult['serverAnalysis'] | AnalysisResult['databaseAnalysis'] | AnalysisResult['sastAnalysis'] | AnalysisResult['dastAnalysis'] | AnalysisResult['cloudAnalysis'] | AnalysisResult['containerAnalysis'] | AnalysisResult['dependencyAnalysis'] | AnalysisResult['networkAnalysis'] | null;
-  allFindings?: VulnerabilityFinding[] | null;
-  result?: AnalysisResult | null; 
+  result: AnalysisResult | null; // Primary prop for analysis data
 };
 
 interface PostureInfo {
@@ -24,26 +22,26 @@ interface PostureInfo {
   bgColorClass: string;
 }
 
-export function AnalysisSummaryCard({ analysisInput, allFindings, result }: AnalysisSummaryCardProps) {
-  if (!result && !analysisInput && (!allFindings || allFindings.length === 0)) {
+export function AnalysisSummaryCard({ result }: AnalysisSummaryCardProps) {
+  if (!result || (!result.allFindings?.length && !result.reportText && !result.urlAnalysis && !result.serverAnalysis && !result.databaseAnalysis && !result.sastAnalysis && !result.dastAnalysis && !result.cloudAnalysis && !result.containerAnalysis && !result.dependencyAnalysis && !result.networkAnalysis)) {
     return (
-      <Card className="shadow-lg border-l-4 border-blue-500">
+      <Card className="shadow-lg border-l-4 border-primary">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <Info className="h-6 w-6 text-blue-500" />
+            <Info className="h-6 w-6 text-primary" />
             Resumen del Análisis
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            No hay datos de análisis disponibles.
+            No hay datos de análisis disponibles o el análisis no produjo hallazgos.
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  const findingsToSummarize = allFindings || result?.allFindings || analysisInput?.findings || [];
+  const findingsToSummarize = result.allFindings || [];
   
   const totalVulnerable = findingsToSummarize.filter(f => f.isVulnerable).length;
   const highCount = findingsToSummarize.filter(f => f.isVulnerable && (f.severity === 'High' || f.severity === 'Critical')).length;
@@ -51,58 +49,41 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
   const lowCount = findingsToSummarize.filter(f => f.isVulnerable && f.severity === 'Low').length;
   const informationalCount = findingsToSummarize.filter(f => f.severity === 'Informational').length;
 
-  let overallRiskAssessment = analysisInput?.overallRiskAssessment;
-  if (result) { 
-      const riskLevels = ["Critical", "High", "Medium", "Low", "Informational"];
-      const assessments = [
-        result.urlAnalysis?.overallRiskAssessment,
-        result.serverAnalysis?.overallRiskAssessment,
-        result.databaseAnalysis?.overallRiskAssessment,
-        result.sastAnalysis?.overallRiskAssessment,
-        result.dastAnalysis?.overallRiskAssessment,
-        result.cloudAnalysis?.overallRiskAssessment,
-        result.containerAnalysis?.overallRiskAssessment,
-        result.dependencyAnalysis?.overallRiskAssessment,
-        result.networkAnalysis?.overallRiskAssessment,
-      ].filter(Boolean) as ("Low" | "Medium" | "High" | "Critical" | "Informational")[];
-      
-      if (highCount > 0) assessments.push("High"); 
+  let overallRiskAssessmentCalculated: PostureInfo['badgeVariant'] | "Critical" | "High" | "Medium" | "Low" | "Informational";
 
-      for (const level of riskLevels) {
-        if (assessments.includes(level as any)) {
-          overallRiskAssessment = level as any;
-          break;
+  if (highCount > 0) overallRiskAssessmentCalculated = "Critical"; 
+  else if (mediumCount > 0) overallRiskAssessmentCalculated = "Medium";
+  else if (lowCount > 0) overallRiskAssessmentCalculated = "Low";
+  else overallRiskAssessmentCalculated = "Informational";
+
+  // Attempt to get executive summary from the main report first
+  let summaryMessage = "Análisis completado. Revise los hallazgos detallados.";
+  if (result.reportText) {
+    const reportLines = result.reportText.split('\n');
+    const execSummaryLine = reportLines.find(line => line.toLowerCase().startsWith('# overall executive summary') || line.toLowerCase().startsWith('## resumen ejecutivo general'));
+    if (execSummaryLine) {
+        summaryMessage = result.reportText.substring(result.reportText.indexOf(execSummaryLine) + execSummaryLine.length).split("## ")[0].split("# ")[0].trim();
+        if(summaryMessage.length < 20 && totalVulnerable > 0) { // If summary is too short
+            summaryMessage = `Se detectaron ${totalVulnerable} vulnerabilidad(es) activa(s). ${summaryMessage}`;
+        } else if (summaryMessage.length < 20) {
+             summaryMessage = "Análisis completado. No se detectaron vulnerabilidades críticas o el resumen es breve.";
         }
-      }
-      if (!overallRiskAssessment) { 
-         if (highCount > 0) overallRiskAssessment = "Critical"; 
-         else if (mediumCount > 0) overallRiskAssessment = "Medium";
-         else if (lowCount > 0) overallRiskAssessment = "Low";
-         else overallRiskAssessment = "Informational";
-      }
-
-  } else if (allFindings && !overallRiskAssessment) {
-      if (highCount > 0) overallRiskAssessment = "Critical";
-      else if (mediumCount > 0) overallRiskAssessment = "Medium";
-      else if (lowCount > 0) overallRiskAssessment = "Low";
-      else overallRiskAssessment = "Informational";
+    }
+  } else if (totalVulnerable > 0) {
+    summaryMessage = `Se detectaron ${totalVulnerable} vulnerabilidad(es) activa(s) en total. Revise el informe detallado.`;
+  } else {
+    summaryMessage = "No se detectaron vulnerabilidades activas en los componentes analizados. Se pueden haber encontrado hallazgos informativos.";
   }
 
 
   let posture: PostureInfo;
-  const summaryMessage = analysisInput?.executiveSummary || result?.reportText?.split('\n')[0].replace('# Overall Executive Summary (Report):','').trim() ||
-                         (totalVulnerable > 0 ? 
-                          `Se detectaron ${totalVulnerable} vulnerabilidad(es) activa(s) en total. Revise el informe detallado.` :
-                          "No se detectaron vulnerabilidades activas en los componentes analizados. Se pueden haber encontrado hallazgos informativos.");
-
-
-  switch (overallRiskAssessment) {
+  switch (overallRiskAssessmentCalculated) {
     case "Critical":
       posture = {
         title: "¡Riesgo Crítico Identificado!", message: summaryMessage, Icon: ShieldAlert, colorClass: "text-destructive", badgeVariant: "destructive",
         borderColorClass: "border-destructive", bgColorClass: "bg-destructive/10",
       }; break;
-    case "High":
+    case "High": // Should be covered by Critical due to calculation logic, but keep for safety
       posture = {
         title: "¡Atención Urgente Requerida!", message: summaryMessage, Icon: ShieldAlert, colorClass: "text-destructive", badgeVariant: "destructive",
         borderColorClass: "border-destructive", bgColorClass: "bg-destructive/10",
@@ -150,7 +131,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
     { label: "Baja Severidad", count: lowCount, IconComp: FileWarning, color: "text-yellow-600", badgeVariant: "outline" as const, badgeClass: "border-yellow-600 text-yellow-600"},
   ];
 
-  const analysisTypesPerformed = result ? [
+  const analysisTypesPerformed = [
     result.urlAnalysis && { name: "URL" as const, count: result.urlAnalysis.findings.filter(f=>f.isVulnerable).length },
     result.serverAnalysis && { name: "Servidor" as const, count: result.serverAnalysis.findings.filter(f=>f.isVulnerable).length },
     result.databaseAnalysis && { name: "Base de Datos" as const, count: result.databaseAnalysis.findings.filter(f=>f.isVulnerable).length },
@@ -160,7 +141,7 @@ export function AnalysisSummaryCard({ analysisInput, allFindings, result }: Anal
     result.containerAnalysis && { name: "Contenedor" as const, count: result.containerAnalysis.findings.filter(f=>f.isVulnerable).length },
     result.dependencyAnalysis && { name: "Dependencias" as const, count: result.dependencyAnalysis.findings.filter(f=>f.isVulnerable).length },
     result.networkAnalysis && { name: "Red" as const, count: result.networkAnalysis.findings.filter(f=>f.isVulnerable).length },
-  ].filter(item => item && item.count > 0) as { name: Exclude<VulnerabilityFinding['source'], undefined | "Unknown">, count: number }[] : [];
+  ].filter(item => item && item.count > 0) as { name: Exclude<VulnerabilityFinding['source'], undefined | "Unknown">, count: number }[];
 
 
   return (

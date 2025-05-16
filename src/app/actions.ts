@@ -27,7 +27,8 @@ import type {
   ContainerAnalysisOutput,
   DependencyAnalysisOutput,
   NetworkSecurityAnalysisOutput,
-  RemediationPlaybook
+  RemediationPlaybook,
+  AttackVector
 } from "@/types";
 import type { 
   GeneralQueryInput, 
@@ -42,7 +43,7 @@ import type {
   DependencyAnalysisInput,
   NetworkSecurityAnalysisInput,
   RemediationPlaybookInput,
-  GenerateAttackVectorsInput,
+  GenerateAttackVectorsOutput, // Using the output type here which is AttackVectorItem[]
 } from "@/types/ai-schemas";
 
 interface PerformAnalysisParams {
@@ -82,7 +83,8 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       sastAnalysis: null, dastAnalysis: null, 
       cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
       reportText: null, attackVectors: null, remediationPlaybooks: null,
-      error: "Al menos uno de los objetivos de análisis debe ser proporcionado." 
+      error: "Al menos uno de los objetivos de análisis debe ser proporcionado." ,
+      allFindings: []
     };
   }
 
@@ -196,7 +198,8 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
          urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
          cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
          reportText: null, attackVectors: null, remediationPlaybooks: null, 
-         error: `Todos los análisis fallaron. Errores: ${collectedErrorMessages}` 
+         error: `Todos los análisis fallaron. Errores: ${collectedErrorMessages}`,
+         allFindings: []
        };
     }
 
@@ -234,7 +237,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         errorOccurred = true; 
     }
 
-    let attackVectorsResult: GenerateAttackVectorsInput | null = null; 
+    let attackVectorsResult: AttackVector[] | null = null; 
     let remediationPlaybooksResult: RemediationPlaybook[] = [];
     const vulnerableFindingsForPremium = allFindings.filter(v => v.isVulnerable);
 
@@ -296,7 +299,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
     return { 
       urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
       cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
-      reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: null 
+      reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: [] 
     };
   }
 }
