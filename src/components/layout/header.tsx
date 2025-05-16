@@ -21,9 +21,12 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
         
         {isPremiumUser ? (
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="text-foreground">
-              <UserCircle className="mr-2 h-4 w-4" />
-              Mi Perfil (Simulado)
+            <Button variant="ghost" size="sm" className="text-foreground" asChild>
+              {/* En un futuro, esto enlazaría a /profile o /dashboard */}
+              <Link href="#"> 
+                <UserCircle className="mr-2 h-4 w-4" />
+                Mi Perfil (Simulado)
+              </Link>
             </Button>
             <Button 
               variant="outline" 
@@ -41,7 +44,6 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
               variant="default" 
               size="sm" 
               className="bg-accent hover:bg-accent/90 text-accent-foreground"
-              // onClick={onAuthToggle} // El toggle ahora lo manejamos en la página principal para simular premium tras "login"
             >
               <LogIn className="mr-2 h-4 w-4" />
               Iniciar Sesión / Premium
@@ -52,3 +54,4 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
     </header>
   );
 }
+

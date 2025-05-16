@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, LogOut } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -285,28 +285,26 @@ export default function HomePage() {
     }
   };
 
- const handleAuthToggle = async () => {
+  const handleAuthToggle = async () => {
     const newAuthStatus = !isLoggedInAndPremium;
     setIsLoggedInAndPremium(newAuthStatus);
-    toast({ 
-        title: newAuthStatus ? "¡Sesión Iniciada con Acceso Premium (Simulado)!" : "Sesión Cerrada (Simulado)", 
-        description: newAuthStatus 
-          ? "Acceso completo a informes técnicos, escenarios de ataque, playbooks de remediación y descarga de resultados." 
-          : "Las funciones Premium han sido desactivadas. Inicie sesión para reactivarlas.",
-        variant: "default"
+    toast({
+      title: newAuthStatus ? "¡Sesión Iniciada con Acceso Premium (Simulado)!" : "Sesión Cerrada (Simulado)",
+      description: newAuthStatus
+        ? "Acceso completo a informes técnicos, escenarios de ataque, playbooks de remediación y descarga de resultados."
+        : "Las funciones Premium han sido desactivadas. Inicie sesión (o simule el inicio) para reactivarlas.",
+      variant: "default",
     });
-    
-    // Si se activa premium y hay resultados, generar el ZIP
+
     if (newAuthStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
-        await generateZipFile(analysisResult, submittedTargetDescription);
-        if(analysisResult.allFindings && analysisResult.allFindings.length > 0) {
-           await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
-        }
+      await generateZipFile(analysisResult, submittedTargetDescription);
+      if (analysisResult.allFindings && analysisResult.allFindings.length > 0) {
+        await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
+      }
     }
-    // Si se cierra sesión, eliminar la URL del ZIP para que no se pueda descargar
-     if (!newAuthStatus) {
-        if(zipUrl) URL.revokeObjectURL(zipUrl);
-        setZipUrl(null);
+    if (!newAuthStatus) {
+      if (zipUrl) URL.revokeObjectURL(zipUrl);
+      setZipUrl(null);
     }
   };
   
@@ -321,12 +319,13 @@ export default function HomePage() {
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
         {actionButton || (
+           <Link href="/login" passHref>
             <Button 
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-              onClick={handleAuthToggle} // Usa el toggle para "iniciar sesión"
             >
                 <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder (Simulado)
             </Button>
+          </Link>
         )}
         <p className="text-xs text-muted-foreground mt-3 text-center">
           El inicio de sesión y la activación son simulados. Se requiere una cuenta y suscripción real en un entorno de producción.
@@ -351,7 +350,12 @@ export default function HomePage() {
             </div>
             <p className="text-muted-foreground mb-6">
               Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias de software y configuraciones de red.
-              <strong className="text-foreground block mt-1"> Inicie sesión (simulado a través del botón en el encabezado) para acceder a informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa.</strong>
+              <strong className="text-foreground block mt-1">
+                {isLoggedInAndPremium 
+                  ? "Sesión Premium (simulada) activa: Acceso completo a informes técnicos, escenarios de ataque, playbooks y descarga." 
+                  : "Inicie sesión (simulado a través del botón en el encabezado) para acceder a informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa."
+                }
+              </strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -450,12 +454,11 @@ export default function HomePage() {
                     description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
                     icon={Zap}
                     actionButton={
-                        <Button 
-                          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                          onClick={handleAuthToggle}
-                        >
-                            <LogIn className="mr-2 h-5 w-5" /> Simular Inicio de Sesión Premium
-                        </Button>
+                        <Link href="/login" passHref>
+                            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder
+                            </Button>
+                        </Link>
                     }
                    />
                 )}
@@ -472,12 +475,11 @@ export default function HomePage() {
                     description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
                     icon={FileLock2}
                     actionButton={
-                        <Button 
-                          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                          onClick={handleAuthToggle}
-                        >
-                            <LogIn className="mr-2 h-5 w-5" /> Simular Inicio de Sesión Premium
-                        </Button>
+                        <Link href="/login" passHref>
+                            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder
+                            </Button>
+                        </Link>
                     }
                    />
                 )}
@@ -488,10 +490,10 @@ export default function HomePage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
                         <Unlock className="h-6 w-6" />
-                        Desbloquee Todo el Potencial Iniciando Sesión (Premium)
+                        Desbloquee Todo el Potencial Iniciando Sesión
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha generado información valiosa. Inicie sesión (simulado a través del botón en el encabezado) para una visión completa de su postura de seguridad y acceso a todas las funcionalidades.
+                        Su análisis ha generado información valiosa. Inicie sesión (simulado) para una visión completa de su postura de seguridad y acceso a todas las funcionalidades.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -530,12 +532,13 @@ export default function HomePage() {
                       </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
                       
-                      <Button 
-                        className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                        onClick={handleAuthToggle}
-                      >
-                          <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium (Simulado)
-                      </Button>
+                      <Link href="/login" passHref>
+                        <Button 
+                          className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                        >
+                            <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium
+                        </Button>
+                      </Link>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
                         El inicio de sesión y la activación son simulados para demostración. No se procesarán pagos reales.
                       </p>
@@ -554,16 +557,17 @@ export default function HomePage() {
                     ) : !isLoggedInAndPremium && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
                         <Tooltip>
                             <TooltipTrigger asChild>
+                                <Link href="/login" passHref>
                                  <Button 
                                     size="lg" 
                                     className="bg-primary/70 text-primary-foreground w-full sm:w-auto"
-                                    onClick={handleAuthToggle}
                                 >
                                     <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Sesión
                                 </Button>
+                                </Link>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Inicie sesión (simulado) para descargar el paquete completo de resultados.</p>
+                                <p>Inicie sesión para descargar el paquete completo de resultados.</p>
                             </TooltipContent>
                         </Tooltip>
                     )}
@@ -583,7 +587,7 @@ export default function HomePage() {
                  )}
                   {jsonExportUrl && !zipUrl && !isLoggedInAndPremium && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                      El JSON contiene todos los hallazgos. Inicie sesión (simulado) para la descarga ZIP completa.
+                      El JSON contiene todos los hallazgos. Inicie sesión para la descarga ZIP completa.
                     </p>
                  )}
               </div>
@@ -622,13 +626,14 @@ export default function HomePage() {
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-accent font-medium">
                         <LogIn className="h-5 w-5" />
-                        <Button 
-                            variant="link" 
-                            className="p-0 h-auto text-accent font-medium"
-                            onClick={handleAuthToggle} // Usa el toggle para "iniciar sesión"
-                        >
-                            Inicie sesión (simulado) para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.
-                        </Button>
+                        <Link href="/login" passHref>
+                            <Button 
+                                variant="link" 
+                                className="p-0 h-auto text-accent font-medium"
+                            >
+                                Inicie sesión para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.
+                            </Button>
+                        </Link>
                     </div>
                 </CardContent>
                </Card>

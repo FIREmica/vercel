@@ -24,7 +24,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Generación de Vectores de Ataque (Premium Simulado):** Ilustra posibles escenarios de ataque para las vulnerabilidades encontradas.
 *   **Generación de Playbooks de Remediación (Premium Simulado):** Proporciona guías paso a paso para corregir vulnerabilidades.
 *   **Asistente de Chat IA:** Proporciona respuestas a consultas de seguridad y sobre la plataforma.
-*   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados, escenarios de ataque, playbooks y descarga de resultados en ZIP. (El acceso se simula mediante un interruptor en el header).
+*   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados, escenarios de ataque, playbooks y descarga de resultados en ZIP. (El acceso se simula mediante un interruptor en el header que representa un "inicio/cierre de sesión" con acceso premium).
 *   **Exportación de Hallazgos en JSON:** Permite descargar todos los hallazgos en formato JSON para integración con otras herramientas (ej. SIEM).
 
 ## Tecnologías Usadas
@@ -48,9 +48,10 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 
 1.  **Clona el repositorio:**
     ```bash
-    git clone <URL_DEL_REPOSITORIO_ACTUALIZADA_CUANDO_SUBA_A_GITHUB>
-    cd <NOMBRE_DEL_DIRECTORIO_DEL_PROYECTO>
+    git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
+    cd YOUR_REPOSITORY_NAME
     ```
+    *(Reemplaza `YOUR_USERNAME/YOUR_REPOSITORY_NAME` con la URL real cuando subas el proyecto a GitHub).*
 2.  **Instala las dependencias:**
     ```bash
     npm install
@@ -67,7 +68,7 @@ Este proyecto requiere una clave API de Google AI para que funcionen las capacid
     ```
     NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_aqui
     ```
-    **IMPORTANTE:** Reemplaza `tu_clave_api_aqui` con tu clave API real de Google AI. Asegúrate de que esta variable esté correctamente configurada y no esté vacía. El prefijo `NEXT_PUBLIC_` es importante para que la clave sea accesible si alguna funcionalidad de Genkit la requiere desde el cliente. **Para flujos que se ejecutan exclusivamente en el servidor (la mayoría de los nuestros), esta variable también será leída por el servidor en Next.js.** Si se omite, la aplicación mostrará un error de configuración.
+    **IMPORTANTE:** Reemplaza `tu_clave_api_aqui` con tu clave API real de Google AI. Asegúrate de que esta variable esté correctamente configurada y no esté vacía. El prefijo `NEXT_PUBLIC_` es la práctica recomendada por Next.js para variables que podrían necesitar ser accedidas por el cliente, aunque en nuestro caso Genkit se ejecuta principalmente en el servidor, esto asegura compatibilidad. **Si se omite o es incorrecta, la aplicación mostrará un error de configuración.**
 
 2.  **Obtén tu Clave API de Google AI:**
     Visita [Google AI Studio](https://aistudio.google.com/app/apikey) para generar una clave API si aún no tienes una.
@@ -176,4 +177,3 @@ Además de los pasos críticos para producción, se podrían considerar:
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-```
