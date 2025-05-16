@@ -167,7 +167,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   {{/if}}
 
   {{#if dependencyAnalysis}}
-  Dependency Analysis Summary (File Type: {{dependencyAnalysis.findings.0.fileType}}):
+  Dependency Analysis Summary (File Type: {{#if dependencyAnalysis.findings.length}}{{{dependencyAnalysis.findings.0.fileType}}}{{else}}N/A{{/if}}):
   - Overall Risk for Dependencies: {{{dependencyAnalysis.overallRiskAssessment}}}
   - Dependency Scan Executive Summary: {{{dependencyAnalysis.executiveSummary}}}
     {{#if (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
@@ -241,27 +241,41 @@ const generateSecurityReportPrompt = ai.definePrompt({
       - State overall security posture, highest risk (Severity, CVSS if available for top risks).
       - Summarize most significant risks across all sources. Total active vulnerabilities. Call to action.
   2.  **# Detailed Findings and Analysis:**
-      Organize by source (## URL Analysis, ## Server Configuration, ## Database Security, ## SAST Analysis, ## DAST Analysis, ## Cloud Configuration, ## Container Security, ## Dependency Analysis, ## Network Security Analysis).
+      Organize by source (e.g., ## URL Analysis, ## Server Configuration, ## SAST Analysis, etc.).
       If no analysis or no findings for a source, state "No [Source Type] analysis was performed or no findings were reported."
-      For each source with *vulnerable* findings:
-      *   Restate its specific executive summary and overall risk.
-      *   For *each vulnerable* finding ('isVulnerable' is true):
-          *   **### [Vulnerability Category] (Severity: [Severity]{{#if cvssScore}}, CVSS: {{cvssScore}}{{#if cvssVector}} - Vector: {{cvssVector}}{{/if}}{{/if}})**
-          *   **Source Specifics:** {{#if filePath}}(File: {{filePath}}, Line: {{lineNumber}}){{/if}}{{#if affectedParameter}}(Parameter: {{affectedParameter}}){{/if}}{{#if cloudProvider}}(Provider: {{cloudProvider}}{{#if affectedResource}}, Resource: {{affectedResource}}{{/if}}){{/if}}{{#if imageName}}(Image: {{imageName}}){{/if}}{{#if dependencyName}}(Dependency: {{dependencyName}}@{{dependencyVersion}}){{/if}}{{#if affectedPort}}(Port: {{affectedPort}}{{#if affectedProtocol}}, Protocol: {{affectedProtocol}}{{/if}}){{/if}}
-          *   **Specific Finding:** Detail 'description'.
-          *   **Potential Business Impact:** ('businessImpact').
-          *   **Technical Details:** ('technicalDetails').
-          *   **Evidence:** ('evidence', 'codeSnippetContext', 'requestExample', 'responseExample').
-          *   **Recommended Remediation:** ('remediation').
+      For *each source* with *vulnerable* findings:
+      *   Restate its specific executive summary and overall risk (obtained from the input data for that source).
+      *   For *each vulnerable* finding (where 'isVulnerable' is true in the input data for that finding):
+          *   Generate a sub-heading like: **### [Vulnerability Category] (Severity: [Severity], CVSS: [Score if available] - Vector: [Vector if available])** (Use data from the finding object).
+          *   Include **Source Specifics:** Based on the input finding's fields such as 'filePath', 'lineNumber' (for SAST); 'affectedParameter' (for DAST); 'cloudProvider', 'affectedResource' (for Cloud); 'imageName' (for Container); 'dependencyName', 'dependencyVersion' (for Dependency); 'affectedPort', 'affectedProtocol' (for Network). Format this information clearly as a list or sub-section.
+          *   Detail the **Specific Finding:** using the 'description' from the input finding object.
+          *   Explain the **Potential Business Impact:** using 'businessImpact' from the input finding object, if available.
+          *   Provide **Technical Details:** using 'technicalDetails' from the input finding object, if available.
+          *   Present **Evidence:**
+              *   Include general 'evidence' text from the input finding object, if available.
+              *   If the finding's source is 'SAST' and 'codeSnippetContext' (from the input finding) is available, present it clearly as a Markdown code block, for example:
+                  **Code Snippet Context (SAST):**
+                  \`\`\`[language_if_known_or_omit]
+                  [codeSnippetContext_content]
+                  \`\`\`
+              *   If the finding's source is 'SAST' and 'suggestedFix' (from the input finding) is available, present it clearly as a Markdown code block under a "Suggested Fix (SAST)" heading, for example:
+                  **Suggested Fix (SAST):**
+                  \`\`\`[language_if_known_or_omit]
+                  [suggestedFix_content]
+                  \`\`\`
+              *   If the finding's source is 'DAST' and 'requestExample' (from the input finding) is available, present it clearly as a Markdown code block.
+              *   If the finding's source is 'DAST' and 'responseExample' (from the input finding) is available, present it clearly as a Markdown code block.
+          *   Outline **Recommended Remediation:** using 'remediation' from the input finding object.
   3.  **# Prioritized Recommendations:**
-      - List top 3-5 vulnerabilities to address first (based on severity and potential impact from inputs).
+      - List top 3-5 vulnerabilities to address first (based on severity and potential impact from input findings).
   4.  **# Compliance Considerations (General Overview):**
       - Briefly mention general compliance impacts if vulnerabilities are relevant to common standards (e.g., PII exposure related to GDPR/CCPA data protection principles, access control issues for ISO 27001/SOC2, network security for PCI-DSS). Do not invent compliance issues or specific control mappings unless directly implied by the vulnerability type (e.g., "unencrypted PII storage" clearly relates to data protection).
   5.  **# Conclusion:**
       - Reiterate overall posture and importance of proactive security. Recommend ongoing practices.
 
-  Format using markdown. Professional tone. Focus solely on provided input.
-  Gracefully omit sections for which no analysis was provided.
+  Format using markdown. Professional tone. Focus solely on provided input data.
+  Gracefully omit sections for which no analysis data was provided.
+  Ensure all specific fields like CVSS score, vector, file paths, line numbers, code snippets, affected parameters, request/response examples, cloud resources, container images, dependency names/versions, and network ports/protocols are included in the detailed findings section if they exist in the input 'VulnerabilityFinding' objects.
   `,
 });
 
@@ -284,6 +298,7 @@ const generateSecurityReportFlow = ai.defineFlow(
     if (input.dependencyAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.dependencyAnalysis.findings.filter(f => f.isVulnerable));
     if (input.networkAnalysis?.findings) overallVulnerableFindings = overallVulnerableFindings.concat(input.networkAnalysis.findings.filter(f => f.isVulnerable));
     
+    // Ensure 'source' is populated for all findings in overallVulnerableFindings for the prompt
     overallVulnerableFindings = overallVulnerableFindings.map(f => {
         let findingSource = f.source; 
         if (!findingSource) { 
@@ -297,7 +312,36 @@ const generateSecurityReportFlow = ai.defineFlow(
             else if (input.dependencyAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Dependency";
             else if (input.networkAnalysis?.findings.some(item => item.description === f.description && item.vulnerability === f.vulnerability)) findingSource = "Network";
         }
-        return { ...f, source: findingSource || "Unknown" as const };
+        // Ensure all fields from the schema are present, even if undefined, for the AI to process
+        const completeFinding: VulnerabilityFinding = {
+            source: findingSource || "Unknown" as const,
+            vulnerability: f.vulnerability,
+            description: f.description,
+            isVulnerable: f.isVulnerable,
+            severity: f.severity,
+            cvssScore: f.cvssScore,
+            cvssVector: f.cvssVector,
+            businessImpact: f.businessImpact,
+            technicalDetails: f.technicalDetails,
+            evidence: f.evidence,
+            potentialForAccountLockout: f.potentialForAccountLockout,
+            remediation: f.remediation,
+            filePath: f.filePath,
+            lineNumber: f.lineNumber,
+            codeSnippetContext: f.codeSnippetContext,
+            suggestedFix: f.suggestedFix,
+            affectedParameter: f.affectedParameter,
+            requestExample: f.requestExample,
+            responseExample: f.responseExample,
+            cloudProvider: f.cloudProvider,
+            affectedResource: f.affectedResource,
+            imageName: f.imageName,
+            dependencyName: f.dependencyName,
+            dependencyVersion: f.dependencyVersion,
+            affectedPort: f.affectedPort,
+            affectedProtocol: f.affectedProtocol,
+        };
+        return completeFinding;
     });
 
     const promptInput = {
@@ -311,8 +355,8 @@ const generateSecurityReportFlow = ai.defineFlow(
       containerAnalysis: input.containerAnalysis,
       dependencyAnalysis: input.dependencyAnalysis,
       networkAnalysis: input.networkAnalysis,
-      overallVulnerableFindings: overallVulnerableFindings,
-      input: input 
+      overallVulnerableFindings: overallVulnerableFindings, // Pass the enriched findings
+      input: input // Keep original input for context if needed, though overallVulnerableFindings is primary for detailed section
     };
 
     const {output} = await generateSecurityReportPrompt(promptInput);
@@ -326,3 +370,4 @@ const generateSecurityReportFlow = ai.defineFlow(
     return output;
   }
 );
+
