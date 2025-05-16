@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import JSZip from 'jszip';
+import Link from "next/link"; // Importar Link
 import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
@@ -31,7 +32,7 @@ export default function HomePage() {
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [jsonExportUrl, setJsonExportUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
-  const [isPremiumUser, setIsPremiumUser] = useState(false); 
+  const [isLoggedInAndPremium, setIsLoggedInAndPremium] = useState(false); 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
@@ -210,7 +211,7 @@ export default function HomePage() {
         return;
       }
 
-      const result = await performAnalysisAction(params, isPremiumUser);
+      const result = await performAnalysisAction(params, isLoggedInAndPremium);
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) { 
@@ -240,13 +241,13 @@ export default function HomePage() {
              await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
 
-          if (isPremiumUser && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
+          if (isLoggedInAndPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
             await generateZipFile(result, currentTargetDesc);
           }
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isPremiumUser ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funcionalidades Premium.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isLoggedInAndPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funcionalidades Premium.'}`,
             variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
@@ -260,9 +261,9 @@ export default function HomePage() {
       const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
       if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
-        errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no está configurada o es el valor predeterminado. Por favor, revise su archivo .env.local y las instrucciones del README.md.`;
+        errorMessage = `Error de Configuración: La clave API (${apiKeyName}) para el servicio de IA no está configurada. Por favor, revise el archivo .env.local y las instrucciones del README.md.`;
       } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
-        errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) proporcionada para el servicio de Inteligencia Artificial no es válida. Por favor, verifique la clave en Google AI Studio y asegúrese de que esté correctamente configurada en su archivo .env.local.`;
+        errorMessage = `Error de Configuración: La clave API (${apiKeyName}) proporcionada no es válida. Verifique la clave en Google AI Studio y su configuración en .env.local.`;
       } else if (error.message && (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED'))) {
         errorMessage = "Ocurrió un error de red al intentar contactar un servicio de análisis. Por favor, verifica tu conexión a internet e inténtalo de nuevo.";
       } else if (error.message && error.message.includes('quota')) {
@@ -276,7 +277,7 @@ export default function HomePage() {
       setAnalysisResult({ 
         urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
         cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
-        reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: null 
+        reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: [] 
       });
       toast({ variant: "destructive", title: "Error Crítico de Análisis", description: errorMessage, duration: 8000 });
     } finally {
@@ -284,30 +285,32 @@ export default function HomePage() {
     }
   };
 
- const handlePremiumToggle = async () => {
-    const newPremiumStatus = !isPremiumUser;
-    setIsPremiumUser(newPremiumStatus);
+ const handleAuthToggle = async () => {
+    const newAuthStatus = !isLoggedInAndPremium;
+    setIsLoggedInAndPremium(newAuthStatus);
     toast({ 
-        title: newPremiumStatus ? "¡Sesión Premium Iniciada (Simulada)!" : "Sesión Cerrada (Simulada)", 
-        description: newPremiumStatus 
+        title: newAuthStatus ? "¡Sesión Iniciada con Acceso Premium (Simulado)!" : "Sesión Cerrada (Simulado)", 
+        description: newAuthStatus 
           ? "Acceso completo a informes técnicos, escenarios de ataque, playbooks de remediación y descarga de resultados." 
-          : "Las funciones Premium han sido desactivadas. Vuelva a iniciar sesión para reactivarlas.",
+          : "Las funciones Premium han sido desactivadas. Inicie sesión para reactivarlas.",
         variant: "default"
     });
     
-    if (newPremiumStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
+    // Si se activa premium y hay resultados, generar el ZIP
+    if (newAuthStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
         await generateZipFile(analysisResult, submittedTargetDescription);
         if(analysisResult.allFindings && analysisResult.allFindings.length > 0) {
            await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
         }
     }
-     if (!newPremiumStatus) {
+    // Si se cierra sesión, eliminar la URL del ZIP para que no se pueda descargar
+     if (!newAuthStatus) {
         if(zipUrl) URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
     }
   };
   
-  const PremiumFeatureCard = ({ title, description, icon: Icon }: { title: string, description: string, icon: React.ElementType }) => (
+  const PremiumFeatureCard = ({ title, description, icon: Icon, actionButton }: { title: string, description: string, icon: React.ElementType, actionButton?: React.ReactNode }) => (
     <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl text-accent">
@@ -317,11 +320,15 @@ export default function HomePage() {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
-          <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Activar Premium (Simulado)
-        </Button>
+        {actionButton || (
+            <Link href="/login" passHref>
+                 <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder (Simulado)
+                 </Button>
+            </Link>
+        )}
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          El inicio de sesión y la activación son simulados para demostración.
+          El inicio de sesión y la activación son simulados. Se requiere una cuenta y suscripción real en un entorno de producción.
         </p>
       </CardContent>
     </Card>
@@ -331,8 +338,8 @@ export default function HomePage() {
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader 
-          isPremiumUser={isPremiumUser} 
-          onAuthToggle={handlePremiumToggle}
+          isPremiumUser={isLoggedInAndPremium} 
+          onAuthToggle={handleAuthToggle}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
@@ -340,22 +347,11 @@ export default function HomePage() {
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
                 Centro de Análisis de Seguridad Integral
                 </h2>
-                <Button 
-                    variant={isPremiumUser ? "outline" : "default"} 
-                    onClick={handlePremiumToggle} 
-                    size="sm" 
-                    className={cn(
-                        "self-start sm:self-center", 
-                        isPremiumUser ? "border-green-500 text-green-600 hover:bg-green-500/10" : "bg-accent hover:bg-accent/90 text-accent-foreground"
-                    )}
-                >
-                    {isPremiumUser ? <LogOut className="mr-2 h-4 w-4" /> : <LogIn className="mr-2 h-4 w-4" />}
-                    {isPremiumUser ? "Cerrar Sesión (Simulado)" : "Iniciar Sesión / Premium (Simulado)"}
-                </Button>
+                {/* El botón de login/logout principal ahora está en el AppHeader */}
             </div>
             <p className="text-muted-foreground mb-6">
               Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias de software y configuraciones de red.
-              <strong className="text-foreground block mt-1"> Inicie sesión (simulado) para acceder a informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa.</strong>
+              <strong className="text-foreground block mt-1"> Inicie sesión (simulado a través del botón en el encabezado) para acceder a informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa.</strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
@@ -387,12 +383,12 @@ export default function HomePage() {
                         { icon: BoxIcon, title: "Análisis Seguridad Contenedores", desc: "Análisis de imágenes Docker y configuraciones Kubernetes.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
                         { icon: Wifi, title: "Análisis de Configuración de Red", desc: "Evaluación de descripciones de red, reglas de firewall y resultados de escaneos.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
+                        { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "Implementado (Premium)", badgeColor: "border-green-500 text-green-500" },
                         { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (Premium, con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
                         { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
                         { icon: ShieldEllipsis, title: "Mapeo a Controles de Cumplimiento", desc: "Relacionar hallazgos con controles de SOC2, ISO 27001, etc. (Informativo).", status: "Mejorado", badgeColor: "border-blue-500 text-blue-500" },
                         { icon: Waypoints, title: "Integración SIEM/SOAR (vía JSON export)", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Base Implementada", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado" },
+                        { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado (Requiere Autenticación Real)" },
                         { icon: BarChart3, title: "Paneles de Control Avanzados", desc: "Visualizaciones y analítica de riesgos personalizables.", status: "Planificado" },
                         { icon: GitBranch, title: "Integración con CI/CD", desc: "Automatización de análisis en pipelines de desarrollo (DevSecOps).", status: "Explorando" },
                         { icon: Columns, title: "Interfaz de Línea de Comandos (CLI)", desc: "Automatización y gestión de análisis desde la terminal.", status: "Considerando" },
@@ -440,15 +436,15 @@ export default function HomePage() {
               <div className="space-y-8">
                 <AnalysisSummaryCard result={analysisResult} />
                 
-                <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremiumUser} />
+                <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isLoggedInAndPremium} />
                 
-                {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isPremiumUser && (
+                {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isLoggedInAndPremium && (
                   <>
                     <Separator className="my-8 md:my-12" />
                     <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} />
                   </>
                 )}
-                {!isPremiumUser && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
+                {!isLoggedInAndPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
                    <PremiumFeatureCard 
                     title="Escenarios de Ataque Ilustrativos"
                     description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
@@ -456,13 +452,13 @@ export default function HomePage() {
                    />
                 )}
 
-                {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isPremiumUser && (
+                {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isLoggedInAndPremium && (
                   <>
                     <Separator className="my-8 md:my-12" />
                     <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
                   </>
                 )}
-                 {!isPremiumUser && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.remediationPlaybooks || analysisResult.remediationPlaybooks.length === 0) &&(
+                 {!isLoggedInAndPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.remediationPlaybooks || analysisResult.remediationPlaybooks.length === 0) &&(
                    <PremiumFeatureCard 
                     title="Playbooks de Remediación Sugeridos"
                     description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
@@ -471,7 +467,7 @@ export default function HomePage() {
                 )}
 
 
-                 {!isPremiumUser && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
+                 {!isLoggedInAndPremium && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                   <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
@@ -479,7 +475,7 @@ export default function HomePage() {
                         Desbloquee Todo el Potencial Iniciando Sesión (Premium)
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha generado información valiosa. Inicie sesión (simulado) para una visión completa de su postura de seguridad y acceso a todas las funcionalidades.
+                        Su análisis ha generado información valiosa. Inicie sesión (simulado a través del botón en el encabezado) para una visión completa de su postura de seguridad y acceso a todas las funcionalidades.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -517,9 +513,12 @@ export default function HomePage() {
                         </ul>
                       </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
-                      <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handlePremiumToggle}>
-                        <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium (Simulado)
-                      </Button>
+                      
+                      <Link href="/login" passHref>
+                        <Button className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                          <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium (Simulado)
+                        </Button>
+                      </Link>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
                         El inicio de sesión y la activación son simulados para demostración. No se procesarán pagos reales.
                       </p>
@@ -529,18 +528,20 @@ export default function HomePage() {
                 
                 {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
-                    {isPremiumUser && zipUrl ? (
+                    {isLoggedInAndPremium && zipUrl ? (
                         <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
                         <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
                             <Download className="mr-2 h-5 w-5" /> Descargar Paquete de Resultados (ZIP)
                         </a>
                         </Button>
-                    ) : !isPremiumUser && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
+                    ) : !isLoggedInAndPremium && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed" disabled>
-                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Sesión Premium
-                                </Button>
+                                 <Link href="/login" passHref>
+                                    <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto">
+                                        <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Sesión
+                                    </Button>
+                                </Link>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Inicie sesión (simulado) para descargar el paquete completo de resultados.</p>
@@ -556,12 +557,12 @@ export default function HomePage() {
                     )}
                 </div>
                  )}
-                 {isPremiumUser && zipUrl && (
+                 {isLoggedInAndPremium && zipUrl && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
                       El ZIP contiene informe, hallazgos, vectores de ataque y playbooks (si fueron generados). El JSON contiene todos los hallazgos.
                     </p>
                  )}
-                  {jsonExportUrl && !zipUrl && !isPremiumUser && (
+                  {jsonExportUrl && !zipUrl && !isLoggedInAndPremium && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
                       El JSON contiene todos los hallazgos. Inicie sesión (simulado) para la descarga ZIP completa.
                     </p>
@@ -583,7 +584,7 @@ export default function HomePage() {
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
                         Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
-                        Con una Sesión Premium (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
+                        Con una Sesión (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="mr-2 h-5 w-5 text-primary"/> Análisis Web/URL.</div>
@@ -602,7 +603,9 @@ export default function HomePage() {
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-accent font-medium">
                         <LogIn className="h-5 w-5" />
-                        <span>Inicie sesión (simulado) para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.</span>
+                        <Link href="/login" className="hover:underline">
+                            Inicie sesión (simulado) para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.
+                        </Link>
                     </div>
                 </CardContent>
                </Card>

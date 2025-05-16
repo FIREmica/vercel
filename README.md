@@ -1,4 +1,5 @@
 
+
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos), bases de datos, código (SAST), aplicaciones en ejecución (DAST simulado), configuraciones de nube (AWS, Azure, GCP), seguridad de contenedores (Docker, Kubernetes), dependencias de software y descripciones de configuraciones de red para identificar vulnerabilidades de seguridad utilizando IA.
@@ -24,7 +25,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Generación de Vectores de Ataque:** Ilustra posibles escenarios de ataque para las vulnerabilidades encontradas (función premium).
 *   **Generación de Playbooks de Remediación:** Proporciona guías paso a paso para corregir vulnerabilidades (función premium).
 *   **Asistente de Chat IA:** Proporciona respuestas a consultas de seguridad y sobre la plataforma.
-*   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados, escenarios de ataque, playbooks y descarga de resultados en ZIP.
+*   **Modo Premium Simulado:** Desbloquea funciones avanzadas como informes técnicos detallados, escenarios de ataque, playbooks y descarga de resultados en ZIP. (El acceso se simula, preparando para una autenticación real).
 *   **Exportación de Hallazgos en JSON:** Permite descargar todos los hallazgos en formato JSON para integración con otras herramientas (ej. SIEM).
 
 ## Tecnologías Usadas
@@ -62,7 +63,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 
 Este proyecto requiere una clave API de Google AI para que funcionen las capacidades de Genkit.
 
-1.  **Crea un archivo `.env.local`:** (Anteriormente `.env`)
+1.  **Crea un archivo `.env.local`:**
     En la raíz del proyecto, crea un archivo llamado `.env.local`.
     ```
     NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_aqui
@@ -112,7 +113,7 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 
 ## Modo Premium y Monetización (Simulado)
 
-La plataforma incluye un "Modo Premium" simulado, que se activa/desactiva con un botón en la interfaz. Este modo representa conceptualmente un **usuario autenticado con una suscripción activa**. Cuando está activado, los usuarios obtienen acceso a:
+La plataforma incluye un "Modo Premium" simulado, que se activa/desactiva a través de un botón en la interfaz de usuario (simulando un inicio/cierre de sesión). Este modo representa conceptualmente un **usuario autenticado con una suscripción activa**. Cuando está activado, los usuarios obtienen acceso a:
 
 *   **Informe Técnico Detallado:** El informe de seguridad completo generado por la IA, sin truncamiento.
 *   **Detalles Completos de Hallazgos:** Incluye CVSS, impacto técnico y de negocio, evidencia y recomendaciones detalladas para todas las vulnerabilidades.
@@ -122,12 +123,10 @@ La plataforma incluye un "Modo Premium" simulado, que se activa/desactiva con un
 
 La descarga de todos los hallazgos en formato JSON está disponible para todos los usuarios como una forma de facilitar la integración con herramientas externas.
 
-**Pasos Futuros para Monetización Real:**
+**Próximos Pasos Críticos para Monetización Real:**
 
-Para una monetización real, los siguientes pasos serían críticos:
-
-1.  **Implementar Autenticación de Usuarios:** Utilizar soluciones como NextAuth.js o Firebase Authentication para permitir el registro e inicio de sesión de usuarios.
-2.  **Integrar una Pasarela de Pagos:** Conectar con servicios como Stripe o PayPal para gestionar suscripciones y pagos.
+1.  **Implementar Autenticación de Usuarios Real:** Utilizar soluciones como NextAuth.js o Firebase Authentication para permitir el registro e inicio de sesión de usuarios.
+2.  **Integrar una Pasarela de Pagos Real:** Conectar con servicios como Stripe o PayPal para gestionar suscripciones y pagos.
 3.  **Desarrollar un Panel de Administración:** Para gestionar usuarios, suscripciones, y posiblemente configuraciones de la plataforma.
 
 **Potenciales Estrategias de Monetización (Si el proyecto escalara):**
