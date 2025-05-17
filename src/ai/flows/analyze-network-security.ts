@@ -37,18 +37,27 @@ const analyzeNetworkSecurityPrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash-latest',
   input: { schema: NetworkSecurityAnalysisInputSchema },
   output: { schema: AnalyzeNetworkPromptOutputSchema },
-  prompt: `You are a Network Security Specialist. Analyze the provided network configuration description or scan results for potential security vulnerabilities.
+  prompt: `You are a Network Security Specialist. Analyze the provided network information for potential security vulnerabilities.
+  The information might include a general network description, detailed scan results (e.g., from Nmap), and/or firewall rules.
 
-  Network Information:
+  Network General Description (if provided):
   {{{networkDescription}}}
+
   {{#if scanResults}}
-  Scan Results (e.g., Nmap summary):
+  Scan Results (e.g., Nmap output, can be verbose):
   \`\`\`
   {{{scanResults}}}
   \`\`\`
+  If verbose scan results like Nmap are provided, pay close attention to:
+  - Open ports and their states.
+  - Services detected on these ports.
+  - Specific versions of these services.
+  - Output from any scripts run by the scanner (e.g., Nmap NSE scripts) that indicate vulnerabilities.
+  Based on identified service versions, try to recall common vulnerabilities associated with outdated or specific versions of software.
   {{/if}}
+
   {{#if firewallRules}}
-  Firewall Rules Summary:
+  Firewall Rules Summary (if provided):
   \`\`\`
   {{{firewallRules}}}
   \`\`\`
@@ -60,17 +69,18 @@ const analyzeNetworkSecurityPrompt = ai.definePrompt({
      - Weak Protocols: Use of unencrypted protocols (Telnet, FTP, HTTP) for sensitive data.
      - Firewall Misconfigurations: Overly permissive 'allow any/any' rules, lack of egress filtering, rules not following principle of least privilege.
      - Network Segmentation Issues: Lack of proper segmentation between critical and less critical zones, flat networks.
-     - Vulnerable Services: If scan results hint at specific service versions known to be vulnerable (conceptual).
-     - Default Credentials: Implied if common management interfaces are exposed without mention of credential hardening.
+     - Vulnerable Services: If scan results provide specific service versions, identify if these versions are known to be vulnerable (e.g., old Apache version with known CVEs).
+     - Default Credentials: Implied if common management interfaces (e.g., web admin panels for routers, printers, or services identified in scans) are exposed without mention of credential hardening.
      - Lack of IDS/IPS: If description implies direct internet exposure without mention of intrusion detection/prevention.
+     - Information Disclosure: Verbose banners, directory listings on web services found through scans.
   2. For each issue, create a finding:
-     - vulnerability: e.g., "Exposed SSH Port to Internet", "FTP Service Using Unencrypted Protocol", "Overly Permissive Firewall Rule", "Lack of Network Segmentation".
-     - description: Details of the issue.
+     - vulnerability: e.g., "Exposed SSH Port to Internet", "FTP Service Using Unencrypted Protocol", "Outdated Apache Version [version] on Port [port] with Potential CVEs", "Vulnerable [Service Name] [Version] Detected on Port [Port]".
+     - description: Details of the issue. If a service version is identified as vulnerable, mention it.
      - isVulnerable: Boolean.
      - severity: 'Low', 'Medium', 'High', 'Critical', 'Informational'.
-     - cvssScore, cvssVector: (Optional, estimate if a common CWE/CVE maps).
-     - businessImpact, technicalDetails, evidence (e.g., "Port 22/TCP open to 0.0.0.0/0", "Firewall rule allows all traffic from any source to any destination"), remediation.
-     - affectedPort: (e.g., "22/TCP", "1000-2000/UDP").
+     - cvssScore, cvssVector: (Optional, estimate if a common CWE/CVE maps, especially for known vulnerable software versions).
+     - businessImpact, technicalDetails, evidence (e.g., "Port 22/TCP open to 0.0.0.0/0", "Nmap script 'xyz' reported vulnerable", "Firewall rule allows all traffic from any source to any destination"), remediation.
+     - affectedPort: (e.g., "22/TCP", "80/TCP", "1000-2000/UDP").
      - affectedProtocol: (e.g., "TCP", "UDP").
   3. Provide 'overallRiskAssessment'.
   4. Write 'executiveSummary'.
@@ -78,7 +88,7 @@ const analyzeNetworkSecurityPrompt = ai.definePrompt({
   Output: JSON object with "findings", "overallRiskAssessment", "executiveSummary".
   If no specific inputs are substantial, findings can be empty.
   Focus on actionable enterprise network security issues based on the provided text.
-  Request CVSS scores and vectors where applicable based on known vulnerability patterns (e.g., CWEs related to exposed ports or weak protocols).
+  Request CVSS scores and vectors where applicable based on known vulnerability patterns (e.g., CWEs related to exposed ports or weak protocols, or known CVEs for specific software versions identified in scan results).
   `,
 });
 
@@ -118,3 +128,4 @@ const analyzeNetworkSecurityFlow = ai.defineFlow(
     };
   }
 );
+
