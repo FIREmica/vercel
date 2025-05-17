@@ -43,24 +43,42 @@ const analyzeSastSecurityPrompt = ai.definePrompt({
   output: {schema: AnalyzeSastPromptOutputSchema},
   prompt: `You are an expert SAST (Static Application Security Testing) simulation tool.
   Analyze the following code snippet for potential security vulnerabilities.
-  {{#if language}}Language: {{{language}}}{{else}}Language: Not specified (assume common web language like Python, JavaScript, or PHP){{/if}}
+  Language: {{#if language}}{{{language}}}{{else}}Not specified (assume common web language like Python, JavaScript, or PHP){{/if}}
   Code Snippet:
-  \`\`\`{{#if language}}{{{language}}}{{/if}}
+  \`\`\`{{#if language}}{{{language}}}{{else}}text{{/if}}
   {{{codeSnippet}}}
   \`\`\`
 
   Task:
-  1.  Identify potential security issues based *solely* on the provided code snippet. Consider language-specific vulnerabilities and common OWASP Top 10 issues relevant to static analysis:
-      - **Inyección (SQL, NoSQL, Command, LDAP, XPATH):** Detect unsanitized user input used in database queries, system commands, or other interpreters.
-      - **Autenticación Rota:** Hardcoded credentials, weak password hashing (if visible), logic flaws in custom auth code.
-      - **Exposición de Datos Sensibles:** Plaintext storage/transmission of passwords, API keys, PII, or cryptographic keys within the snippet.
-      - **Deserialización Insegura:** Patterns indicating unsafe deserialization of user-controlled data.
-      - **Configuración Incorrecta de Seguridad:** Use of default credentials, debug features left enabled, overly permissive configurations visible in code.
-      - **Componentes con Vulnerabilidades Conocidas (Conceptual):** If code patterns suggest use of known vulnerable functions/libraries (e.g., old crypto functions, dangerous standard library calls).
-      - **Cross-Site Scripting (XSS) (Reflected/Stored/DOM-based from server-side generation):** If code generates HTML/JS without proper output encoding or sanitization.
-      - **Falta de Control de Acceso:** Code paths that don't adequately check authorization before performing sensitive actions.
-      - **Manejo de Errores Inseguro:** Error messages leaking sensitive information.
-      - **Uso de Funciones Criptográficas Débiles o Incorrectas.**
+  1.  Identify potential security issues based *solely* on the provided code snippet. Consider language-specific vulnerabilities and common OWASP Top 10 issues relevant to static analysis.
+
+      {{#if language}}
+      Specific guidance for language "{{language}}":
+        {{#if (eq language "python")}}
+        - Python Specifics: Check for insecure 'pickle' usage, 'eval()'/'exec()' with user input, command injection via 'os.system()' or 'subprocess' with shell=True, hardcoded secrets, SQL injection if ORM usage is incorrect or raw SQL is built with string concatenation, insecure temporary file creation, path traversal, weak cryptography usage.
+        {{else if (eq language "javascript")}}
+        - JavaScript Specifics: Check for DOM XSS (e.g. '.innerHTML =', 'document.write'), insecure use of 'eval()', 'setTimeout'/'setInterval' with string arguments, prototype pollution possibilities, hardcoded API keys or tokens, insecure RegEx leading to ReDoS, JWT handling issues if visible.
+        {{else if (eq language "java")}}
+        - Java Specifics: Check for SQL injection (concatenated queries), XML External Entity (XXE) injection if XML parsing is shown, insecure deserialization (e.g. 'ObjectInputStream'), command injection, path traversal, hardcoded credentials, weak cryptography (e.g. ECB mode, static IVs).
+        {{else if (eq language "php")}}
+        - PHP Specifics: Check for SQL injection (concatenated queries), file inclusion vulnerabilities (LFI/RFI) with 'include'/'require', command execution with 'system'/'shell_exec', XSS from unescaped output ('echo $var'), insecure deserialization with 'unserialize()', usage of 'eval()'.
+        {{else if (eq language "csharp")}}
+        - C# Specifics: Check for SQL injection (concatenated queries), XXE, insecure deserialization, command injection, path traversal, hardcoded secrets, ASP.NET misconfigurations if discernible (e.g. viewstate not encrypted, debug mode enabled).
+        {{else if (eq language "ruby")}}
+        - Ruby Specifics: Check for SQL injection (especially with ActiveRecord if not used safely), command injection (e.g. backticks or 'system' with user input), XSS, insecure deserialization (Marshal.load), path traversal, unsafe use of 'eval'.
+        {{else if (eq language "go")}}
+        - Go Specifics: Check for SQL injection, command injection, path traversal, hardcoded secrets, potential race conditions if concurrency patterns are visible, insecure use of 'unsafe' package.
+        {{else if (eq language "rust")}}
+        - Rust Specifics: Check for memory safety issues if 'unsafe' blocks are used carelessly (though less common in typical snippets), SQL injection, command injection, hardcoded secrets. Focus on logic flaws or misuse of cryptographic libraries if visible.
+        {{else if (eq language "typescript")}}
+        - TypeScript Specifics: Similar to JavaScript, check for DOM XSS, insecure use of 'eval()', prototype pollution, hardcoded API keys/tokens, insecure RegEx. Also consider type-related security issues if complex types or assertions are used in a security-sensitive context.
+        {{else}}
+        - General Guidance: Focus on Inyección (SQL, NoSQL, Command), Autenticación Rota (hardcoded credentials), Exposición de Datos Sensibles, Deserialización Insegura, Configuración Incorrecta de Seguridad, XSS, Falta de Control de Acceso, Manejo de Errores Inseguro.
+        {{/if}}
+      {{else}}
+      - General Guidance: Focus on Inyección (SQL, NoSQL, Command), Autenticación Rota (hardcoded credentials), Exposición de Datos Sensibles, Deserialización Insegura, Configuración Incorrecta de Seguridad, XSS, Falta de Control de Acceso, Manejo de Errores Inseguro.
+      {{/if}}
+
   2.  For each potential issue, create a finding object:
       - vulnerability: General category (e.g., "SQL Injection", "Hardcoded API Key", "Reflected XSS in HTML template").
       - description: Detailed observation of the insecure pattern in the code. Explain *why* it's a vulnerability.
@@ -72,7 +90,7 @@ const analyzeSastSecurityPrompt = ai.definePrompt({
       - technicalDetails: (Optional) Deeper technical explanation of the flaw.
       - evidence: (Optional) Quote the *exact* problematic part of the code snippet.
       - remediation: Suggested high-level code remediation strategy (e.g., "Use parameterized queries", "Store secrets in environment variables", "Encode output before rendering in HTML").
-      - filePath: (Optional) Conceptual file path (e.g., "auth/service.py", "utils/db_helpers.java"). Default to "snippet.{{language}}" if not otherwise inferable.
+      - filePath: (Optional) Conceptual file path (e.g., "auth/service.py", "utils/db_helpers.java"). Default to "snippet.{{#if language}}{{language}}{{else}}txt{{/if}}" if not otherwise inferable.
       - lineNumber: (Optional) Conceptual line number within the snippet where the core of the issue is.
       - codeSnippetContext: (Required if vulnerable) A small, relevant part (3-5 lines) of the *provided snippet* that shows the vulnerability.
       - suggestedFix: (Optional, but highly encouraged if vulnerable) Provide a conceptual code snippet showing how the 'codeSnippetContext' could be fixed. Be specific. For example, if it's an XSS, show proper encoding. If SQLi, show a parameterized query example.
@@ -84,6 +102,7 @@ const analyzeSastSecurityPrompt = ai.definePrompt({
   If the snippet is too short, generic, or seems secure, findings can be empty, risk 'Informational', and summary should state this.
   Prioritize findings directly observable in the provided code. This is a simulation. Be specific to the provided snippet.
   If the language is not specified, make reasonable assumptions but state them.
+  Ensure that if a language is provided, your analysis and examples of vulnerabilities are relevant to that specific language.
   `,
 });
 
@@ -94,7 +113,7 @@ const analyzeSastSecurityFlow = ai.defineFlow(
     outputSchema: SastAnalysisOutputSchema,
   },
   async (input): Promise<SastAnalysisOutput> => {
-    if (!input.codeSnippet || input.codeSnippet.trim().length < 20) { 
+    if (!input.codeSnippet || input.codeSnippet.trim().length < 10) { // Adjusted minimum length as per schema
         return {
             findings: [],
             overallRiskAssessment: "Informational",
