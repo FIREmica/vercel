@@ -1,3 +1,4 @@
+
 import type {Metadata} from 'next';
 import Script from 'next/script'; // Import Script from next/script
 import { Geist, Geist_Mono } from 'next/font/google';
@@ -24,13 +25,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // It's recommended to use an environment variable for the PayPal Client ID here
+  // For example, process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+  // Ensure this Client ID matches the one used for your REST API app in PayPal Developer Portal
+  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "YOUR_PAYPAL_SANDBOX_CLIENT_ID_HERE";
+
   return (
     <html lang="es" suppressHydrationWarning className="dark">
       <head>
-        {/* PayPal SDK Script */}
+        {/* PayPal SDK Script for Smart Payment Buttons */}
+        {/* Replace YOUR_PAYPAL_SANDBOX_CLIENT_ID_HERE with your actual Sandbox Client ID, ideally via an environment variable */}
         <Script
-          src="https://www.paypal.com/sdk/js?client-id=BAA-fGCf9vG9LpXLsI0hmdbxEy5X8t_F38HBNtTmkHxE1Q0gUsrj3J0UEiin4N4dlSydXvf9skKDBgsqYM&components=hosted-buttons&disable-funding=venmo&currency=USD"
-          strategy="beforeInteractive" // Carga el script antes de que la página sea interactiva
+          src={`https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD&intent=capture`}
+          strategy="beforeInteractive"
         />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>

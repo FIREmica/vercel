@@ -83,10 +83,16 @@ Este proyecto requiere claves API para funcionar correctamente.
 
     # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
     # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer
-    PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui
+    # Estas son usadas por el endpoint /api/paypal/create-order
+    PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_api_rest 
     PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
     # Para producción, usarías: PAYPAL_API_BASE_URL=https://api-m.paypal.com y credenciales Live
+
+    # Client ID de PayPal para el SDK de JavaScript (Frontend)
+    # Asegúrate que este Client ID corresponda a la misma aplicación API REST configurada arriba, o a una específica para el SDK si así lo prefieres.
+    # Esta es usada en src/app/layout.tsx para cargar el SDK de PayPal.
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_sdk_js
 
     # Credenciales de Supabase (Requeridas para la futura autenticación y base de datos)
     # Reemplaza estos valores con tus propias credenciales de tu proyecto Supabase
@@ -97,7 +103,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # SUPABASE_SERVICE_ROLE_KEY=tu_supabase_service_role_key_aqui
     # Y posiblemente las cadenas de conexión a la base de datos si usas Prisma con Supabase:
     # POSTGRES_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
-    # POSTGRES_PRISMA_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
+    # POSTGRES_PRISMA_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
     # POSTGRES_URL_NON_POOLING="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:5432/postgres?sslmode=require"
     # POSTGRES_USER="postgres"
     # POSTGRES_PASSWORD="[tu_password]"
@@ -107,7 +113,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```
     **IMPORTANTE:**
     *   Reemplaza `tu_clave_api_google_aqui` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
-    *   Reemplaza `tu_paypal_sandbox_client_id_aqui` y `tu_paypal_sandbox_client_secret_aqui` con tus credenciales reales de una aplicación Sandbox que crees en el [Portal de Desarrolladores de PayPal](https://developer.paypal.com/).
+    *   Reemplaza `tu_paypal_sandbox_client_id_aqui_para_api_rest`, `tu_paypal_sandbox_client_secret_aqui` y `tu_paypal_sandbox_client_id_aqui_para_sdk_js` con tus credenciales reales de una aplicación Sandbox que crees en el [Portal de Desarrolladores de PayPal](https://developer.paypal.com/). Es crucial que el `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (usado por el SDK de JS en el frontend) y el `PAYPAL_CLIENT_ID` (usado por la API de backend) estén correctamente configurados, idealmente correspondiendo a la misma aplicación REST API de PayPal para evitar confusiones.
     *   Reemplaza `https://tu_id_proyecto_supabase.supabase.co` y `tu_supabase_anon_key_aqui` con las credenciales de tu proyecto Supabase. Puedes encontrarlas en la configuración de tu proyecto Supabase en "Project Settings > API".
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
 
@@ -116,7 +122,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     *   **PayPal Sandbox:**
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox).
         2.  Crea una nueva aplicación REST API si no tienes una.
-        3.  Copia el `Client ID` y el `Client Secret` de tu aplicación Sandbox.
+        3.  Copia el `Client ID` y el `Client Secret` de tu aplicación Sandbox. Usarás el `Client ID` tanto para `PAYPAL_CLIENT_ID` (backend) como para `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (frontend SDK).
     *   **Supabase:**
         1.  Ve a [Supabase Dashboard](https://supabase.com/dashboard).
         2.  Crea un nuevo proyecto o selecciona uno existente.
@@ -160,7 +166,7 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 *   **Docker:** Puedes crear una imagen Docker de la aplicación para desplegarla en cualquier proveedor de nube (AWS, GCP, Azure) o en tu propia infraestructura. (Un `Dockerfile` necesitaría ser creado).
 *   **Servidores Node.js Tradicionales:** Desplegando la build de Next.js en un servidor Node.js.
 
-**Al desplegar, asegúrate de configurar las variables de entorno (`NEXT_PUBLIC_GOOGLE_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_API_BASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` si es necesario) en la configuración de tu proveedor de hosting.**
+**Al desplegar, asegúrate de configurar las variables de entorno (`NEXT_PUBLIC_GOOGLE_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_API_BASE_URL`, `NEXT_PUBLIC_PAYPAL_CLIENT_ID`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` si es necesario) en la configuración de tu proveedor de hosting.**
 
 ## Modo Premium y Monetización (Simulado)
 
@@ -170,12 +176,13 @@ También se ha integrado una simulación del proceso de suscripción utilizando 
 *   El frontend llama a un endpoint de API del backend (`/api/paypal/create-order`) para crear una orden de pago en PayPal.
 *   El SDK de JavaScript de PayPal en el frontend renderiza los botones de pago.
 *   El usuario puede completar el flujo de pago en el entorno Sandbox de PayPal.
-*   Tras una "aprobación" simulada del pago en el frontend, se activa el modo premium.
+*   Tras una "aprobación" simulada del pago en el frontend (`onApprove` del SDK de JS), se activa el modo premium.
 
 Es importante destacar que esta integración con PayPal **no está conectada a una lógica de backend que active automáticamente las funciones premium tras una confirmación de pago real y persistente por parte de PayPal (Webhooks/IPN)**. Para ello, se requeriría implementar:
-1.  Endpoints de Webhook en el backend para recibir notificaciones de pago de PayPal.
-2.  Una base de datos (como la que se podría configurar con Supabase) para almacenar el estado de la suscripción de los usuarios.
-3.  Lógica para actualizar el estado de la suscripción en la base de datos basada en las notificaciones de PayPal.
+1.  **Captura Segura de Pagos en Backend:** Un endpoint que reciba el `orderID` aprobado y lo capture con la API de PayPal para asegurar los fondos.
+2.  **Endpoints de Webhook en el backend:** Para recibir notificaciones de pago de PayPal (ej. `PAYMENT.CAPTURE.COMPLETED`).
+3.  **Una base de datos (como la que se podría configurar con Supabase):** Para almacenar el estado de la suscripción de los usuarios.
+4.  **Lógica para actualizar el estado de la suscripción en la base de datos:** Basada en las notificaciones de PayPal y la captura exitosa de pagos.
 
 Cuando el "Modo Premium" está activado (`isLoggedInAndPremium` es `true` en el estado de `src/app/page.tsx`), los usuarios obtienen acceso a:
 
