@@ -8,23 +8,29 @@ import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast"; // Asumiendo que quieres usar toasts para feedback
+import { useToast } from "@/hooks/use-toast"; 
+import { useRouter } from "next/navigation"; // Para simular redirección
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí iría la lógica de autenticación real
-    // Por ahora, solo simulamos un mensaje
+    // Aquí iría la lógica de autenticación real con un backend
     toast({
       title: "Inicio de Sesión (Simulado)",
-      description: "La funcionalidad de inicio de sesión real se implementará en el futuro.",
+      description: "Funcionalidad en desarrollo. Redirigiendo al inicio...",
     });
-    console.log("Login attempt:", { email, password });
-    // Redirigir o actualizar estado de la app aquí tras un login exitoso
+    console.log("Intento de inicio de sesión (simulado):", { email, password });
+    // En una aplicación real, aquí se verificarían las credenciales
+    // y se gestionaría el estado de la sesión.
+    // Por ahora, solo redirigimos o simulamos el cambio de estado.
+    // Para simular, podríamos usar el toggle del modo premium que ya existe
+    // o simplemente redirigir a la página principal.
+    // router.push('/'); // Descomentar si se desea redirigir
   };
 
   return (
@@ -36,7 +42,7 @@ export default function LoginPage() {
             Iniciar Sesión
           </CardTitle>
           <CardDescription>
-            Accede a tu cuenta para gestionar tus análisis de seguridad.
+            Accede a tu cuenta para gestionar tus análisis de seguridad y acceder a funciones premium.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -50,6 +56,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -61,6 +68,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </div>
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -73,11 +81,13 @@ export default function LoginPage() {
               Regístrate aquí
             </Link>
           </div>
-           <div className="mt-4 text-center text-xs text-muted-foreground">
-            Nota: El inicio de sesión es simulado. Esta página es un placeholder.
+           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
+            <strong>Nota Importante:</strong> Esta página de inicio de sesión es una <strong className="text-foreground">simulación</strong>. La funcionalidad de autenticación de usuarios real (con verificación de credenciales y gestión de sesiones) es un paso crucial que se implementará utilizando tecnologías como NextAuth.js.
+            Actualmente, para probar las funciones "Premium", utilice el interruptor en el encabezado de la página principal.
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
