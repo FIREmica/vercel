@@ -27,7 +27,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Severidad, CVSS (si es proporcionado por la IA), descripción, impacto potencial y remediación sugerida para cada hallazgo.
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
-*   **Modo Premium Simulado:** Desbloquea funciones avanzadas mediante un interruptor en el header que simula un "inicio/cierre de sesión" con acceso premium. Las funciones premium incluyen:
+*   **Modo Premium Simulado (con opción de Botón PayPal Hosted):** Desbloquea funciones avanzadas mediante un interruptor en el header que simula un "inicio/cierre de sesión" con acceso premium, o mediante un botón de PayPal (Hosted Button) para simular el proceso de suscripción. Las funciones premium incluyen:
     *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
     *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
     *   **Generación de Playbooks de Remediación Sugeridos:** Guías paso a paso en Markdown para corregir vulnerabilidades.
@@ -125,6 +125,8 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 
 La plataforma incluye un "Modo Premium" simulado. Actualmente, se activa/desactiva a través de un botón en el encabezado que simula un "inicio/cierre de sesión" con acceso premium. Este modo representa conceptualmente un **usuario autenticado con una suscripción activa**.
 
+También se ha integrado un **botón de PayPal (Hosted Button)** como una demostración visual de cómo un usuario podría realizar un pago para una suscripción. Es importante destacar que esta integración con PayPal **no está conectada a una lógica de backend que active automáticamente las funciones premium tras un pago exitoso**. Para ello, se requeriría implementar webhooks de PayPal (IPN) y una gestión de estado de suscripción en una base de datos.
+
 Cuando está activado (`isLoggedInAndPremium` es `true` en el estado de `src/app/page.tsx`), los usuarios obtienen acceso a:
 
 *   **Informe Técnico Detallado:** El informe de seguridad completo generado por la IA, sin truncamiento.
@@ -171,8 +173,8 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
     *   *Nota: Ya se han definido esquemas Zod (`UserProfileSchema`, `AnalysisRecordSchema`) en `src/types/ai-schemas.ts` como preparación para esta fase.*
 2.  **Integración de Pasarela de Pagos:**
     *   Integrar Stripe, PayPal u otra pasarela para gestionar suscripciones y pagos por servicios premium.
-    *   Implementar webhooks para confirmaciones de pago y actualización de estado de suscripción.
-    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela de pagos, vincularlos a los perfiles de usuario en la base de datos y asegurar que el acceso a las funciones premium se otorgue/revoque basándose en el estado de la suscripción.
+    *   Implementar webhooks para confirmaciones de pago y actualización de estado de suscripción en la base de datos.
+    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela de pagos, vincularlos a los perfiles de usuario en la base de datos y asegurar que el acceso a las funciones premium se otorgue/revoque basándose en el estado de la suscripción. El actual botón de PayPal es una demostración visual y no está conectado a esta lógica de backend.
 3.  **Despliegue y Alojamiento Profesional:**
     *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
     *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB, claves pasarela de pago).
@@ -213,4 +215,3 @@ Además de los pasos críticos para producción, se podrían considerar:
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-

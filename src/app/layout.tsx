@@ -1,4 +1,5 @@
 import type {Metadata} from 'next';
+import Script from 'next/script'; // Import Script from next/script
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -25,6 +26,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning className="dark">
+      <head>
+        {/* PayPal SDK Script */}
+        <Script
+          src="https://www.paypal.com/sdk/js?client-id=BAA-fGCf9vG9LpXLsI0hmdbxEy5X8t_F38HBNtTmkHxE1Q0gUsrj3J0UEiin4N4dlSydXvf9skKDBgsqYM&components=hosted-buttons&disable-funding=venmo&currency=USD"
+          strategy="beforeInteractive" // Carga el script antes de que la página sea interactiva
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
         <Toaster />
@@ -32,4 +40,3 @@ export default function RootLayout({
     </html>
   );
 }
-

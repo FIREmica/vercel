@@ -1,15 +1,15 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import JSZip from 'jszip';
-import Link from "next/link"; 
+import Link from "next/link";
 import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
 import { RemediationPlaybooksDisplay } from "@/components/remediation-playbooks-display";
-import { AnalysisSummaryCard } from "@/components/analysis-summary-card"; 
+import { AnalysisSummaryCard } from "@/components/analysis-summary-card";
 import { performAnalysisAction, exportAllFindingsAsJsonAction } from "./actions";
 import type { AnalysisResult, RemediationPlaybook, VulnerabilityFinding, AttackVector } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -18,12 +18,46 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
 import { cn } from "@/lib/utils";
+
+
+// Componente para el botón de PayPal
+const PayPalButton = () => {
+  const payPalContainerRef = useRef<HTMLDivElement>(null);
+  const [sdkReady, setSdkReady] = useState(false);
+
+  useEffect(() => {
+    // Espera a que el SDK de PayPal esté cargado
+    const interval = setInterval(() => {
+      if (window.paypal && window.paypal.HostedButtons) {
+        setSdkReady(true);
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (sdkReady && payPalContainerRef.current && payPalContainerRef.current.childElementCount === 0) {
+      try {
+        window.paypal.HostedButtons({
+          hostedButtonId: "EJ6YAGXZK4UVL",
+        }).render("#paypal-container-EJ6YAGXZK4UVL");
+      } catch (error) {
+        console.error("Error al renderizar el botón de PayPal:", error);
+        // Podrías mostrar un mensaje de error al usuario aquí si es necesario
+      }
+    }
+  }, [sdkReady]);
+
+  return <div id="paypal-container-EJ6YAGXZK4UVL" ref={payPalContainerRef}></div>;
+};
 
 
 export default function HomePage() {
@@ -32,11 +66,11 @@ export default function HomePage() {
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [jsonExportUrl, setJsonExportUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
-  const [isLoggedInAndPremium, setIsLoggedInAndPremium] = useState(false); 
+  const [isLoggedInAndPremium, setIsLoggedInAndPremium] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
-  const exampleUrl = "http://testphp.vulnweb.com/userinfo.php"; 
+  const exampleUrl = "http://testphp.vulnweb.com/userinfo.php";
 
   useEffect(() => {
     const currentZipUrl = zipUrl;
@@ -52,7 +86,7 @@ export default function HomePage() {
   }, [zipUrl, jsonExportUrl]);
 
   const generateZipFile = async (result: AnalysisResult, targetDesc: string) => {
-    if (!result || (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0))) return; 
+    if (!result || (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0))) return;
 
     const zip = new JSZip();
     const safeDesc = targetDesc.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0, 50) || 'analisis';
@@ -80,7 +114,7 @@ export default function HomePage() {
         folder.file("error_exportando_hallazgos.txt", "No se pudieron exportar los hallazgos a JSON.");
       }
     }
-    if (result.attackVectors && result.attackVectors.length > 0) { 
+    if (result.attackVectors && result.attackVectors.length > 0) {
       folder.file("vectores_ataque_ilustrativos.json", JSON.stringify(result.attackVectors, null, 2));
     }
     if (result.remediationPlaybooks && result.remediationPlaybooks.length > 0) {
@@ -92,7 +126,7 @@ export default function HomePage() {
             });
         }
     }
-    
+
      if (result.urlAnalysis?.executiveSummary) folder.file("resumen_url.txt", result.urlAnalysis.executiveSummary);
      if (result.serverAnalysis?.executiveSummary) folder.file("resumen_servidor.txt", result.serverAnalysis.executiveSummary);
      if (result.databaseAnalysis?.executiveSummary) folder.file("resumen_db.txt", result.databaseAnalysis.executiveSummary);
@@ -113,7 +147,7 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error generando archivo ZIP:", error);
       toast({ variant: "destructive", title: "Error al Generar ZIP", description: "Ocurrió un error." });
-      setZipUrl(null); 
+      setZipUrl(null);
     }
   };
 
@@ -140,7 +174,7 @@ export default function HomePage() {
   const handleFormSubmit = async (values: UrlInputFormValues) => {
     setIsLoading(true);
     setAnalysisResult(null);
-    
+
     const descriptionParts = [];
     if (values.url) descriptionParts.push(`URL: ${values.url}`);
     if (values.serverDescription) descriptionParts.push("Servidor General");
@@ -152,7 +186,7 @@ export default function HomePage() {
     if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
     if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
     if (values.networkDescription || values.networkScanResults || values.networkFirewallRules) descriptionParts.push('Red');
-    
+
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
@@ -174,10 +208,10 @@ export default function HomePage() {
     try {
       const params: Parameters<typeof performAnalysisAction>[0] = {};
       if (values.url) params.url = values.url;
-      
+
       let finalServerDescription = values.serverDescription || "";
       if (values.gameServerDescription) {
-        finalServerDescription = finalServerDescription 
+        finalServerDescription = finalServerDescription
           ? `${finalServerDescription}\n\n--- Detalles Específicos del Servidor de Juegos ---\n${values.gameServerDescription}`
           : values.gameServerDescription;
       }
@@ -187,7 +221,7 @@ export default function HomePage() {
       if (values.codeSnippet) params.codeSnippet = values.codeSnippet;
       if (values.sastLanguage) params.sastLanguage = values.sastLanguage;
       if (values.dastTargetUrl) params.dastTargetUrl = values.dastTargetUrl;
-      
+
       if (values.cloudProvider) params.cloudProvider = values.cloudProvider;
       if (values.cloudConfigDescription) params.cloudConfigDescription = values.cloudConfigDescription;
       if (values.cloudRegion) params.cloudRegion = values.cloudRegion;
@@ -214,12 +248,12 @@ export default function HomePage() {
       const result = await performAnalysisAction(params, isLoggedInAndPremium);
       setAnalysisResult(result);
 
-      if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) { 
+      if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) {
         toast({
           variant: "destructive",
           title: "Análisis Fallido",
           description: result.error,
-          duration: 8000, 
+          duration: 8000,
         });
       } else {
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
@@ -234,14 +268,14 @@ export default function HomePage() {
               result.dependencyAnalysis?.executiveSummary,
               result.networkAnalysis?.executiveSummary,
           ];
-          const primarySummary = result.reportText ? "Informe completo generado." : 
+          const primarySummary = result.reportText ? "Informe completo generado." :
             (summaryItems.find(s => s) || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
-          
+
           if (result.allFindings && result.allFindings.length > 0) {
              await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
 
-          if (isLoggedInAndPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
+          if (isLoggedInAndPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
             await generateZipFile(result, currentTargetDesc);
           }
 
@@ -256,7 +290,7 @@ export default function HomePage() {
       const error = e as Error;
       console.error("Error en el envío del formulario:", error);
       let errorMessage = "Ocurrió un error inesperado durante el análisis.";
-      
+
       const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
       const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
@@ -274,10 +308,10 @@ export default function HomePage() {
         errorMessage = `El análisis falló catastróficamente: ${error.message}`;
       }
 
-      setAnalysisResult({ 
-        urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
+      setAnalysisResult({
+        urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null,
         cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
-        reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: [] 
+        reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: []
       });
       toast({ variant: "destructive", title: "Error Crítico de Análisis", description: errorMessage, duration: 8000 });
     } finally {
@@ -307,8 +341,8 @@ export default function HomePage() {
       setZipUrl(null);
     }
   };
-  
-  const PremiumFeatureCard = ({ title, description, icon: Icon, actionButton }: { title: string, description: string, icon: React.ElementType, actionButton?: React.ReactNode }) => (
+
+  const PremiumFeatureCard = ({ title, description, icon: Icon, actionButton, payPalButton }: { title: string, description: string, icon: React.ElementType, actionButton?: React.ReactNode, payPalButton?: boolean }) => (
     <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl text-accent">
@@ -318,16 +352,24 @@ export default function HomePage() {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
-        {actionButton || (
-           <Button 
-              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-              onClick={handleAuthToggle} // Updated to use the main toggle
+        {actionButton && !payPalButton && actionButton}
+        {payPalButton && (
+          <div className="mt-4 flex flex-col items-center gap-4">
+            <p className="text-sm text-center text-foreground">
+              Para acceder a esta y todas las funciones premium, considere nuestra suscripción.
+            </p>
+            <PayPalButton />
+            <Button
+              variant="link"
+              className="text-xs text-muted-foreground"
+              onClick={handleAuthToggle}
             >
-                <LogIn className="mr-2 h-5 w-5" /> Activar Acceso Premium (Simulado)
+              O continuar con activación simulada (para pruebas)
             </Button>
+          </div>
         )}
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          La activación es simulada. Se requiere una cuenta y suscripción real en un entorno de producción.
+          La activación del Modo Premium y el botón de PayPal son para demostración. Se requiere una cuenta y suscripción real en un entorno de producción.
         </p>
       </CardContent>
     </Card>
@@ -336,8 +378,8 @@ export default function HomePage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
-        <AppHeader 
-          isLoggedInAndPremium={isLoggedInAndPremium} 
+        <AppHeader
+          isLoggedInAndPremium={isLoggedInAndPremium}
           onAuthToggle={handleAuthToggle}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
@@ -350,23 +392,23 @@ export default function HomePage() {
             <p className="text-muted-foreground mb-6">
               Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias de software y configuraciones de red.
               <strong className="text-foreground block mt-1">
-                {isLoggedInAndPremium 
-                  ? "Sesión Premium (simulada) activa: ¡Acceso completo a todas las funcionalidades avanzadas!" 
-                  : "Active el Modo Premium (simulado con el botón en el encabezado) para desbloquear informes técnicos detallados, escenarios de ataque, playbooks de remediación y descarga completa de resultados."
+                {isLoggedInAndPremium
+                  ? "Sesión Premium (simulada) activa: ¡Acceso completo a todas las funcionalidades avanzadas!"
+                  : "Active el Modo Premium (simulado con el botón en el encabezado o mediante la opción de 'suscripción' de PayPal más abajo) para desbloquear informes técnicos detallados, escenarios de ataque, playbooks de remediación y descarga completa de resultados."
                 }
               </strong>
             </p>
             <UrlInputForm
               onSubmit={handleFormSubmit}
               isLoading={isLoading}
-              defaultUrl={exampleUrl} 
+              defaultUrl={exampleUrl}
             />
           </section>
 
           <Separator className="my-8 md:my-12" />
           <HackingInfoSection />
           <Separator className="my-8 md:my-12" />
-          
+
           <section className="max-w-4xl mx-auto mb-8 md:mb-12">
             <Card className="shadow-lg border-l-4 border-primary">
                 <CardHeader>
@@ -438,9 +480,9 @@ export default function HomePage() {
             {!isLoading && analysisResult && (
               <div className="space-y-8">
                 <AnalysisSummaryCard result={analysisResult} />
-                
+
                 <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isLoggedInAndPremium} />
-                
+
                 {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isLoggedInAndPremium && (
                   <>
                     <Separator className="my-8 md:my-12" />
@@ -448,18 +490,11 @@ export default function HomePage() {
                   </>
                 )}
                 {!isLoggedInAndPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
-                   <PremiumFeatureCard 
+                   <PremiumFeatureCard
                     title="Escenarios de Ataque Ilustrativos"
                     description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
                     icon={Zap}
-                    actionButton={
-                        <Button 
-                          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                          onClick={handleAuthToggle}
-                        >
-                            <LogIn className="mr-2 h-5 w-5" /> Activar Premium para Acceder
-                        </Button>
-                    }
+                    payPalButton={true} // Indica que esta tarjeta debe mostrar el botón de PayPal
                    />
                 )}
 
@@ -470,18 +505,11 @@ export default function HomePage() {
                   </>
                 )}
                  {!isLoggedInAndPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (!analysisResult.remediationPlaybooks || analysisResult.remediationPlaybooks.length === 0) &&(
-                   <PremiumFeatureCard 
+                   <PremiumFeatureCard
                     title="Playbooks de Remediación Sugeridos"
                     description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
                     icon={FileLock2}
-                    actionButton={
-                        <Button 
-                          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                          onClick={handleAuthToggle}
-                        >
-                            <LogIn className="mr-2 h-5 w-5" /> Activar Premium para Acceder
-                        </Button>
-                    }
+                    payPalButton={true}
                    />
                  )}
 
@@ -494,12 +522,12 @@ export default function HomePage() {
                         ¡Desbloquee el Poder Completo de la Plataforma!
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha revelado información inicial. Active el **Modo Premium (Simulado)** para una visión integral y herramientas avanzadas que le ayudarán a fortalecer su seguridad.
+                        Su análisis ha revelado información inicial. Active el **Modo Premium (Simulado)** o considere nuestra opción de suscripción conceptual (vía PayPal) para una visión integral y herramientas avanzadas.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <h3 className="font-semibold text-foreground mb-2">Con el Acceso Premium (Simulado), usted obtiene:</h3>
+                        <h3 className="font-semibold text-foreground mb-2">Con el Acceso Premium (Simulado o vía Suscripción Conceptual), usted obtiene:</h3>
                         <ul className="space-y-2 text-muted-foreground text-sm">
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
@@ -528,20 +556,27 @@ export default function HomePage() {
                         </ul>
                       </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
-                      
-                      <Button 
-                        className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                        onClick={handleAuthToggle}
-                      >
-                          <LogIn className="mr-2 h-5 w-5" /> Activar Modo Premium Ahora (Simulado)
-                      </Button>
+
+                      <div className="mt-6 flex flex-col items-center gap-4">
+                        <p className="text-lg font-semibold text-center text-foreground">
+                          Obtenga Acceso Premium
+                        </p>
+                        <PayPalButton />
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          onClick={handleAuthToggle}
+                        >
+                            <LogIn className="mr-2 h-5 w-5" /> Activar Modo Premium Simulado (para pruebas)
+                        </Button>
+                      </div>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        La activación del Modo Premium es simulada para demostración. En un entorno real, esto implicaría una suscripción de pago.
+                        La activación del Modo Premium y el botón de PayPal son para demostración. En un entorno real, esto implicaría una suscripción de pago y la activación automática de funciones tras el pago.
                       </p>
                     </CardContent>
                   </Card>
                 )}
-                
+
                 {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
                     {isLoggedInAndPremium && zipUrl ? (
@@ -553,10 +588,10 @@ export default function HomePage() {
                     ) : !isLoggedInAndPremium && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                 <Button 
-                                    size="lg" 
+                                 <Button
+                                    size="lg"
                                     className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed opacity-75"
-                                    onClick={handleAuthToggle}
+                                    onClick={handleAuthToggle} // Cambio para que intente activar el modo simulado
                                 >
                                     <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Premium
                                 </Button>
@@ -619,14 +654,18 @@ export default function HomePage() {
                     <p className="text-muted-foreground mt-3">
                         Ideal para equipos DevSecOps, profesionales de ciberseguridad, administradores de sistemas y empresas que buscan proteger sus activos digitales de forma proactiva, eficiente y con la potencia de la IA.
                     </p>
-                     <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-accent font-medium">
-                        <LogIn className="h-5 w-5" />
-                        <Button 
-                            variant="link" 
-                            className="p-0 h-auto text-accent font-medium"
-                            onClick={handleAuthToggle} // Updated to use the main toggle
+                     <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4 text-accent font-medium">
+                        <h3 className="text-lg font-semibold text-foreground">Pruebe Nuestro Acceso Premium</h3>
+                         <p className="text-sm text-center text-muted-foreground max-w-md">
+                           Active el modo premium simulado para demostración o utilice el botón de PayPal para una simulación de suscripción y desbloquear informes técnicos, escenarios de ataque, playbooks y descargas.
+                         </p>
+                        <PayPalButton />
+                         <Button
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={handleAuthToggle}
                         >
-                            Active el Modo Premium para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.
+                            <LogIn className="mr-2 h-5 w-5" /> Activar/Desactivar Modo Premium Simulado
                         </Button>
                     </div>
                 </CardContent>
@@ -669,4 +708,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
