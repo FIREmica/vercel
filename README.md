@@ -134,6 +134,7 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
 2.  **Persistencia de Datos (Base de Datos):**
     *   Configurar y conectar una base de datos (ej. PostgreSQL, MongoDB, Firebase Firestore).
     *   Almacenar perfiles de usuario, estado de suscripciones, historial de análisis, y resultados.
+    *   *Nota: Ya se han definido esquemas Zod (`UserProfileSchema`, `AnalysisRecordSchema`) en `src/types/ai-schemas.ts` como preparación para esta fase.*
 3.  **Integración de Pasarela de Pagos:**
     *   Integrar Stripe, PayPal u otra pasarela para gestionar suscripciones y pagos por servicios premium.
     *   Implementar webhooks para confirmaciones de pago y actualización de estado de suscripción.
@@ -146,7 +147,7 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
     *   Implementar validaciones de entrada exhaustivas en el backend.
     *   Considerar rate limiting y protección DDoS para los endpoints.
 6.  **Aspectos Legales:**
-    *   Redactar y publicar Términos de Servicio y Política de Privacidad detallados.
+    *   Redactar y publicar Términos de Servicio y Política de Privacidad detallados. (Se ha añadido un `terms.md` placeholder).
     *   Asegurar el cumplimiento con regulaciones de protección de datos (GDPR, CCPA, etc.).
 7.  **Operaciones y Mantenimiento:**
     *   Implementar logging y monitorización para la aplicación.

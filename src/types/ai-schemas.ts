@@ -257,6 +257,37 @@ export const GeneralQueryOutputSchema = z.object({
 });
 export type GeneralQueryOutput = z.infer<typeof GeneralQueryOutputSchema>;
 
+
+// Application Data Structures (for future database integration)
+
+export const UserProfileSchema = z.object({
+  id: z.string().uuid().describe("Identificador único del usuario."),
+  email: z.string().email().describe("Correo electrónico del usuario."),
+  name: z.string().optional().describe("Nombre del usuario."),
+  createdAt: z.date().default(() => new Date()).describe("Fecha de creación del perfil."),
+  subscriptionPlan: z.enum(['free', 'premium_monthly', 'premium_yearly']).default('free').describe("Plan de suscripción actual del usuario."),
+  subscriptionStatus: z.enum(['active', 'inactive', 'cancelled', 'past_due', 'trialing']).optional().describe("Estado de la suscripción."),
+  paymentProviderCustomerId: z.string().optional().describe("ID del cliente en la pasarela de pago (ej. Stripe, PayPal)."),
+  currentPeriodEnd: z.date().optional().describe("Fecha de finalización del período de suscripción actual."),
+});
+export type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export const AnalysisRecordSchema = z.object({
+  id: z.string().uuid().describe("Identificador único del registro de análisis."),
+  userId: z.string().uuid().describe("ID del usuario que realizó el análisis."),
+  createdAt: z.date().default(() => new Date()).describe("Fecha en que se realizó el análisis."),
+  analysisType: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Cloud", "Container", "Dependency", "Network"]).describe("Tipo de análisis realizado."),
+  targetDescription: z.string().describe("Descripción del objetivo analizado (ej. URL, nombre del servidor)."),
+  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación de riesgo general del análisis."),
+  vulnerableFindingsCount: z.number().int().min(0).describe("Número de hallazgos vulnerables activos."),
+  fullReportReference: z.string().optional().describe("Referencia al informe completo (ej. ID en un sistema de almacenamiento o el texto si es corto)."),
+  analysisInputDetails: z.any().optional().describe("Detalles de la entrada utilizada para este análisis específico (para reproducibilidad o revisión)."),
+  // Podríamos agregar un array de IDs de VulnerabilityFinding si los hallazgos se almacenan por separado y se relacionan
+  // findings: z.array(z.string().uuid()).optional().describe("IDs de los hallazgos asociados a este análisis."),
+});
+export type AnalysisRecord = z.infer<typeof AnalysisRecordSchema>;
+
+
 // Specific input/output schemas for new analysis flows
 export { CloudConfigInputSchema as AnalyzeCloudConfigInputSchema };
 export type { CloudConfigInput as AnalyzeCloudConfigInput };
