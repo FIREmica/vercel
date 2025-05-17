@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast"; 
 import { useRouter } from "next/navigation"; // Para simular redirección
+// import { supabase } from "@/lib/supabase/client"; // Descomentar cuando se implemente Supabase Auth
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,20 +18,24 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí iría la lógica de autenticación real con un backend
+    // Lógica de autenticación real con Supabase iría aquí
+    // Ejemplo (a implementar completamente más adelante):
+    // const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // if (error) {
+    //   toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: error.message });
+    // } else {
+    //   toast({ title: "Inicio de Sesión Exitoso", description: "Redirigiendo..." });
+    //   router.push('/'); // Redirigir al dashboard o página principal
+    // }
+
     toast({
       title: "Inicio de Sesión (Simulado)",
-      description: "Funcionalidad en desarrollo. Redirigiendo al inicio...",
+      description: "Funcionalidad en desarrollo. En una app real, se usaría Supabase Auth. Redirigiendo al inicio...",
     });
-    console.log("Intento de inicio de sesión (simulado):", { email, password });
-    // En una aplicación real, aquí se verificarían las credenciales
-    // y se gestionaría el estado de la sesión.
-    // Por ahora, solo redirigimos o simulamos el cambio de estado.
-    // Para simular, podríamos usar el toggle del modo premium que ya existe
-    // o simplemente redirigir a la página principal.
-    // router.push('/'); // Descomentar si se desea redirigir
+    console.log("Intento de inicio de sesión (simulado con Supabase en mente):", { email, password });
+    // router.push('/'); // Descomentar si se desea redirigir o manejar la sesión
   };
 
   return (
@@ -82,7 +87,7 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Esta página de inicio de sesión es una <strong className="text-foreground">simulación</strong>. La funcionalidad de autenticación de usuarios real (con verificación de credenciales y gestión de sesiones) es un paso crucial que se implementará utilizando tecnologías como NextAuth.js.
+            <strong>Nota Importante:</strong> Esta página de inicio de sesión es una <strong className="text-foreground">simulación</strong>. La funcionalidad de autenticación de usuarios real se implementará utilizando servicios como <strong className="text-primary">Supabase</strong>.
             Actualmente, para probar las funciones "Premium", utilice el interruptor en el encabezado de la página principal.
           </div>
         </CardContent>
@@ -90,4 +95,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

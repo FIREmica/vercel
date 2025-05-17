@@ -43,6 +43,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Inteligencia Artificial:** Genkit (Google AI)
 *   **Empaquetado (Descargas ZIP):** JSZip
 *   **Pasarela de Pagos (Integración Conceptual):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
+*   **Autenticación y Base de Datos (En preparación):** Supabase (Cliente JS)
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
 
@@ -85,10 +86,28 @@ Este proyecto requiere claves API para funcionar correctamente.
     PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
     # Para producción, usarías: PAYPAL_API_BASE_URL=https://api-m.paypal.com y credenciales Live
+
+    # Credenciales de Supabase (Requeridas para la futura autenticación y base de datos)
+    # Reemplaza estos valores con tus propias credenciales de tu proyecto Supabase
+    NEXT_PUBLIC_SUPABASE_URL=https://tu_id_proyecto_supabase.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_supabase_anon_key_aqui
+
+    # Para operaciones del lado del servidor con Supabase (si se implementan), necesitarías:
+    # SUPABASE_SERVICE_ROLE_KEY=tu_supabase_service_role_key_aqui
+    # Y posiblemente las cadenas de conexión a la base de datos si usas Prisma con Supabase:
+    # POSTGRES_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
+    # POSTGRES_PRISMA_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
+    # POSTGRES_URL_NON_POOLING="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:5432/postgres?sslmode=require"
+    # POSTGRES_USER="postgres"
+    # POSTGRES_PASSWORD="[tu_password]"
+    # POSTGRES_HOST="aws-0-[region].pooler.supabase.com"
+    # POSTGRES_DATABASE="postgres"
+    # SUPABASE_JWT_SECRET="tu_jwt_secret_aqui"
     ```
     **IMPORTANTE:**
     *   Reemplaza `tu_clave_api_google_aqui` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
     *   Reemplaza `tu_paypal_sandbox_client_id_aqui` y `tu_paypal_sandbox_client_secret_aqui` con tus credenciales reales de una aplicación Sandbox que crees en el [Portal de Desarrolladores de PayPal](https://developer.paypal.com/).
+    *   Reemplaza `https://tu_id_proyecto_supabase.supabase.co` y `tu_supabase_anon_key_aqui` con las credenciales de tu proyecto Supabase. Puedes encontrarlas en la configuración de tu proyecto Supabase en "Project Settings > API".
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API:**
@@ -97,6 +116,10 @@ Este proyecto requiere claves API para funcionar correctamente.
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox).
         2.  Crea una nueva aplicación REST API si no tienes una.
         3.  Copia el `Client ID` y el `Client Secret` de tu aplicación Sandbox.
+    *   **Supabase:**
+        1.  Ve a [Supabase Dashboard](https://supabase.com/dashboard).
+        2.  Crea un nuevo proyecto o selecciona uno existente.
+        3.  En "Project Settings" (Configuración del Proyecto) > "API", encontrarás tu "Project URL" (NEXT_PUBLIC_SUPABASE_URL) y la "anon public" key (NEXT_PUBLIC_SUPABASE_ANON_KEY). La "service_role" key (SUPABASE_SERVICE_ROLE_KEY) también está ahí y es para operaciones de backend.
 
 ### Ejecutando la Aplicación
 
@@ -136,7 +159,7 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 *   **Docker:** Puedes crear una imagen Docker de la aplicación para desplegarla en cualquier proveedor de nube (AWS, GCP, Azure) o en tu propia infraestructura. (Un `Dockerfile` necesitaría ser creado).
 *   **Servidores Node.js Tradicionales:** Desplegando la build de Next.js en un servidor Node.js.
 
-**Al desplegar, asegúrate de configurar las variables de entorno (`NEXT_PUBLIC_GOOGLE_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_API_BASE_URL`) en la configuración de tu proveedor de hosting.**
+**Al desplegar, asegúrate de configurar las variables de entorno (`NEXT_PUBLIC_GOOGLE_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_API_BASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` si es necesario) en la configuración de tu proveedor de hosting.**
 
 ## Modo Premium y Monetización (Simulado)
 
@@ -150,7 +173,7 @@ También se ha integrado una simulación del proceso de suscripción utilizando 
 
 Es importante destacar que esta integración con PayPal **no está conectada a una lógica de backend que active automáticamente las funciones premium tras una confirmación de pago real y persistente por parte de PayPal (Webhooks/IPN)**. Para ello, se requeriría implementar:
 1.  Endpoints de Webhook en el backend para recibir notificaciones de pago de PayPal.
-2.  Una base de datos para almacenar el estado de la suscripción de los usuarios.
+2.  Una base de datos (como la que se podría configurar con Supabase) para almacenar el estado de la suscripción de los usuarios.
 3.  Lógica para actualizar el estado de la suscripción en la base de datos basada en las notificaciones de PayPal.
 
 Cuando el "Modo Premium" está activado (`isLoggedInAndPremium` es `true` en el estado de `src/app/page.tsx`), los usuarios obtienen acceso a:
@@ -163,57 +186,54 @@ Cuando el "Modo Premium" está activado (`isLoggedInAndPremium` es `true` en el 
 
 La descarga de todos los hallazgos en formato JSON está disponible para todos los usuarios (premium o no) como una forma de facilitar la integración con herramientas externas.
 
-## Implementación de Autenticación Real (Próximos Pasos)
+## Implementación de Autenticación Real (Próximos Pasos con Supabase)
 
-La simulación actual del "Modo Premium" es solo un placeholder. Para una aplicación comercial real, se necesita un sistema de autenticación robusto. La solución recomendada para Next.js es **NextAuth.js**.
+La simulación actual del "Modo Premium" es solo un placeholder. Para una aplicación comercial real, se necesita un sistema de autenticación robusto. Una excelente opción para Next.js es **Supabase**, que proporciona autenticación y una base de datos PostgreSQL. Ya hemos añadido las librerías cliente de Supabase.
 
-Los pasos conceptuales para integrar NextAuth.js serían:
+Los pasos conceptuales para integrar Supabase Auth serían:
 
-1.  **Instalación:** `npm install next-auth`
-2.  **Configuración del Proveedor (Provider):**
-    *   Elegir proveedores de autenticación (ej. Google, GitHub, Credentials para email/contraseña).
-    *   Configurar las credenciales del proveedor (Client ID, Client Secret) como variables de entorno.
-3.  **Crear la Ruta de API de NextAuth:**
-    *   Crear un archivo como `src/app/api/auth/[...nextauth]/route.ts`.
-    *   Definir las opciones de NextAuth, incluyendo los proveedores, callbacks de sesión, y posiblemente un adaptador de base de datos.
-4.  **Adaptador de Base de Datos (Opcional pero Recomendado):**
-    *   Para persistir usuarios, sesiones y cuentas, se necesitaría un adaptador (ej. Prisma, TypeORM) y una base de datos (PostgreSQL, MongoDB).
-5.  **Envolver la Aplicación con `SessionProvider`:**
-    *   En `src/app/layout.tsx` (o un componente cliente de nivel superior), envolver la aplicación con `<SessionProvider>` de `next-auth/react`.
-6.  **Actualizar Componentes UI:**
-    *   Modificar `src/components/layout/header.tsx` para usar `useSession()`, `signIn()`, y `signOut()` de `next-auth/react`.
-    *   Reemplazar el toggle simulado con la lógica real de inicio/cierre de sesión.
-7.  **Proteger Rutas/API Endpoints:**
-    *   Usar `getServerSession` en Server Components o API Routes para verificar la autenticación.
-    *   Usar `useSession` en Client Components para proteger contenido o redirigir.
-8.  **Páginas de Login/Signup:**
-    *   Las páginas actuales en `src/app/login/page.tsx` y `src/app/signup/page.tsx` se adaptarían para usar las funciones de `signIn()` de NextAuth o para manejar el flujo de registro con el proveedor de credenciales.
+1.  **Configurar Supabase en el Proyecto:**
+    *   Asegurarse de que las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` estén configuradas en `.env.local`.
+    *   Utilizar el cliente Supabase inicializado en `src/lib/supabase/client.ts`.
+2.  **Crear la UI de Autenticación:**
+    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (ej. `supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`).
+    *   Considerar usar `@supabase/auth-ui-react` para una UI preconstruida o crear formularios personalizados.
+3.  **Manejo de Sesiones:**
+    *   Utilizar el cliente de Supabase para gestionar el estado de la sesión del usuario (ej. `supabase.auth.onAuthStateChange()`).
+    *   Envolver la aplicación con un proveedor de contexto de sesión si es necesario, o usar helpers de Supabase para Next.js.
+4.  **Proteger Rutas y API Endpoints:**
+    *   En Server Components o API Routes, obtener la sesión del usuario desde Supabase para verificar la autenticación antes de permitir el acceso a datos o funcionalidades protegidas.
+    *   En Client Components, usar el estado de la sesión para redirigir o mostrar contenido condicionalmente.
+5.  **Conectar con Base de Datos Supabase:**
+    *   Definir tablas en tu base de datos Supabase para `UserProfile` y `AnalysisRecord` (los esquemas Zod que tenemos en `src/types/ai-schemas.ts` son un buen punto de partida para esto).
+    *   Modificar `src/app/actions.ts` y otras partes del backend para leer y escribir en estas tablas (ej. guardar historial de análisis, actualizar estado de suscripción premium después de un pago).
+6.  **Actualizar `AppHeader`:**
+    *   Modificar `src/components/layout/header.tsx` para mostrar el estado de autenticación real y ofrecer opciones de login/logout basadas en la sesión de Supabase.
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
-Para transformar este proyecto de un prototipo local a un servicio online funcional y comercializable, se requieren los siguientes pasos fundamentales (además de la autenticación):
+Para transformar este proyecto de un prototipo local a un servicio online funcional y comercializable, se requieren los siguientes pasos fundamentales (además de la autenticación real con Supabase):
 
-1.  **Persistencia de Datos (Base de Datos):**
-    *   Configurar y conectar una base de datos (ej. PostgreSQL, MongoDB, Firebase Firestore).
-    *   Almacenar perfiles de usuario, estado de suscripciones, historial de análisis, y resultados.
+1.  **Persistencia de Datos (Base de Datos Supabase):**
+    *   Utilizar la base de datos PostgreSQL de Supabase para almacenar perfiles de usuario, estado de suscripciones, historial de análisis y resultados.
     *   *Nota: Ya se han definido esquemas Zod (`UserProfileSchema`, `AnalysisRecordSchema`) en `src/types/ai-schemas.ts` como preparación para esta fase.*
-2.  **Integración Completa de Pasarela de Pagos:**
-    *   Seleccionar e integrar completamente una pasarela (Stripe, PayPal con API REST y Webhooks).
-    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela, vincularlos a los perfiles de usuario en la base de datos, implementar webhooks para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
+2.  **Integración Completa de Pasarela de Pagos (PayPal):**
+    *   Conectar la lógica de pago de PayPal con la base de datos de Supabase.
+    *   **Facturación Real:** Esto implica configurar productos/planes en PayPal, vincularlos a los perfiles de usuario en la base de datos de Supabase, implementar webhooks de PayPal para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos Supabase para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
 3.  **Despliegue y Alojamiento Profesional:**
     *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
-    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB, claves de pasarela de pago Live).
+    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB Supabase, claves de pasarela de pago Live de PayPal).
     *   Configurar dominio personalizado y SSL/TLS.
 4.  **Seguridad de la Plataforma:**
-    *   Proteger todas las claves API y credenciales sensibles.
+    *   Proteger todas las claves API y credenciales sensibles (especialmente `SUPABASE_SERVICE_ROLE_KEY` y secretos de PayPal).
     *   Implementar validaciones de entrada exhaustivas en el backend.
     *   Considerar rate limiting y protección DDoS para los endpoints.
 5.  **Aspectos Legales:**
     *   Redactar y publicar Términos de Servicio y Política de Privacidad detallados y legalmente válidos (el `terms.md` actual es un placeholder). Consultar con un profesional legal.
     *   Asegurar el cumplimiento con regulaciones de protección de datos (GDPR, CCPA, etc.).
 6.  **Operaciones y Mantenimiento:**
-    *   Implementar logging y monitorización para la aplicación.
-    *   Establecer estrategias de copia de seguridad y recuperación de datos.
+    *   Implementar logging y monitorización para la aplicación (Supabase ofrece herramientas para esto).
+    *   Establecer estrategias de copia de seguridad y recuperación de datos (Supabase gestiona backups).
     *   Definir canales de soporte al cliente.
 
 ## Roadmap (Posibles Mejoras Futuras)
