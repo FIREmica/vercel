@@ -8,34 +8,42 @@ import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast"; 
-import { useRouter } from "next/navigation"; // Para simular redirección
-// import { supabase } from "@/lib/supabase/client"; // Descomentar cuando se implemente Supabase Auth
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Lógica de autenticación real con Supabase iría aquí
-    // Ejemplo (a implementar completamente más adelante):
-    // const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    // if (error) {
-    //   toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: error.message });
-    // } else {
-    //   toast({ title: "Inicio de Sesión Exitoso", description: "Redirigiendo..." });
-    //   router.push('/'); // Redirigir al dashboard o página principal
-    // }
+    setIsLoading(true);
 
-    toast({
-      title: "Inicio de Sesión (Simulado)",
-      description: "Funcionalidad en desarrollo. En una app real, se usaría Supabase Auth. Redirigiendo al inicio...",
-    });
-    console.log("Intento de inicio de sesión (simulado con Supabase en mente):", { email, password });
-    // router.push('/'); // Descomentar si se desea redirigir o manejar la sesión
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error de Inicio de Sesión",
+        description: error.message || "No se pudo iniciar sesión. Por favor, verifica tus credenciales.",
+      });
+    } else {
+      toast({
+        title: "Inicio de Sesión Exitoso",
+        description: "¡Bienvenido de nuevo! Redirigiendo...",
+        variant: "default",
+      });
+      // En una aplicación completa, aquí se gestionaría la sesión global
+      // y se redirigiría al usuario, por ejemplo, al dashboard.
+      // router.push('/'); // Descomentar para redirigir
+      console.log("Inicio de sesión exitoso con Supabase para:", email);
+      // Por ahora, la activación del "Modo Premium" global sigue siendo manual en la página principal.
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -62,6 +70,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -74,10 +83,11 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-              Iniciar Sesión
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+              {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm">
@@ -87,8 +97,8 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Esta página de inicio de sesión es una <strong className="text-foreground">simulación</strong>. La funcionalidad de autenticación de usuarios real se implementará utilizando servicios como <strong className="text-primary">Supabase</strong>.
-            Actualmente, para probar las funciones "Premium", utilice el interruptor en el encabezado de la página principal.
+            <strong>Nota Importante:</strong> Este formulario ahora intenta iniciar sesión con <strong className="text-primary">Supabase</strong>.
+            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación aún se simulan mediante el interruptor en la página principal.
           </div>
         </CardContent>
       </Card>

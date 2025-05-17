@@ -15,7 +15,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   URLs de aplicaciones web (riesgos comunes como XSS, SQLi).
     *   Descripciones de Servidores (generales y de juegos como Lineage 2, Roblox, Tibia) en busca de vulnerabilidades de configuración.
     *   Descripciones de Bases de Datos para identificar riesgos de configuración y acceso.
-    *   Fragmentos de Código para Análisis Estático (SAST simulado) con sugerencias contextuales.
+    *   Fragmentos de Código para Análisis Estático (SAST simulado) con sugerencias contextuales, línea de código y lenguaje específico.
     *   URLs para Análisis Dinámico (DAST simulado) con ejemplos conceptuales de petición/respuesta.
     *   Descripciones de Configuración Cloud (AWS, Azure, GCP - conceptual) para malas configuraciones.
     *   Información de Contenedores (nombre de imagen, Dockerfile, manifiestos K8s - conceptual).
@@ -23,8 +23,8 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Descripciones de Configuración de Red, reglas de firewall y resultados de escaneos (ej. Nmap - conceptual).
 *   **Generación de Informes Detallados:** Creación de informes de seguridad completos en Markdown, incluyendo:
     *   Resumen ejecutivo general.
-    *   Detalles de hallazgos por cada tipo de análisis realizado.
-    *   Severidad, CVSS (si es proporcionado por la IA), descripción, impacto potencial y remediación sugerida para cada hallazgo.
+    *   Detalles de hallazgos por cada tipo de análisis realizado (con CVSS y detalles técnicos si son Premium).
+    *   Severidad, descripción, impacto potencial y remediación sugerida para cada hallazgo.
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
 *   **Modo Premium Simulado (con opción de Botón PayPal):** Desbloquea funciones avanzadas mediante un interruptor en el header que simula un "inicio/cierre de sesión" con acceso premium, o mediante un flujo de pago conceptual con PayPal (utilizando la API REST de PayPal en modo Sandbox para la creación de órdenes y el SDK de JS para el renderizado de botones). Las funciones premium incluyen:
@@ -78,6 +78,7 @@ Este proyecto requiere claves API para funcionar correctamente.
 1.  **Crea un archivo `.env.local` en la raíz del proyecto:**
     ```env
     # Clave API de Google AI (Requerida para los análisis de IA)
+    # Consigue tu clave en https://aistudio.google.com/app/apikey
     NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_google_aqui
 
     # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
@@ -188,27 +189,30 @@ La descarga de todos los hallazgos en formato JSON está disponible para todos l
 
 ## Implementación de Autenticación Real (Próximos Pasos con Supabase)
 
-La simulación actual del "Modo Premium" es solo un placeholder. Para una aplicación comercial real, se necesita un sistema de autenticación robusto. Una excelente opción para Next.js es **Supabase**, que proporciona autenticación y una base de datos PostgreSQL. Ya hemos añadido las librerías cliente de Supabase.
+La simulación actual del "Modo Premium" es solo un placeholder. Para una aplicación comercial real, se necesita un sistema de autenticación robusto. Una excelente opción para Next.js es **Supabase**, que proporciona autenticación y una base de datos PostgreSQL. Ya hemos añadido las librerías cliente de Supabase y los formularios de login/signup ahora *intentan* interactuar con Supabase.
 
-Los pasos conceptuales para integrar Supabase Auth serían:
+Los pasos conceptuales para integrar Supabase Auth completamente serían:
 
 1.  **Configurar Supabase en el Proyecto:**
-    *   Asegurarse de que las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` estén configuradas en `.env.local`.
-    *   Utilizar el cliente Supabase inicializado en `src/lib/supabase/client.ts`.
-2.  **Crear la UI de Autenticación:**
-    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (ej. `supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`).
-    *   Considerar usar `@supabase/auth-ui-react` para una UI preconstruida o crear formularios personalizados.
-3.  **Manejo de Sesiones:**
-    *   Utilizar el cliente de Supabase para gestionar el estado de la sesión del usuario (ej. `supabase.auth.onAuthStateChange()`).
-    *   Envolver la aplicación con un proveedor de contexto de sesión si es necesario, o usar helpers de Supabase para Next.js.
+    *   Asegurarse de que las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` estén configuradas en `.env.local`. (Hecho)
+    *   Utilizar el cliente Supabase inicializado en `src/lib/supabase/client.ts`. (Hecho)
+2.  **Crear y Conectar la UI de Autenticación:**
+    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (`supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`) y manejar las respuestas y errores correctamente. (Progreso inicial realizado)
+    *   Considerar usar `@supabase/auth-ui-react` para una UI preconstruida si se desea una implementación más rápida de la UI.
+3.  **Manejo de Sesiones Global:**
+    *   Utilizar el cliente de Supabase para gestionar el estado de la sesión del usuario en toda la aplicación. Esto típicamente involucra:
+        *   Escuchar `supabase.auth.onAuthStateChange()` en un componente de nivel superior (ej. `src/app/layout.tsx` o `src/app/page.tsx`) para detectar cambios en el estado de autenticación.
+        *   Actualizar un estado global o un contexto de React con la información del usuario y la sesión.
+        *   El estado `isLoggedInAndPremium` en `src/app/page.tsx` debería derivarse de este estado de sesión real.
 4.  **Proteger Rutas y API Endpoints:**
     *   En Server Components o API Routes, obtener la sesión del usuario desde Supabase para verificar la autenticación antes de permitir el acceso a datos o funcionalidades protegidas.
     *   En Client Components, usar el estado de la sesión para redirigir o mostrar contenido condicionalmente.
-5.  **Conectar con Base de Datos Supabase:**
+5.  **Conectar con Base de Datos Supabase para Perfiles y Suscripciones:**
     *   Definir tablas en tu base de datos Supabase para `UserProfile` y `AnalysisRecord` (los esquemas Zod que tenemos en `src/types/ai-schemas.ts` son un buen punto de partida para esto).
-    *   Modificar `src/app/actions.ts` y otras partes del backend para leer y escribir en estas tablas (ej. guardar historial de análisis, actualizar estado de suscripción premium después de un pago).
+    *   Al registrar un nuevo usuario con `supabase.auth.signUp()`, crear un perfil correspondiente en la tabla `UserProfile`.
+    *   Modificar `src/app/actions.ts` y otras partes del backend para leer y escribir en estas tablas (ej. guardar historial de análisis vinculado a `userId`, actualizar estado de suscripción premium en `UserProfile` después de un pago confirmado).
 6.  **Actualizar `AppHeader`:**
-    *   Modificar `src/components/layout/header.tsx` para mostrar el estado de autenticación real y ofrecer opciones de login/logout basadas en la sesión de Supabase.
+    *   Modificar `src/components/layout/header.tsx` para mostrar el estado de autenticación real (ej. email del usuario) y ofrecer opciones de login/logout/perfil basadas en la sesión de Supabase.
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
@@ -217,15 +221,14 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
 1.  **Persistencia de Datos (Base de Datos Supabase):**
     *   Utilizar la base de datos PostgreSQL de Supabase para almacenar perfiles de usuario, estado de suscripciones, historial de análisis y resultados.
     *   *Nota: Ya se han definido esquemas Zod (`UserProfileSchema`, `AnalysisRecordSchema`) en `src/types/ai-schemas.ts` como preparación para esta fase.*
-2.  **Integración Completa de Pasarela de Pagos (PayPal):**
-    *   Conectar la lógica de pago de PayPal con la base de datos de Supabase.
-    *   **Facturación Real:** Esto implica configurar productos/planes en PayPal, vincularlos a los perfiles de usuario en la base de datos de Supabase, implementar webhooks de PayPal para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos Supabase para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
+2.  **Integración Completa de Pasarela de Pagos (PayPal o Stripe):**
+    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela elegida, vincularlos a los perfiles de usuario en la base de datos de Supabase, implementar webhooks de la pasarela para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos Supabase para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
 3.  **Despliegue y Alojamiento Profesional:**
     *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
-    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB Supabase, claves de pasarela de pago Live de PayPal).
+    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB Supabase, claves de pasarela de pago Live).
     *   Configurar dominio personalizado y SSL/TLS.
 4.  **Seguridad de la Plataforma:**
-    *   Proteger todas las claves API y credenciales sensibles (especialmente `SUPABASE_SERVICE_ROLE_KEY` y secretos de PayPal).
+    *   Proteger todas las claves API y credenciales sensibles (especialmente `SUPABASE_SERVICE_ROLE_KEY` y secretos de pasarela de pago).
     *   Implementar validaciones de entrada exhaustivas en el backend.
     *   Considerar rate limiting y protección DDoS para los endpoints.
 5.  **Aspectos Legales:**

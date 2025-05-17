@@ -9,14 +9,15 @@ import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation"; // Para simular redirección
-// import { supabase } from "@/lib/supabase/client"; // Descomentar cuando se implemente Supabase Auth
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -31,25 +32,49 @@ export default function SignupPage() {
       });
       return;
     }
-    // Lógica de registro real con Supabase iría aquí
-    // Ejemplo (a implementar completamente más adelante):
-    // const { data, error } = await supabase.auth.signUp({ email, password });
-    // if (error) {
-    //   toast({ variant: "destructive", title: "Error de Registro", description: error.message });
-    // } else if (data.user && data.user.identities && data.user.identities.length === 0) {
-    //    toast({ variant: "destructive", title: "Error de Registro", description: "El usuario ya existe o se requiere confirmación por correo." });
-    // }
-    // else {
-    //   toast({ title: "Registro Exitoso", description: "Por favor, revisa tu correo para confirmar tu cuenta. Redirigiendo a login..." });
-    //   router.push('/login');
-    // }
+    setIsLoading(true);
 
-    toast({
-      title: "Registro (Simulado)",
-      description: "Funcionalidad en desarrollo. En una app real, se usaría Supabase Auth. Serás redirigido pronto...",
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      // options: {
+      //   emailRedirectTo: `${window.location.origin}/auth/callback`, // Descomentar si configuras la confirmación por email
+      // }
     });
-    console.log("Intento de registro (simulado con Supabase en mente):", { email, password });
-    // router.push('/login'); // Descomentar si se desea redirigir
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error de Registro",
+        description: error.message || "No se pudo completar el registro.",
+      });
+    } else if (data.user && data.session) { // Usuario creado y sesión iniciada
+      toast({
+        title: "Registro Exitoso",
+        description: "¡Tu cuenta ha sido creada y has iniciado sesión! Redirigiendo...",
+        variant: "default",
+      });
+      // En una aplicación completa, aquí se gestionaría la sesión global
+      // y se redirigiría al usuario.
+      // router.push('/'); // Descomentar para redirigir
+      console.log("Registro y inicio de sesión exitosos con Supabase para:", email);
+    } else if (data.user) { // Usuario creado, pero podría requerir confirmación
+         toast({
+            title: "Registro Casi Completo",
+            description: "Tu cuenta ha sido creada. Por favor, revisa tu correo electrónico para confirmar tu cuenta si es necesario.",
+            variant: "default",
+            duration: 7000,
+        });
+        // router.push('/login'); // Opcionalmente redirigir a login
+        console.log("Registro exitoso con Supabase para:", email, " (puede requerir confirmación)");
+    } else {
+        toast({ // Caso genérico si no hay error pero tampoco usuario/sesión claros
+            variant: "destructive",
+            title: "Error de Registro",
+            description: "Ocurrió un problema inesperado durante el registro.",
+        });
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -76,6 +101,7 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -83,11 +109,12 @@ export default function SignupPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mínimo 6 caracteres" // Supabase tiene un mínimo de 6 por defecto
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="new-password"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -100,10 +127,11 @@ export default function SignupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 autoComplete="new-password"
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-              Registrarse
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+              {isLoading ? "Registrando..." : "Registrarse"}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm">
@@ -113,8 +141,9 @@ export default function SignupPage() {
             </Link>
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Esta página de registro es una <strong className="text-foreground">simulación</strong>. La funcionalidad de creación de usuarios real se implementará utilizando servicios como <strong className="text-primary">Supabase</strong>.
-            Actualmente, para probar las funciones "Premium", utilice el interruptor en el encabezado de la página principal.
+            <strong>Nota Importante:</strong> Este formulario ahora intenta registrar usuarios con <strong className="text-primary">Supabase</strong>.
+            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación aún se simulan mediante el interruptor en la página principal.
+            Por defecto, Supabase puede requerir confirmación por correo electrónico.
           </div>
         </CardContent>
       </Card>
