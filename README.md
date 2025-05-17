@@ -172,6 +172,7 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
 2.  **Integración de Pasarela de Pagos:**
     *   Integrar Stripe, PayPal u otra pasarela para gestionar suscripciones y pagos por servicios premium.
     *   Implementar webhooks para confirmaciones de pago y actualización de estado de suscripción.
+    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela de pagos, vincularlos a los perfiles de usuario en la base de datos y asegurar que el acceso a las funciones premium se otorgue/revoque basándose en el estado de la suscripción.
 3.  **Despliegue y Alojamiento Profesional:**
     *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
     *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB, claves pasarela de pago).
@@ -212,3 +213,4 @@ Además de los pasos críticos para producción, se podrían considerar:
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+

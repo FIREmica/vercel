@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import JSZip from 'jszip';
-import Link from "next/link"; // Importar Link
+import Link from "next/link"; 
 import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
@@ -319,16 +319,15 @@ export default function HomePage() {
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
         {actionButton || (
-           <Link href="/login" passHref>
-            <Button 
+           <Button 
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+              onClick={handleAuthToggle} // Updated to use the main toggle
             >
-                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder (Simulado)
+                <LogIn className="mr-2 h-5 w-5" /> Activar Acceso Premium (Simulado)
             </Button>
-          </Link>
         )}
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          El inicio de sesión y la activación son simulados. Se requiere una cuenta y suscripción real en un entorno de producción.
+          La activación es simulada. Se requiere una cuenta y suscripción real en un entorno de producción.
         </p>
       </CardContent>
     </Card>
@@ -338,7 +337,7 @@ export default function HomePage() {
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader 
-          isPremiumUser={isLoggedInAndPremium} 
+          isLoggedInAndPremium={isLoggedInAndPremium} 
           onAuthToggle={handleAuthToggle}
         />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
@@ -352,8 +351,8 @@ export default function HomePage() {
               Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST), configuraciones Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias de software y configuraciones de red.
               <strong className="text-foreground block mt-1">
                 {isLoggedInAndPremium 
-                  ? "Sesión Premium (simulada) activa: Acceso completo a informes técnicos, escenarios de ataque, playbooks y descarga." 
-                  : "Inicie sesión (simulado a través del botón en el encabezado) para acceder a informes técnicos, escenarios de ataque, playbooks de remediación y descarga completa."
+                  ? "Sesión Premium (simulada) activa: ¡Acceso completo a todas las funcionalidades avanzadas!" 
+                  : "Active el Modo Premium (simulado con el botón en el encabezado) para desbloquear informes técnicos detallados, escenarios de ataque, playbooks de remediación y descarga completa de resultados."
                 }
               </strong>
             </p>
@@ -454,11 +453,12 @@ export default function HomePage() {
                     description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
                     icon={Zap}
                     actionButton={
-                        <Link href="/login" passHref>
-                            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder
-                            </Button>
-                        </Link>
+                        <Button 
+                          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                          onClick={handleAuthToggle}
+                        >
+                            <LogIn className="mr-2 h-5 w-5" /> Activar Premium para Acceder
+                        </Button>
                     }
                    />
                 )}
@@ -475,14 +475,15 @@ export default function HomePage() {
                     description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
                     icon={FileLock2}
                     actionButton={
-                        <Link href="/login" passHref>
-                            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Acceder
-                            </Button>
-                        </Link>
+                        <Button 
+                          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                          onClick={handleAuthToggle}
+                        >
+                            <LogIn className="mr-2 h-5 w-5" /> Activar Premium para Acceder
+                        </Button>
                     }
                    />
-                )}
+                 )}
 
 
                  {!isLoggedInAndPremium && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
@@ -490,57 +491,52 @@ export default function HomePage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl text-accent">
                         <Unlock className="h-6 w-6" />
-                        Desbloquee Todo el Potencial Iniciando Sesión
+                        ¡Desbloquee el Poder Completo de la Plataforma!
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha generado información valiosa. Inicie sesión (simulado) para una visión completa de su postura de seguridad y acceso a todas las funcionalidades.
+                        Su análisis ha revelado información inicial. Active el **Modo Premium (Simulado)** para una visión integral y herramientas avanzadas que le ayudarán a fortalecer su seguridad.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <h3 className="font-semibold text-foreground mb-2">Con una sesión Premium (simulada), usted obtiene:</h3>
+                        <h3 className="font-semibold text-foreground mb-2">Con el Acceso Premium (Simulado), usted obtiene:</h3>
                         <ul className="space-y-2 text-muted-foreground text-sm">
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Informe Técnico Detallado:</strong> Acceso completo al análisis de la IA.</span>
+                            <span><strong className="text-foreground">Informe Técnico Detallado Completo:</strong> Acceso sin restricciones al análisis exhaustivo de la IA, con todos los detalles técnicos.</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Escenarios de Ataque Ilustrativos:</strong> Comprenda cómo las vulnerabilidades podrían ser explotadas.</span>
+                            <span><strong className="text-foreground">Escenarios de Ataque Ilustrativos:</strong> Comprenda cómo las vulnerabilidades podrían ser explotadas con ejemplos claros y prácticos.</span>
                           </li>
                            <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Playbooks de Remediación:</strong> Guías paso a paso para corregir vulnerabilidades.</span>
+                            <span><strong className="text-foreground">Playbooks de Remediación Detallados:</strong> Guías paso a paso generadas por IA para corregir cada vulnerabilidad identificada.</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Detalles Técnicos Exhaustivos:</strong> CVSS, impacto, evidencia para todos los hallazgos.</span>
+                            <span><strong className="text-foreground">Detalles Técnicos Exhaustivos:</strong> Puntuaciones CVSS, vectores, impacto técnico y de negocio, evidencia específica para todos los hallazgos.</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Descarga de Resultados (ZIP):</strong> Todos los artefactos del análisis para uso offline.</span>
+                            <span><strong className="text-foreground">Descarga Completa de Resultados (ZIP):</strong> Todos los artefactos del análisis (informe, hallazgos JSON, escenarios, playbooks) para uso offline e integración.</span>
                           </li>
                            <li className="flex items-start gap-2">
                             <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Descarga de Hallazgos (JSON):</strong> Datos estructurados para SIEM y otras herramientas.</span>
-                          </li>
-                           <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                            <span><strong className="text-foreground">Futuras Funcionalidades Avanzadas:</strong> Acceso prioritario a nuevas herramientas.</span>
+                            <span><strong className="text-foreground">Acceso Prioritario a Futuras Funcionalidades Avanzadas:</strong> Sea el primero en probar nuevas herramientas y capacidades.</span>
                           </li>
                         </ul>
                       </div>
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
                       
-                      <Link href="/login" passHref>
-                        <Button 
-                          className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                        >
-                            <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión / Activar Premium
-                        </Button>
-                      </Link>
+                      <Button 
+                        className="mt-6 w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                        onClick={handleAuthToggle}
+                      >
+                          <LogIn className="mr-2 h-5 w-5" /> Activar Modo Premium Ahora (Simulado)
+                      </Button>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        El inicio de sesión y la activación son simulados para demostración. No se procesarán pagos reales.
+                        La activación del Modo Premium es simulada para demostración. En un entorno real, esto implicaría una suscripción de pago.
                       </p>
                     </CardContent>
                   </Card>
@@ -557,17 +553,16 @@ export default function HomePage() {
                     ) : !isLoggedInAndPremium && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Link href="/login" passHref>
                                  <Button 
                                     size="lg" 
-                                    className="bg-primary/70 text-primary-foreground w-full sm:w-auto"
+                                    className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed opacity-75"
+                                    onClick={handleAuthToggle}
                                 >
-                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Sesión
+                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Premium
                                 </Button>
-                                </Link>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Inicie sesión para descargar el paquete completo de resultados.</p>
+                                <p>Active el Modo Premium para descargar el paquete completo de resultados.</p>
                             </TooltipContent>
                         </Tooltip>
                     )}
@@ -587,7 +582,7 @@ export default function HomePage() {
                  )}
                   {jsonExportUrl && !zipUrl && !isLoggedInAndPremium && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                      El JSON contiene todos los hallazgos. Inicie sesión para la descarga ZIP completa.
+                      El JSON contiene todos los hallazgos. Active Premium para la descarga ZIP completa.
                     </p>
                  )}
               </div>
@@ -607,7 +602,7 @@ export default function HomePage() {
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
                         Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
-                        Con una Sesión (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
+                        Con una Sesión Premium (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="mr-2 h-5 w-5 text-primary"/> Análisis Web/URL.</div>
@@ -626,14 +621,13 @@ export default function HomePage() {
                     </p>
                      <div className="mt-4 pt-4 border-t border-border flex items-center gap-3 text-sm text-accent font-medium">
                         <LogIn className="h-5 w-5" />
-                        <Link href="/login" passHref>
-                            <Button 
-                                variant="link" 
-                                className="p-0 h-auto text-accent font-medium"
-                            >
-                                Inicie sesión para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.
-                            </Button>
-                        </Link>
+                        <Button 
+                            variant="link" 
+                            className="p-0 h-auto text-accent font-medium"
+                            onClick={handleAuthToggle} // Updated to use the main toggle
+                        >
+                            Active el Modo Premium para desbloquear informes técnicos, escenarios de ataque, playbooks y descarga.
+                        </Button>
                     </div>
                 </CardContent>
                </Card>
