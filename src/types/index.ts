@@ -60,3 +60,12 @@ export type VulnerabilityFinding = SingleVulnerabilityFinding;
  * This type alias points to the one defined in ai-schemas.ts
  */
 export type AttackVector = SingleAttackVectorItem;
+
+/**
+ * Represents a simple Note fetched from Supabase (example type).
+ */
+export interface Note {
+  id: number;
+  title: string | null;
+  // Add other fields from your 'notes' table here if necessary
+}

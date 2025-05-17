@@ -43,7 +43,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Inteligencia Artificial:** Genkit (Google AI)
 *   **Empaquetado (Descargas ZIP):** JSZip
 *   **Pasarela de Pagos (Integración Conceptual):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
-*   **Autenticación y Base de Datos (En preparación):** Supabase (Cliente JS)
+*   **Autenticación y Base de Datos (En preparación):** Supabase (Cliente JS `@supabase/supabase-js` y `@supabase/ssr` para helpers del lado del servidor)
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
 
@@ -75,7 +75,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 
 Este proyecto requiere claves API para funcionar correctamente.
 
-1.  **Crea un archivo `.env.local` en la raíz del proyecto:**
+1.  **Crea un archivo `.env.local` en la raíz del proyecto con el siguiente contenido:**
     ```env
     # Clave API de Google AI (Requerida para los análisis de IA)
     # Consigue tu clave en https://aistudio.google.com/app/apikey
@@ -99,7 +99,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     NEXT_PUBLIC_SUPABASE_URL=https://tu_id_proyecto_supabase.supabase.co
     NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_supabase_anon_key_aqui
 
-    # Para operaciones del lado del servidor con Supabase (si se implementan), necesitarías:
+    # Para operaciones del lado del servidor con Supabase (si se implementan, ej. para proteger rutas API o Server Actions), necesitarías:
     # SUPABASE_SERVICE_ROLE_KEY=tu_supabase_service_role_key_aqui
     # Y posiblemente las cadenas de conexión a la base de datos si usas Prisma con Supabase:
     # POSTGRES_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
@@ -126,7 +126,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     *   **Supabase:**
         1.  Ve a [Supabase Dashboard](https://supabase.com/dashboard).
         2.  Crea un nuevo proyecto o selecciona uno existente.
-        3.  En "Project Settings" (Configuración del Proyecto) > "API", encontrarás tu "Project URL" (NEXT_PUBLIC_SUPABASE_URL) y la "anon public" key (NEXT_PUBLIC_SUPABASE_ANON_KEY). La "service_role" key (SUPABASE_SERVICE_ROLE_KEY) también está ahí y es para operaciones de backend.
+        3.  En "Project Settings" (Configuración del Proyecto) > "API", encontrarás tu "Project URL" (`NEXT_PUBLIC_SUPABASE_URL`) y la "anon public" key (`NEXT_PUBLIC_SUPABASE_ANON_KEY`). La "service_role" key (`SUPABASE_SERVICE_ROLE_KEY`) también está ahí y es para operaciones de backend.
 
 ### Ejecutando la Aplicación
 
@@ -194,31 +194,61 @@ Cuando el "Modo Premium" está activado (`isLoggedInAndPremium` es `true` en el 
 
 La descarga de todos los hallazgos en formato JSON está disponible para todos los usuarios (premium o no) como una forma de facilitar la integración con herramientas externas.
 
-## Implementación de Autenticación Real (Próximos Pasos con Supabase)
+## Implementación de Autenticación Real y Base de Datos (Próximos Pasos con Supabase)
 
-La simulación actual del "Modo Premium" es solo un placeholder. Para una aplicación comercial real, se necesita un sistema de autenticación robusto. Una excelente opción para Next.js es **Supabase**, que proporciona autenticación y una base de datos PostgreSQL. Ya hemos añadido las librerías cliente de Supabase y los formularios de login/signup ahora *intentan* interactuar con Supabase.
+La simulación actual del "Modo Premium" es solo un placeholder. Para una aplicación comercial real, se necesita un sistema de autenticación robusto y persistencia de datos. Una excelente opción para Next.js es **Supabase**, que proporciona autenticación y una base de datos PostgreSQL.
 
-Los pasos conceptuales para integrar Supabase Auth completamente serían:
+Hemos añadido las librerías cliente de Supabase (`@supabase/supabase-js` y `@supabase/ssr`) y los formularios de login/signup ahora *intentan* interactuar con Supabase. También hemos añadido un ejemplo de cómo obtener datos de Supabase en la página `/notes`.
+
+Los pasos conceptuales para integrar Supabase Auth y Base de Datos completamente serían:
 
 1.  **Configurar Supabase en el Proyecto:**
     *   Asegurarse de que las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` estén configuradas en `.env.local`. (Hecho)
-    *   Utilizar el cliente Supabase inicializado en `src/lib/supabase/client.ts`. (Hecho)
-2.  **Crear y Conectar la UI de Autenticación:**
-    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (`supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`) y manejar las respuestas y errores correctamente. (Progreso inicial realizado)
+    *   Utilizar los clientes Supabase inicializados en `src/lib/supabase/client.ts` (para el navegador) y `src/lib/supabase/server.ts` (para el servidor). (Hecho)
+2.  **Crear Tablas en Supabase:**
+    *   Usar el Editor SQL de Supabase (o migraciones) para crear las tablas necesarias. Para empezar:
+        *   `UserProfile`: Basada en `UserProfileSchema` de `src/types/ai-schemas.ts`.
+        *   `AnalysisRecord`: Basada en `AnalysisRecordSchema` de `src/types/ai-schemas.ts`.
+    *   **Ejemplo de Tabla `notes` (para la página `/notes`):**
+        ```sql
+        -- Create the table
+        create table notes (
+          id bigint primary key generated always as identity,
+          title text not null
+        );
+
+        -- Insert some sample data into the table
+        insert into notes (title)
+        values
+          ('Today I created a Supabase project.'),
+          ('I added some data and queried it from Next.js.'),
+          ('It was awesome!');
+
+        -- Enable Row Level Security (RLS)
+        alter table notes enable row level security;
+
+        -- Create a policy to allow public read access (for anonymous users)
+        create policy "public can read notes"
+        on public.notes
+        for select to anon
+        using (true);
+        ```
+        *Nota: Para `UserProfile` y `AnalysisRecord`, las políticas RLS serán más complejas, permitiendo a los usuarios solo acceder y modificar sus propios datos.*
+3.  **Crear y Conectar la UI de Autenticación:**
+    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (`supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`) y manejar las respuestas y errores correctamente. (Progreso inicial realizado, se necesita refinar).
     *   Considerar usar `@supabase/auth-ui-react` para una UI preconstruida si se desea una implementación más rápida de la UI.
-3.  **Manejo de Sesiones Global:**
+4.  **Manejo de Sesiones Global:**
     *   Utilizar el cliente de Supabase para gestionar el estado de la sesión del usuario en toda la aplicación. Esto típicamente involucra:
-        *   Escuchar `supabase.auth.onAuthStateChange()` en un componente de nivel superior (ej. `src/app/layout.tsx` o `src/app/page.tsx`) para detectar cambios en el estado de autenticación.
+        *   Escuchar `supabase.auth.onAuthStateChange()` en un componente de nivel superior (ej. `src/app/layout.tsx` o un proveedor de contexto) para detectar cambios en el estado de autenticación.
         *   Actualizar un estado global o un contexto de React con la información del usuario y la sesión.
-        *   El estado `isLoggedInAndPremium` en `src/app/page.tsx` debería derivarse de este estado de sesión real.
-4.  **Proteger Rutas y API Endpoints:**
+        *   El estado `isLoggedInAndPremium` en `src/app/page.tsx` debería derivarse de este estado de sesión real y del estado de suscripción en la base de datos.
+5.  **Proteger Rutas y API Endpoints:**
     *   En Server Components o API Routes, obtener la sesión del usuario desde Supabase para verificar la autenticación antes de permitir el acceso a datos o funcionalidades protegidas.
     *   En Client Components, usar el estado de la sesión para redirigir o mostrar contenido condicionalmente.
-5.  **Conectar con Base de Datos Supabase para Perfiles y Suscripciones:**
-    *   Definir tablas en tu base de datos Supabase para `UserProfile` y `AnalysisRecord` (los esquemas Zod que tenemos en `src/types/ai-schemas.ts` son un buen punto de partida para esto).
+6.  **Conectar con Base de Datos Supabase para Perfiles y Suscripciones:**
     *   Al registrar un nuevo usuario con `supabase.auth.signUp()`, crear un perfil correspondiente en la tabla `UserProfile`.
     *   Modificar `src/app/actions.ts` y otras partes del backend para leer y escribir en estas tablas (ej. guardar historial de análisis vinculado a `userId`, actualizar estado de suscripción premium en `UserProfile` después de un pago confirmado).
-6.  **Actualizar `AppHeader`:**
+7.  **Actualizar `AppHeader`:**
     *   Modificar `src/components/layout/header.tsx` para mostrar el estado de autenticación real (ej. email del usuario) y ofrecer opciones de login/logout/perfil basadas en la sesión de Supabase.
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
