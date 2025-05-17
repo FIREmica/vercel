@@ -27,7 +27,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Severidad, CVSS (si es proporcionado por la IA), descripción, impacto potencial y remediación sugerida para cada hallazgo.
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
-*   **Modo Premium Simulado (con opción de Botón PayPal Hosted):** Desbloquea funciones avanzadas mediante un interruptor en el header que simula un "inicio/cierre de sesión" con acceso premium, o mediante un botón de PayPal (Hosted Button) para simular el proceso de suscripción. Las funciones premium incluyen:
+*   **Modo Premium Simulado (con opción de Botón PayPal):** Desbloquea funciones avanzadas mediante un interruptor en el header que simula un "inicio/cierre de sesión" con acceso premium, o mediante un flujo de pago conceptual con PayPal (utilizando la API REST de PayPal en modo Sandbox para la creación de órdenes y el SDK de JS para el renderizado de botones). Las funciones premium incluyen:
     *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
     *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
     *   **Generación de Playbooks de Remediación Sugeridos:** Guías paso a paso en Markdown para corregir vulnerabilidades.
@@ -42,6 +42,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **UI:** ShadCN UI Components, Tailwind CSS
 *   **Inteligencia Artificial:** Genkit (Google AI)
 *   **Empaquetado (Descargas ZIP):** JSZip
+*   **Pasarela de Pagos (Integración Conceptual):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
 
@@ -71,17 +72,31 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 
 ### Configuración de Variables de Entorno
 
-Este proyecto requiere una clave API de Google AI para que funcionen las capacidades de Genkit.
+Este proyecto requiere claves API para funcionar correctamente.
 
 1.  **Crea un archivo `.env.local` en la raíz del proyecto:**
-    ```
-    NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_aqui
-    ```
-    **IMPORTANTE:** Reemplaza `tu_clave_api_aqui` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
-    *El prefijo `NEXT_PUBLIC_` permite que la variable sea potencialmente accesible en el navegador, aunque Genkit se ejecuta principalmente en el servidor. Para mayor seguridad en un entorno de producción real con autenticación, se podría considerar mover la clave a una variable de entorno solo del servidor y acceder a ella a través de API Routes/Server Actions si se refactoriza el acceso a Genkit.*
+    ```env
+    # Clave API de Google AI (Requerida para los análisis de IA)
+    NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_google_aqui
 
-2.  **Obtén tu Clave API de Google AI:**
-    Visita [Google AI Studio](https://aistudio.google.com/app/apikey) para generar una clave API si aún no tienes una.
+    # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
+    # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer
+    PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui
+    PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
+    PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
+    # Para producción, usarías: PAYPAL_API_BASE_URL=https://api-m.paypal.com y credenciales Live
+    ```
+    **IMPORTANTE:**
+    *   Reemplaza `tu_clave_api_google_aqui` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
+    *   Reemplaza `tu_paypal_sandbox_client_id_aqui` y `tu_paypal_sandbox_client_secret_aqui` con tus credenciales reales de una aplicación Sandbox que crees en el [Portal de Desarrolladores de PayPal](https://developer.paypal.com/).
+    *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
+
+2.  **Obtén tus Claves API:**
+    *   **Google AI:** Visita [Google AI Studio](https://aistudio.google.com/app/apikey) para generar una clave API si aún no tienes una.
+    *   **PayPal Sandbox:**
+        1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox).
+        2.  Crea una nueva aplicación REST API si no tienes una.
+        3.  Copia el `Client ID` y el `Client Secret` de tu aplicación Sandbox.
 
 ### Ejecutando la Aplicación
 
@@ -121,13 +136,24 @@ La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
 *   **Docker:** Puedes crear una imagen Docker de la aplicación para desplegarla en cualquier proveedor de nube (AWS, GCP, Azure) o en tu propia infraestructura. (Un `Dockerfile` necesitaría ser creado).
 *   **Servidores Node.js Tradicionales:** Desplegando la build de Next.js en un servidor Node.js.
 
+**Al desplegar, asegúrate de configurar las variables de entorno (`NEXT_PUBLIC_GOOGLE_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_API_BASE_URL`) en la configuración de tu proveedor de hosting.**
+
 ## Modo Premium y Monetización (Simulado)
 
 La plataforma incluye un "Modo Premium" simulado. Actualmente, se activa/desactiva a través de un botón en el encabezado que simula un "inicio/cierre de sesión" con acceso premium. Este modo representa conceptualmente un **usuario autenticado con una suscripción activa**.
 
-También se ha integrado un **botón de PayPal (Hosted Button)** como una demostración visual de cómo un usuario podría realizar un pago para una suscripción. Es importante destacar que esta integración con PayPal **no está conectada a una lógica de backend que active automáticamente las funciones premium tras un pago exitoso**. Para ello, se requeriría implementar webhooks de PayPal (IPN) y una gestión de estado de suscripción en una base de datos.
+También se ha integrado una simulación del proceso de suscripción utilizando la **API REST de PayPal (con credenciales Sandbox)**:
+*   El frontend llama a un endpoint de API del backend (`/api/paypal/create-order`) para crear una orden de pago en PayPal.
+*   El SDK de JavaScript de PayPal en el frontend renderiza los botones de pago.
+*   El usuario puede completar el flujo de pago en el entorno Sandbox de PayPal.
+*   Tras una "aprobación" simulada del pago en el frontend, se activa el modo premium.
 
-Cuando está activado (`isLoggedInAndPremium` es `true` en el estado de `src/app/page.tsx`), los usuarios obtienen acceso a:
+Es importante destacar que esta integración con PayPal **no está conectada a una lógica de backend que active automáticamente las funciones premium tras una confirmación de pago real y persistente por parte de PayPal (Webhooks/IPN)**. Para ello, se requeriría implementar:
+1.  Endpoints de Webhook en el backend para recibir notificaciones de pago de PayPal.
+2.  Una base de datos para almacenar el estado de la suscripción de los usuarios.
+3.  Lógica para actualizar el estado de la suscripción en la base de datos basada en las notificaciones de PayPal.
+
+Cuando el "Modo Premium" está activado (`isLoggedInAndPremium` es `true` en el estado de `src/app/page.tsx`), los usuarios obtienen acceso a:
 
 *   **Informe Técnico Detallado:** El informe de seguridad completo generado por la IA, sin truncamiento.
 *   **Detalles Completos de Hallazgos:** Incluye CVSS, impacto técnico y de negocio, evidencia y recomendaciones detalladas para todas las vulnerabilidades.
@@ -171,20 +197,19 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
     *   Configurar y conectar una base de datos (ej. PostgreSQL, MongoDB, Firebase Firestore).
     *   Almacenar perfiles de usuario, estado de suscripciones, historial de análisis, y resultados.
     *   *Nota: Ya se han definido esquemas Zod (`UserProfileSchema`, `AnalysisRecordSchema`) en `src/types/ai-schemas.ts` como preparación para esta fase.*
-2.  **Integración de Pasarela de Pagos:**
-    *   Integrar Stripe, PayPal u otra pasarela para gestionar suscripciones y pagos por servicios premium.
-    *   Implementar webhooks para confirmaciones de pago y actualización de estado de suscripción en la base de datos.
-    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela de pagos, vincularlos a los perfiles de usuario en la base de datos y asegurar que el acceso a las funciones premium se otorgue/revoque basándose en el estado de la suscripción. El actual botón de PayPal es una demostración visual y no está conectado a esta lógica de backend.
+2.  **Integración Completa de Pasarela de Pagos:**
+    *   Seleccionar e integrar completamente una pasarela (Stripe, PayPal con API REST y Webhooks).
+    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela, vincularlos a los perfiles de usuario en la base de datos, implementar webhooks para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
 3.  **Despliegue y Alojamiento Profesional:**
     *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
-    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB, claves pasarela de pago).
+    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB, claves de pasarela de pago Live).
     *   Configurar dominio personalizado y SSL/TLS.
 4.  **Seguridad de la Plataforma:**
     *   Proteger todas las claves API y credenciales sensibles.
     *   Implementar validaciones de entrada exhaustivas en el backend.
     *   Considerar rate limiting y protección DDoS para los endpoints.
 5.  **Aspectos Legales:**
-    *   Redactar y publicar Términos de Servicio y Política de Privacidad detallados. (Se ha añadido un `terms.md` placeholder).
+    *   Redactar y publicar Términos de Servicio y Política de Privacidad detallados y legalmente válidos (el `terms.md` actual es un placeholder). Consultar con un profesional legal.
     *   Asegurar el cumplimiento con regulaciones de protección de datos (GDPR, CCPA, etc.).
 6.  **Operaciones y Mantenimiento:**
     *   Implementar logging y monitorización para la aplicación.

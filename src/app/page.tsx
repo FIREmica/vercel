@@ -18,45 +18,126 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart } from "lucide-react";
 import { HackingInfoSection } from "@/components/hacking-info-section";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
 import { cn } from "@/lib/utils";
 
+declare global {
+  interface Window {
+    // paypal: any; // This was for the hosted button, we might not need it if we use the JS SDK differently
+    paypal: {
+      Buttons: (options: any) => ({ render: (selector: string) => void; isEligible: () => boolean; close: () => void; });
+      HostedButtons?: any; // Keep if still used for fallback or other features
+    };
+  }
+}
 
-// Componente para el botón de PayPal
-const PayPalButton = () => {
-  const payPalContainerRef = useRef<HTMLDivElement>(null);
-  const [sdkReady, setSdkReady] = useState(false);
+
+const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPaymentCancel }: { onPaymentSuccess: (details: any) => void, onPaymentError: (err: any) => void, onPaymentCancel: () => void }) => {
+  const paypalButtonsContainerRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Espera a que el SDK de PayPal esté cargado
-    const interval = setInterval(() => {
-      if (window.paypal && window.paypal.HostedButtons) {
-        setSdkReady(true);
-        clearInterval(interval);
+    if (typeof window !== 'undefined' && window.paypal && window.paypal.Buttons && paypalButtonsContainerRef.current) {
+      if (paypalButtonsContainerRef.current.childElementCount > 0) {
+         // Buttons already rendered, or SDK not ready to re-render
+        return;
       }
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (sdkReady && payPalContainerRef.current && payPalContainerRef.current.childElementCount === 0) {
       try {
-        window.paypal.HostedButtons({
-          hostedButtonId: "EJ6YAGXZK4UVL",
-        }).render("#paypal-container-EJ6YAGXZK4UVL");
+        window.paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'pay',
+          },
+          createOrder: async (data: any, actions: any) => {
+            try {
+              // Call your backend to create the order
+              const response = await fetch('/api/paypal/create-order', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderAmount: '10.00', // Example amount, fetch this from your product/plan
+                  currencyCode: 'USD',    // Example currency
+                }),
+              });
+              const orderData = await response.json();
+              if (!response.ok || orderData.error) {
+                console.error('Error al crear orden en backend:', orderData.error);
+                toast({ variant: "destructive", title: "Error de Pago", description: `No se pudo iniciar el pago: ${orderData.error || 'Error desconocido'}` });
+                throw new Error(orderData.error || 'Error al crear la orden en el backend');
+              }
+              return orderData.orderID;
+            } catch (error) {
+              console.error('Error en createOrder:', error);
+              toast({ variant: "destructive", title: "Error de Pago", description: "No se pudo iniciar el proceso de pago." });
+              onPaymentError(error);
+              throw error; // Re-throw to inform PayPal SDK
+            }
+          },
+          onApprove: async (data: any, actions: any) => {
+            try {
+              // This function captures the funds from the transaction.
+              // In a real application, you would call your backend here to capture the order
+              // and then update the user's subscription status in your database.
+              // For this simulation, we'll just log it and call the success handler.
+              
+              // Example of what a backend call might look like:
+              // const captureResponse = await fetch('/api/paypal/capture-order', {
+              //   method: 'POST',
+              //   headers: { 'Content-Type': 'application/json' },
+              //   body: JSON.stringify({ orderID: data.orderID })
+              // });
+              // const captureData = await captureResponse.json();
+              // if (!captureResponse.ok || captureData.error) {
+              //   throw new Error(captureData.error || 'Error al capturar el pago');
+              // }
+              
+              console.log('Pago aprobado por PayPal:', data);
+              toast({ title: "Pago Aprobado (Simulación)", description: `Order ID: ${data.orderID}. En una app real, aquí se activaría Premium.`, variant: "default" });
+              onPaymentSuccess(data); 
+            } catch (error) {
+              console.error('Error en onApprove:', error);
+              toast({ variant: "destructive", title: "Error de Captura de Pago", description: "Hubo un problema al finalizar el pago." });
+              onPaymentError(error);
+            }
+          },
+          onError: (err: any) => {
+            console.error('Error en botones de PayPal:', err);
+            toast({ variant: "destructive", title: "Error de PayPal", description: "Ocurrió un error con el sistema de PayPal." });
+            onPaymentError(err);
+          },
+          onCancel: (data: any) => {
+            console.log('Pago cancelado por el usuario:', data);
+            toast({ title: "Pago Cancelado", description: "El proceso de pago fue cancelado.", variant: "default" });
+            onPaymentCancel();
+          },
+        }).render(paypalButtonsContainerRef.current);
       } catch (error) {
-        console.error("Error al renderizar el botón de PayPal:", error);
-        // Podrías mostrar un mensaje de error al usuario aquí si es necesario
+        console.error("Error al renderizar botones de PayPal (Smart Payment Buttons):", error);
+        toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: "No se pudieron mostrar los botones de pago de PayPal." });
       }
+    } else if (typeof window !== 'undefined' && window.paypal && window.paypal.HostedButtons && paypalButtonsContainerRef.current) {
+       // Fallback to hosted button if Smart Payment Buttons fail or are not desired here
+        if (paypalButtonsContainerRef.current.childElementCount === 0) {
+             try {
+                window.paypal.HostedButtons({
+                    hostedButtonId: "EJ6YAGXZK4UVL", // Your hosted button ID
+                }).render(paypalButtonsContainerRef.current);
+            } catch (error) {
+                console.error("Error al renderizar el botón de PayPal (Hosted):", error);
+            }
+        }
     }
-  }, [sdkReady]);
+  }, []); // Empty dependency array: runs once on mount
 
-  return <div id="paypal-container-EJ6YAGXZK4UVL" ref={payPalContainerRef}></div>;
+  return <div ref={paypalButtonsContainerRef} className="mt-4"></div>;
 };
 
 
@@ -66,7 +147,7 @@ export default function HomePage() {
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [jsonExportUrl, setJsonExportUrl] = useState<string | null>(null);
   const [submittedTargetDescription, setSubmittedTargetDescription] = useState<string>("");
-  const [isLoggedInAndPremium, setIsLoggedInAndPremium] = useState(false);
+  const [isLoggedInAndPremium, setIsLoggedInAndPremium] = useState(false); // Simulates logged-in and premium user
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
@@ -75,6 +156,7 @@ export default function HomePage() {
   useEffect(() => {
     const currentZipUrl = zipUrl;
     const currentJsonUrl = jsonExportUrl;
+    // Cleanup object URLs on component unmount or when new URLs are set
     return () => {
       if (currentZipUrl) {
         URL.revokeObjectURL(currentZipUrl);
@@ -141,7 +223,7 @@ export default function HomePage() {
     try {
       const blob = await zip.generateAsync({ type: "blob" });
       const newZipUrl = URL.createObjectURL(blob);
-      if (zipUrl) URL.revokeObjectURL(zipUrl);
+      if (zipUrl) URL.revokeObjectURL(zipUrl); // Clean up old URL if exists
       setZipUrl(newZipUrl);
       toast({ title: "Archivo ZIP Listo", description: "El ZIP con los resultados está listo para descargar.", variant: "default" });
     } catch (error) {
@@ -160,7 +242,7 @@ export default function HomePage() {
         const jsonString = await exportAllFindingsAsJsonAction(findings);
         const blob = new Blob([jsonString], { type: "application/json" });
         const newJsonUrl = URL.createObjectURL(blob);
-        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
+        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl); // Clean up old URL
         setJsonExportUrl(newJsonUrl);
         toast({ title: "Archivo JSON Listo", description: "Los hallazgos están listos para descargar en formato JSON.", variant: "default" });
     } catch (error) {
@@ -190,6 +272,7 @@ export default function HomePage() {
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
+    // Revoke old URLs before new analysis
     if (zipUrl) {
         URL.revokeObjectURL(zipUrl);
         setZipUrl(null);
@@ -249,6 +332,7 @@ export default function HomePage() {
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) {
+        // If a critical error occurred and no data could be processed.
         toast({
           variant: "destructive",
           title: "Análisis Fallido",
@@ -256,6 +340,7 @@ export default function HomePage() {
           duration: 8000,
         });
       } else {
+          // Partial success or full success
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
           const summaryItems = [
               result.urlAnalysis?.executiveSummary,
@@ -281,8 +366,8 @@ export default function HomePage() {
 
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isLoggedInAndPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funcionalidades Premium.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default",
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isLoggedInAndPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión (simulado) para acceder a todas las funcionalidades Premium.'}`,
+            variant: vulnerableCount > 0 ? "default" : "default", // Could be 'warning' or 'destructive' if high/critical vulns
             duration: 7000,
           });
       }
@@ -291,6 +376,7 @@ export default function HomePage() {
       console.error("Error en el envío del formulario:", error);
       let errorMessage = "Ocurrió un error inesperado durante el análisis.";
 
+      // Check for API key specific errors first
       const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
       const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
@@ -319,6 +405,7 @@ export default function HomePage() {
     }
   };
 
+  // Simulate toggling premium access
   const handleAuthToggle = async () => {
     const newAuthStatus = !isLoggedInAndPremium;
     setIsLoggedInAndPremium(newAuthStatus);
@@ -330,19 +417,52 @@ export default function HomePage() {
       variant: "default",
     });
 
+    // If logging in and results exist, generate premium files
     if (newAuthStatus && analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
       await generateZipFile(analysisResult, submittedTargetDescription);
-      if (analysisResult.allFindings && analysisResult.allFindings.length > 0) {
-        await generateJsonExportFile(analysisResult.allFindings, submittedTargetDescription);
-      }
+      // JSON export is generated after every analysis if findings exist, no need to regenerate here unless specifically desired
     }
+    // If logging out, clear premium-only downloadable files
     if (!newAuthStatus) {
       if (zipUrl) URL.revokeObjectURL(zipUrl);
       setZipUrl(null);
+      // JSON export can remain as it's not premium-only
     }
   };
 
-  const PremiumFeatureCard = ({ title, description, icon: Icon, actionButton, payPalButton }: { title: string, description: string, icon: React.ElementType, actionButton?: React.ReactNode, payPalButton?: boolean }) => (
+  const handlePayPalPaymentSuccess = (details: any) => {
+    console.log("Simulación de pago exitoso con PayPal:", details);
+    toast({
+      title: "¡Pago Exitoso (Simulado)!",
+      description: `Orden ${details.orderID} completada. Acceso Premium activado.`,
+      variant: "default",
+    });
+    setIsLoggedInAndPremium(true); // Activate premium features
+    // In a real app, you'd update user's subscription status in your DB here
+    // and potentially re-trigger file generation if analysisResult exists
+    if (analysisResult && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0))) {
+      generateZipFile(analysisResult, submittedTargetDescription);
+    }
+  };
+
+  const handlePayPalPaymentError = (error: any) => {
+    console.error("Error de pago con PayPal:", error);
+    toast({
+      variant: "destructive",
+      title: "Error de Pago",
+      description: "Hubo un problema al procesar su pago con PayPal.",
+    });
+  };
+  const handlePayPalPaymentCancel = () => {
+     console.log("Pago con PayPal cancelado por el usuario.");
+      toast({
+        title: "Pago Cancelado",
+        description: "Ha cancelado el proceso de pago.",
+        variant: "default",
+      });
+  };
+
+  const PremiumFeatureCard = ({ title, description, icon: Icon, actionButton, isForPayPalSection = false }: { title: string, description:string, icon: React.ElementType, actionButton?: React.ReactNode, isForPayPalSection?: boolean }) => (
     <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl text-accent">
@@ -352,24 +472,28 @@ export default function HomePage() {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
-        {actionButton && !payPalButton && actionButton}
-        {payPalButton && (
-          <div className="mt-4 flex flex-col items-center gap-4">
+        {actionButton && !isForPayPalSection && actionButton}
+        {isForPayPalSection && (
+           <div className="mt-4 flex flex-col items-center gap-4">
             <p className="text-sm text-center text-foreground">
               Para acceder a esta y todas las funciones premium, considere nuestra suscripción.
             </p>
-            <PayPalButton />
+            <PayPalSmartPaymentButtons 
+                onPaymentSuccess={handlePayPalPaymentSuccess} 
+                onPaymentError={handlePayPalPaymentError}
+                onPaymentCancel={handlePayPalPaymentCancel}
+            />
             <Button
               variant="link"
-              className="text-xs text-muted-foreground"
+              className="text-xs text-muted-foreground mt-2"
               onClick={handleAuthToggle}
             >
-              O continuar con activación simulada (para pruebas)
+              O activar/desactivar modo premium simulado (para pruebas)
             </Button>
           </div>
         )}
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          La activación del Modo Premium y el botón de PayPal son para demostración. Se requiere una cuenta y suscripción real en un entorno de producción.
+          La activación del Modo Premium y los botones de PayPal son para demostración. Se requiere una cuenta y suscripción real en un entorno de producción.
         </p>
       </CardContent>
     </Card>
@@ -494,7 +618,7 @@ export default function HomePage() {
                     title="Escenarios de Ataque Ilustrativos"
                     description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
                     icon={Zap}
-                    payPalButton={true} // Indica que esta tarjeta debe mostrar el botón de PayPal
+                    isForPayPalSection={true}
                    />
                 )}
 
@@ -509,7 +633,7 @@ export default function HomePage() {
                     title="Playbooks de Remediación Sugeridos"
                     description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
                     icon={FileLock2}
-                    payPalButton={true}
+                    isForPayPalSection={true}
                    />
                  )}
 
@@ -522,7 +646,7 @@ export default function HomePage() {
                         ¡Desbloquee el Poder Completo de la Plataforma!
                       </CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        Su análisis ha revelado información inicial. Active el **Modo Premium (Simulado)** o considere nuestra opción de suscripción conceptual (vía PayPal) para una visión integral y herramientas avanzadas.
+                        Su análisis ha revelado información inicial. Active el **Modo Premium (Simulado)** o utilice el proceso de pago conceptual de PayPal a continuación para una visión integral y herramientas avanzadas.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -561,17 +685,22 @@ export default function HomePage() {
                         <p className="text-lg font-semibold text-center text-foreground">
                           Obtenga Acceso Premium
                         </p>
-                        <PayPalButton />
+                        {/* PayPal Smart Payment Buttons */}
+                        <PayPalSmartPaymentButtons 
+                            onPaymentSuccess={handlePayPalPaymentSuccess} 
+                            onPaymentError={handlePayPalPaymentError}
+                            onPaymentCancel={handlePayPalPaymentCancel}
+                        />
                         <Button
                           variant="outline"
                           className="w-full sm:w-auto"
                           onClick={handleAuthToggle}
                         >
-                            <LogIn className="mr-2 h-5 w-5" /> Activar Modo Premium Simulado (para pruebas)
+                            <LogIn className="mr-2 h-5 w-5" /> Activar/Desactivar Modo Premium Simulado
                         </Button>
                       </div>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                        La activación del Modo Premium y el botón de PayPal son para demostración. En un entorno real, esto implicaría una suscripción de pago y la activación automática de funciones tras el pago.
+                        La activación del Modo Premium y los botones de PayPal son para demostración. En un entorno real, esto implicaría una suscripción de pago y la activación automática de funciones tras la confirmación del pago por el backend.
                       </p>
                     </CardContent>
                   </Card>
@@ -591,13 +720,13 @@ export default function HomePage() {
                                  <Button
                                     size="lg"
                                     className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed opacity-75"
-                                    onClick={handleAuthToggle} // Cambio para que intente activar el modo simulado
+                                    onClick={handleAuthToggle} 
                                 >
-                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Premium
+                                    <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Premium
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Active el Modo Premium para descargar el paquete completo de resultados.</p>
+                                <p>Inicie sesión (simulado) o complete el proceso de suscripción para descargar el paquete completo de resultados.</p>
                             </TooltipContent>
                         </Tooltip>
                     )}
@@ -637,7 +766,7 @@ export default function HomePage() {
                 <CardContent className="space-y-4">
                     <p className="text-muted-foreground">
                         Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado.
-                        Con una Sesión Premium (simulada), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
+                        Con una Sesión Premium (simulada o mediante suscripción conceptual con PayPal), obtendrá escenarios de ataque, detalles técnicos y playbooks de remediación.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="mr-2 h-5 w-5 text-primary"/> Análisis Web/URL.</div>
@@ -654,19 +783,30 @@ export default function HomePage() {
                     <p className="text-muted-foreground mt-3">
                         Ideal para equipos DevSecOps, profesionales de ciberseguridad, administradores de sistemas y empresas que buscan proteger sus activos digitales de forma proactiva, eficiente y con la potencia de la IA.
                     </p>
-                     <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4 text-accent font-medium">
-                        <h3 className="text-lg font-semibold text-foreground">Pruebe Nuestro Acceso Premium</h3>
+                     <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4">
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6 text-accent" /> Pruebe Nuestro Acceso Premium</h3>
                          <p className="text-sm text-center text-muted-foreground max-w-md">
-                           Active el modo premium simulado para demostración o utilice el botón de PayPal para una simulación de suscripción y desbloquear informes técnicos, escenarios de ataque, playbooks y descargas.
+                           Para probar las funcionalidades avanzadas como informes técnicos detallados, escenarios de ataque, playbooks y descargas completas, puede:
                          </p>
-                        <PayPalButton />
-                         <Button
-                            variant="outline"
-                            className="w-full sm:w-auto"
-                            onClick={handleAuthToggle}
-                        >
-                            <LogIn className="mr-2 h-5 w-5" /> Activar/Desactivar Modo Premium Simulado
-                        </Button>
+                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                             <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={handleAuthToggle}
+                            >
+                                <LogIn className="mr-2 h-5 w-5" /> Activar/Desactivar Modo Premium Simulado
+                            </Button>
+                        </div>
+                         <p className="text-sm text-muted-foreground font-medium mt-3">O simule una suscripción a través de PayPal:</p>
+                        {/* PayPal Smart Payment Buttons */}
+                        <PayPalSmartPaymentButtons 
+                            onPaymentSuccess={handlePayPalPaymentSuccess} 
+                            onPaymentError={handlePayPalPaymentError}
+                            onPaymentCancel={handlePayPalPaymentCancel}
+                        />
+                         <p className="text-xs text-muted-foreground mt-3 text-center">
+                           Este es un flujo de demostración. Una implementación real requeriría configuración de backend para verificar pagos y gestionar suscripciones.
+                         </p>
                     </div>
                 </CardContent>
                </Card>
