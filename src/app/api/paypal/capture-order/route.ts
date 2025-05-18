@@ -2,7 +2,8 @@
 // /src/app/api/paypal/capture-order/route.ts
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
-import { createClient } from '@/lib/supabase/server'; 
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'; 
+import { createClient as createAdminSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 // Helper function to configure PayPal client
@@ -26,14 +27,18 @@ function getPayPalClient() {
 
 export async function POST(request: Request) {
   const cookieStore = cookies();
-  // This client uses the user's session from cookies.
-  // For RLS to allow updates to user_profiles.subscription_status,
-  // the policy must permit the authenticated user to update their own record.
-  const supabase = createClient(cookieStore); 
+  // This client uses the user's session from cookies to identify the user.
+  const supabaseUserClient = createServerSupabaseClient(cookieStore); 
+
+  // For updating user_profiles with service_role privileges
+  const supabaseAdminClient = createAdminSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   try {
     // 1. Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
 
     if (authError || !user) {
       console.error('Error en capture-order: Usuario no autenticado o error de autenticación.', authError);
@@ -68,11 +73,11 @@ export async function POST(request: Request) {
     const paymentDetails = captureResponse.result;
     console.log(`Orden PayPal ${paymentDetails.id} capturada exitosamente en PayPal para usuario ${user.id}.`);
 
-    // 4. Actualizar la base de datos Supabase ('user_profiles')
+    // 4. Actualizar la base de datos Supabase ('user_profiles') con el cliente admin
     const subscriptionEndDate = new Date();
     subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30); // Ejemplo: Suscripción de 30 días
 
-    const { data: updateData, error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabaseAdminClient
       .from('user_profiles')
       .update({ 
         subscription_status: 'active_premium', // O el identificador de plan correcto
@@ -86,9 +91,8 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error(`Error al actualizar el perfil del usuario ${user.id} en Supabase tras el pago:`, updateError);
       // Considerar cómo manejar este error crítico. 
-      // ¿Se reembolsa el pago automáticamente? ¿Se notifica al administrador?
-      // Por ahora, se devuelve un error que el frontend podría manejar,
-      // pero el pago en PayPal ya fue capturado.
+      // El pago en PayPal ya fue capturado. Se debería notificar al administrador
+      // y posiblemente ofrecer al usuario una forma de contactar soporte.
       return NextResponse.json({ 
         message: 'Pago capturado en PayPal, pero hubo un error al actualizar su suscripción en nuestra base de datos. Por favor, contacte a soporte con su ID de orden de PayPal.',
         error: `Error actualizando perfil de usuario en base de datos: ${updateError.message}`,
