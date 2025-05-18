@@ -5,13 +5,15 @@ import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation'; // For potential redirects
+import type { UserProfile } from '@/types/ai-schemas'; // Import UserProfile type
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  userProfile: UserProfile | null; // Add userProfile
+  isPremium: boolean; // Add isPremium status
   isLoading: boolean;
   signOut: () => Promise<void>;
-  // We can add userProfile and isPremium here later when integrating with a database
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,25 +21,61 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const getSession = async () => {
+    const fetchUserProfile = async (userId: string) => {
+      const { data: profile, error } = await supabase
+        .from('user_profiles') // Ensure this matches your table name
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error.message);
+        setUserProfile(null);
+        setIsPremium(false);
+      } else {
+        setUserProfile(profile as UserProfile); // Cast to UserProfile
+        // Determine premium status based on profile data
+        // For example, if you have a 'subscription_status' field:
+        setIsPremium(profile?.subscription_status === 'active_premium' || profile?.subscription_status === 'premium_monthly' || profile?.subscription_status === 'premium_yearly');
+      }
+    };
+
+    const getSessionAndProfile = async () => {
+      setIsLoading(true);
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+
+      if (currentSession?.user) {
+        await fetchUserProfile(currentSession.user.id);
+      } else {
+        setUserProfile(null);
+        setIsPremium(false);
+      }
       setIsLoading(false);
     };
 
-    getSession();
+    getSessionAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, currentSession) => {
+        setIsLoading(true);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        setIsLoading(false);
 
+        if (currentSession?.user) {
+          await fetchUserProfile(currentSession.user.id);
+        } else {
+          setUserProfile(null);
+          setIsPremium(false);
+        }
+        setIsLoading(false);
         // Example: Redirect on login/logout if needed from a central place
         // if (_event === 'SIGNED_IN') router.push('/');
         // if (_event === 'SIGNED_OUT') router.push('/login');
@@ -51,14 +89,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    // The onAuthStateChange listener will handle setting session and user to null.
-    // Optionally, redirect here if not handled by the listener for specific cases.
+    // The onAuthStateChange listener will handle setting session, user, and profile to null.
     // router.push('/login'); 
   };
 
   const value = {
     session,
     user,
+    userProfile,
+    isPremium,
     isLoading,
     signOut,
   };
