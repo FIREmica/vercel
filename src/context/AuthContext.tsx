@@ -28,21 +28,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const fetchUserProfile = async (userId: string) => {
-      const { data: profile, error } = await supabase
+      const { data: profiles, error } = await supabase
         .from('user_profiles') // Ensure this matches your table name
         .select('*')
-        .eq('id', userId)
-        .single();
+        .eq('id', userId);
+        // Removed .single() to handle cases where profile might not exist or (less likely) multiple exist.
 
       if (error) {
         console.error('Error fetching user profile:', error.message);
         setUserProfile(null);
         setIsPremium(false);
-      } else {
+      } else if (profiles && profiles.length > 0) {
+        const profile = profiles[0]; // Take the first profile.
         setUserProfile(profile as UserProfile); // Cast to UserProfile
         // Determine premium status based on profile data
-        // For example, if you have a 'subscription_status' field:
         setIsPremium(profile?.subscription_status === 'active_premium' || profile?.subscription_status === 'premium_monthly' || profile?.subscription_status === 'premium_yearly');
+      } else {
+        // No profile found, or an empty array was returned.
+        console.warn(`No user profile found for user ID: ${userId}. User will be treated as non-premium.`);
+        setUserProfile(null);
+        setIsPremium(false);
       }
     };
 
@@ -85,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       authListener?.unsubscribe();
     };
-  }, [router]);
+  }, [router]); // router dependency was already there, keeping it
 
   const signOut = async () => {
     await supabase.auth.signOut();
