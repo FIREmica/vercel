@@ -79,28 +79,29 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```env
     # Clave API de Google AI (Requerida para los análisis de IA)
     # Consigue tu clave en https://aistudio.google.com/app/apikey
-    NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_google_aqui
+    NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_google_aqui_valida
 
     # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
     # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer
     # Estas son usadas por el endpoint /api/paypal/create-order
-    PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_api_rest 
+    PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_api_rest
     PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
     # Para producción, usarías: PAYPAL_API_BASE_URL=https://api-m.paypal.com y credenciales Live
 
     # Client ID de PayPal para el SDK de JavaScript (Frontend)
-    # Asegúrate que este Client ID corresponda a la misma aplicación API REST configurada arriba, o a una específica para el SDK si así lo prefieres.
+    # IMPORTANTE: Para simplificar, este Client ID (NEXT_PUBLIC_PAYPAL_CLIENT_ID) debe ser el MISMO que el PAYPAL_CLIENT_ID
+    # usado para la API REST arriba. Ambos deben corresponder al Client ID de tu aplicación REST API creada en el PayPal Developer Portal.
     # Esta es usada en src/app/layout.tsx para cargar el SDK de PayPal.
-    NEXT_PUBLIC_PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_sdk_js
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_sdk_js_ (el mismo que PAYPAL_CLIENT_ID)
 
     # Credenciales de Supabase (Requeridas para la futura autenticación y base de datos)
     # Reemplaza estos valores con tus propias credenciales de tu proyecto Supabase
-    NEXT_PUBLIC_SUPABASE_URL=https://tu_id_proyecto_supabase.supabase.co
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_supabase_anon_key_aqui
+    NEXT_PUBLIC_SUPABASE_URL="https://tu_id_proyecto_supabase.supabase.co"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY="tu_supabase_anon_key_aqui"
 
     # Para operaciones del lado del servidor con Supabase (si se implementan, ej. para proteger rutas API o Server Actions), necesitarías:
-    # SUPABASE_SERVICE_ROLE_KEY=tu_supabase_service_role_key_aqui
+    # SUPABASE_SERVICE_ROLE_KEY="tu_supabase_service_role_key_aqui"
     # Y posiblemente las cadenas de conexión a la base de datos si usas Prisma con Supabase:
     # POSTGRES_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
     # POSTGRES_PRISMA_URL="postgres://postgres.[tu_proyecto_ref]:[tu_password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
@@ -112,8 +113,9 @@ Este proyecto requiere claves API para funcionar correctamente.
     # SUPABASE_JWT_SECRET="tu_jwt_secret_aqui"
     ```
     **IMPORTANTE:**
-    *   Reemplaza `tu_clave_api_google_aqui` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
-    *   Reemplaza `tu_paypal_sandbox_client_id_aqui_para_api_rest`, `tu_paypal_sandbox_client_secret_aqui` y `tu_paypal_sandbox_client_id_aqui_para_sdk_js` con tus credenciales reales de una aplicación Sandbox que crees en el [Portal de Desarrolladores de PayPal](https://developer.paypal.com/). Es crucial que el `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (usado por el SDK de JS en el frontend) y el `PAYPAL_CLIENT_ID` (usado por la API de backend) estén correctamente configurados, idealmente correspondiendo a la misma aplicación REST API de PayPal para evitar confusiones.
+    *   Reemplaza `tu_clave_api_google_aqui_valida` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
+    *   Reemplaza `tu_paypal_sandbox_client_id_aqui_para_api_rest` y `tu_paypal_sandbox_client_secret_aqui` con tus credenciales reales de una aplicación Sandbox que crees en el [Portal de Desarrolladores de PayPal](https://developer.paypal.com/).
+    *   **Crucial para PayPal:** El valor de `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (usado por el SDK de JS en el frontend) **debe ser el mismo** que el valor de `PAYPAL_CLIENT_ID` (usado por la API de backend). Ambos deben ser el Client ID de tu aplicación REST API de PayPal.
     *   Reemplaza `https://tu_id_proyecto_supabase.supabase.co` y `tu_supabase_anon_key_aqui` con las credenciales de tu proyecto Supabase. Puedes encontrarlas en la configuración de tu proyecto Supabase en "Project Settings > API".
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
 
@@ -259,7 +261,7 @@ Para transformar este proyecto de un prototipo local a un servicio online funcio
     *   Utilizar la base de datos PostgreSQL de Supabase para almacenar perfiles de usuario, estado de suscripciones, historial de análisis y resultados.
     *   *Nota: Ya se han definido esquemas Zod (`UserProfileSchema`, `AnalysisRecordSchema`) en `src/types/ai-schemas.ts` como preparación para esta fase.*
 2.  **Integración Completa de Pasarela de Pagos (PayPal o Stripe):**
-    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela elegida, vincularlos a los perfiles de usuario en la base de datos de Supabase, implementar webhooks de la pasarela para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos Supabase para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
+    *   **Facturación Real:** Esto implica configurar productos/planes en la pasarela elegida (ej. PayPal), vincularlos a los perfiles de usuario en la base de datos de Supabase, implementar webhooks de la pasarela para confirmaciones de pago y actualizar el estado de la suscripción en la base de datos Supabase para otorgar/revocar el acceso premium automáticamente. La integración actual con PayPal es una demostración del flujo de pago inicial y no maneja la confirmación/activación automática.
 3.  **Despliegue y Alojamiento Profesional:**
     *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
     *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB Supabase, claves de pasarela de pago Live).
