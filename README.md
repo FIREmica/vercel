@@ -202,7 +202,7 @@ Este proyecto requiere claves API para funcionar correctamente.
       USING (auth.uid() = id)
       -- For production, restrict which columns user can update.
       -- subscription_status should ONLY be updated by server-side logic after payment.
-      WITH CHECK (auth.uid() = id AND NOT (subscription_status = 'active_premium' AND OLD.subscription_status IS DISTINCT FROM NEW.subscription_status));
+      WITH CHECK (auth.uid() = id AND NOT (NEW.subscription_status IS DISTINCT FROM OLD.subscription_status AND NEW.subscription_status = 'active_premium'));
 
 
       -- 4. Create a trigger function to automatically create a user profile
@@ -300,37 +300,3 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-```
-
-Hecho. He realizado los siguientes cambios para avanzar hacia la facturación real:
-
-1.  **`src/context/AuthContext.tsx`:**
-    *   La función `fetchUserProfile` ahora es más robusta; si no encuentra un perfil, no causa un error que detenga la carga, sino que trata al usuario como no premium.
-    *   Se ha añadido una función `refreshUserProfile` al contexto. Esto permitirá que, después de una acción como un pago exitoso, podamos pedirle al contexto que vuelva a cargar el perfil del usuario para reflejar cualquier cambio en su estado de suscripción.
-    *   `isPremium` ahora se determina buscando si `subscription_status` incluye `'active'` o `'premium'` (ej. `'active_premium'`, `'premium_monthly'`).
-2.  **`src/app/api/paypal/capture-order/route.ts`:**
-    *   Ahora intenta obtener el `user` autenticado usando `createClient` de Supabase con `cookies()` para operaciones del lado del servidor.
-    *   Si el usuario no está autenticado, devuelve un error 401.
-    *   El bloque `// TODO:` para actualizar la base de datos Supabase es ahora más prominente y explica que se debe usar el `user.id` obtenido.
-    *   Se ha mejorado el logging y las respuestas JSON.
-3.  **`src/app/page.tsx` (Componente `PayPalSmartPaymentButtons`):**
-    *   En la función `onApprove`, después de que la llamada a `/api/paypal/capture-order` es exitosa, ahora se llama a `refreshUserProfile()` del `AuthContext`. Esto tiene como objetivo que el frontend intente obtener el estado de suscripción actualizado de la base de datos.
-4.  **`README.md`:**
-    *   Se han actualizado las instrucciones de configuración de Supabase y el SQL para `user_profiles` para incluir un campo `paypal_order_id` y ajustar ligeramente la política de RLS para la actualización.
-    *   Se ha enfatizado la necesidad de completar la lógica de actualización de la base de datos en `/api/paypal/capture-order` usando las credenciales de `SUPABASE_SERVICE_ROLE_KEY` (para el backend) para poder modificar `subscription_status`.
-    *   Se ha clarificado el flujo de pago y el estado actual de la implementación.
-
-**Siguientes Pasos CRUCIALES para que la Facturación Funcione:**
-
-1.  **Ejecuta el SQL Actualizado en Supabase:** Asegúrate de que tu tabla `user_profiles` y el trigger `handle_new_user` estén creados/actualizados en tu instancia de Supabase con el SQL que te proporcioné en la respuesta anterior (y que también está en el `README.md` actualizado).
-2.  **Implementa la Lógica de Actualización de DB en `/api/paypal/capture-order/route.ts`:**
-    *   Descomenta y adapta el bloque `// TODO:`. Necesitarás usar el cliente Supabase del lado del servidor (ya inicializado en la ruta como `supabase`) para:
-        *   Con el `user.id` obtenido, actualizar la fila correspondiente en `user_profiles`.
-        *   Establecer `subscription_status` a algo como `'active_premium'`.
-        *   Calcular y establecer `current_period_end`.
-        *   Guardar el `paypal_order_id`.
-    *   **Importante:** Para que el backend pueda modificar la tabla `user_profiles` (especialmente el `subscription_status` que podría estar protegido por políticas RLS contra escritura directa del usuario), esta operación en el backend **debe realizarse usando el cliente Supabase inicializado con la `SUPABASE_SERVICE_ROLE_KEY`**. Esta clave tiene permisos para saltarse las políticas RLS. Deberás asegurarte de que `createClient` en `src/lib/supabase/server.ts` y su uso en la API route puedan utilizar esta clave de forma segura cuando sea necesario para operaciones administrativas. (Actualmente, `createClient` está configurado para cookies de sesión, lo que es correcto para *obtener* el usuario. Para *escribir* como un administrador, se usa el service role key directamente al crear el cliente en el backend).
-
-Una vez que el endpoint de captura actualice la base de datos, y `AuthContext` recargue el perfil, el estado `isPremium` se reflejará correctamente en toda la aplicación basado en datos reales de la base de datos.
-
-Este es el núcleo de la funcionalidad de facturación.

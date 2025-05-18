@@ -1,19 +1,19 @@
+
 "use client";
 
 import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation'; 
-import type { UserProfile } from '@/types/ai-schemas'; 
+import type { UserProfile } from '@/types/ai-schemas';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userProfile: UserProfile | null; 
-  isPremium: boolean; 
+  userProfile: UserProfile | null;
+  isPremium: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
-  refreshUserProfile: () => Promise<void>; // Added to allow manual refresh
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +24,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   const fetchUserProfile = async (userId: string | undefined) => {
     if (!userId) {
@@ -47,9 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = profiles[0] as UserProfile;
         setUserProfile(profile);
         // Determine premium status based on profile data
-        // Adjust these statuses as per your subscription model
-        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active']; // Added 'active' as a general premium status
-        setIsPremium(premiumStatuses.includes(profile?.subscription_status || ''));
+        // Consider statuses like 'active_premium', 'premium_monthly', 'active', etc.
+        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active'];
+        setIsPremium(premiumStatuses.some(status => profile?.subscription_status?.toLowerCase().includes(status)));
       } else {
         console.warn(`No user profile found for user ID: ${userId}. User will be treated as non-premium.`);
         setUserProfile(null);
@@ -81,6 +80,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentSession?.user ?? null);
         await fetchUserProfile(currentSession?.user?.id);
         setIsLoading(false);
+        // If a user logs out, ensure premium status is reset
+        if (!currentSession) {
+            setUserProfile(null);
+            setIsPremium(false);
+        }
       }
     );
 
@@ -92,15 +96,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     await supabase.auth.signOut();
     // Auth listener will handle setting session, user, and profile to null.
-    // Optionally, redirect here:
-    // router.push('/login'); 
+    // setIsPremium(false); // Explicitly set here for immediate UI feedback if needed
   };
 
   const refreshUserProfile = async () => {
     if (user) {
+      console.log("AuthContext: Refreshing user profile...");
       setIsLoading(true);
       await fetchUserProfile(user.id);
       setIsLoading(false);
+      console.log("AuthContext: User profile refreshed.");
+    } else {
+        console.log("AuthContext: No user to refresh profile for.");
     }
   };
 

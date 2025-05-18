@@ -29,8 +29,8 @@ import { useRouter } from "next/navigation";
 
 declare global {
   interface Window {
-    paypal: {
-      Buttons: (options: any) => ({ 
+    paypal?: { // Make paypal optional as it might not be loaded immediately
+      Buttons?: (options: any) => ({ 
         render: (selector: string) => Promise<void>;
         isEligible: () => boolean; 
         close: () => Promise<void>;
@@ -51,7 +51,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
       if (typeof window !== 'undefined' && window.paypal && typeof window.paypal.Buttons === 'function') {
         setIsPayPalSDKReady(true);
       } else {
-        setTimeout(checkPayPalSDK, 100);
+        setTimeout(checkPayPalSDK, 100); // Check again shortly
       }
     };
     checkPayPalSDK();
@@ -59,21 +59,23 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
 
   useEffect(() => {
     if (!session) { 
+      // User logged out, ensure PayPal buttons are cleared if they were rendered
       if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = '';
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error closing PayPal buttons on session loss:", err));
       }
-      setPayPalButtonInstance(null);
-      return;
+      setPayPalButtonInstance(null); // Reset instance
+      return; // Don't render buttons if no session
     }
 
     if (isPayPalSDKReady && paypalButtonsContainerRef.current && !payPalButtonInstance) {
+      // Clear previous buttons if any (though instance check should prevent duplicates)
       if (paypalButtonsContainerRef.current.childElementCount > 0) {
-         // paypalButtonsContainerRef.current.innerHTML = ''; // Let's be more careful here. Only clear if no instance.
+         // paypalButtonsContainerRef.current.innerHTML = ''; // Avoid aggressive clearing if instance managing it
       }
       
       try {
-        if (typeof window.paypal.Buttons !== 'function') {
+        if (typeof window.paypal?.Buttons !== 'function') {
             toast({ variant: "destructive", title: "Error de SDK de PayPal", description: "Los componentes de botones de PayPal no están disponibles." });
             console.error("window.paypal.Buttons is not a function or not available.");
             return;
@@ -87,9 +89,9 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             label: 'pay',
           },
           createOrder: async () => {
-            if (!session) {
+            if (!session) { // Double check session before creating order
                 toast({ variant: "destructive", title: "Error de Autenticación", description: "Debe iniciar sesión para crear una orden de pago." });
-                onLoginRequired();
+                onLoginRequired(); // Trigger login flow
                 return Promise.reject(new Error("User not logged in"));
             }
             try {
@@ -97,8 +99,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // El body es opcional para create-order si usa valores fijos en el backend
-                 body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), 
+                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), // Example amount
               });
               const orderData = await response.json();
               if (!response.ok || orderData.error) {
@@ -118,6 +119,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
           onApprove: async (data: any, actions: any) => {
             toast({ title: "Pago Aprobado por Usuario", description: "Procesando la confirmación del pago con nuestro servidor...", variant: "default" });
             try {
+              // Call your backend to capture the order
               const response = await fetch('/api/paypal/capture-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -143,8 +145,8 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             let userMessage = "Ocurrió un error con el sistema de PayPal. Por favor, intente de nuevo.";
             if (typeof err === 'string' && err.includes('Window closed')) {
                 userMessage = "Ventana de pago cerrada por el usuario antes de completar.";
-            } else if (err && err.message) {
-                 userMessage = err.message.substring(0, 150); 
+            } else if (err && err.message && typeof err.message === 'string') { // Check if err.message is string
+                 userMessage = err.message.substring(0, 150); // Avoid very long technical messages
             }
             toast({ variant: "destructive", title: "Error de PayPal", description: userMessage });
             console.error("PayPal Buttons onError:", err);
@@ -157,13 +159,15 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
         });
 
         if (paypalButtonsContainerRef.current) {
+             // Ensure container is empty before rendering new buttons
              paypalButtonsContainerRef.current.innerHTML = ''; 
              buttonsInstance.render(paypalButtonsContainerRef.current)
             .then(() => {
-                setPayPalButtonInstance(buttonsInstance);
+                setPayPalButtonInstance(buttonsInstance); // Store instance
+                console.log("PayPal Buttons rendered successfully.");
             })
-            .catch((renderError) => {
-              const errMsg = renderError && renderError.message ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
+            .catch((renderError: any) => {
+              const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
               toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
               console.error("PayPal SDK .render() error:", renderError); 
             });
@@ -174,17 +178,22 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
       }
     }
     
+    // Cleanup function
     return () => {
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
       }
+      // Optional: if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = '';
     };
-  }, [isPayPalSDKReady, session, onPaymentError, onPaymentSuccess, onPaymentCancel, toast, payPalButtonInstance, onLoginRequired, refreshUserProfile]);
+  // Dependencies: isPayPalSDKReady, session (to re-render if session changes), and other callbacks.
+  // Removed payPalButtonInstance from dependencies to avoid re-rendering loop if instance itself is stored.
+  }, [isPayPalSDKReady, session, onPaymentError, onPaymentSuccess, onPaymentCancel, toast, onLoginRequired, refreshUserProfile]);
 
   if (!isPayPalSDKReady) {
     return <div className="mt-4 text-center text-muted-foreground">Cargando opciones de pago... <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin"/></div>;
   }
   
+  // If user is not logged in, show login prompt instead of PayPal buttons
   if (!session) {
     return (
       <div className="mt-4 text-center">
@@ -197,6 +206,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
     );
   }
 
+  // Container for PayPal buttons, will be populated by SDK
   return <div ref={paypalButtonsContainerRef} className="mt-4 paypal-buttons-container min-h-[100px]"></div>;
 };
 
@@ -212,9 +222,12 @@ export default function HomePage() {
   const router = useRouter();
   const { session, isLoading: isLoadingAuth, isPremium, userProfile, signOut, refreshUserProfile } = useAuth(); 
 
+  const isUserPremium = isPremium; // Use isPremium from AuthContext
+
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php";
 
   useEffect(() => {
+    // Cleanup object URLs on component unmount or when URLs change
     const currentZipUrl = zipUrl;
     const currentJsonUrl = jsonExportUrl;
     return () => {
@@ -272,7 +285,7 @@ export default function HomePage() {
     try {
       const blob = await zip.generateAsync({ type: "blob" });
       const newZipUrl = URL.createObjectURL(blob);
-      if (zipUrl) URL.revokeObjectURL(zipUrl); 
+      if (zipUrl) URL.revokeObjectURL(zipUrl); // Clean up old URL if exists
       setZipUrl(newZipUrl);
       toast({ title: "Archivo ZIP Listo", description: "El ZIP con los resultados está listo para descargar.", variant: "default" });
     } catch (error) {
@@ -290,7 +303,7 @@ export default function HomePage() {
         const jsonString = await exportAllFindingsAsJsonAction(findings);
         const blob = new Blob([jsonString], { type: "application/json" });
         const newJsonUrl = URL.createObjectURL(blob);
-        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl); 
+        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl); // Clean up old URL
         setJsonExportUrl(newJsonUrl);
         toast({ title: "Archivo JSON Listo", description: "Los hallazgos están listos para descargar en formato JSON.", variant: "default" });
     } catch (error) {
@@ -318,6 +331,7 @@ export default function HomePage() {
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
+    // Revoke old blob URLs to free up memory
     if (zipUrl) { URL.revokeObjectURL(zipUrl); setZipUrl(null); }
     if (jsonExportUrl) { URL.revokeObjectURL(jsonExportUrl); setJsonExportUrl(null); }
 
@@ -361,7 +375,7 @@ export default function HomePage() {
         return;
       }
 
-      const result = await performAnalysisAction(params, isPremium); // Pass the premium status from AuthContext
+      const result = await performAnalysisAction(params, isUserPremium);
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) {
@@ -374,12 +388,12 @@ export default function HomePage() {
           if (result.allFindings && result.allFindings.length > 0) {
              await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
-          if (isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
+          if (isUserPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
             await generateZipFile(result, currentTargetDesc);
           }
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funciones premium.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isUserPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funciones premium.'}`,
             variant: vulnerableCount > 0 ? "default" : "default", 
             duration: 7000,
           });
@@ -413,8 +427,7 @@ export default function HomePage() {
 
   const handlePayPalPaymentSuccess = async (details: any) => {
     toast({ title: "¡Pago Procesado!", description: `Orden ${details.orderID} capturada en el backend. Se está actualizando su perfil...`, variant: "default", duration: 5000 });
-    // El refreshUserProfile en el callback de onApprove del botón de PayPal intentará actualizar el estado
-    // después de que el backend (esperemos) haya actualizado la DB.
+    await refreshUserProfile();
   };
 
   const handlePayPalPaymentError = (error: any) => {
@@ -436,7 +449,7 @@ export default function HomePage() {
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
         {actionButton && !isForPayPalSection && actionButton}
-        {isForPayPalSection && (
+        {isForPayPalSection && session && !isUserPremium && ( // Only show PayPal if logged in AND not premium
            <div className="mt-4 flex flex-col items-center gap-4">
             <p className="text-sm text-center text-foreground"> Para acceder a esta y todas las funciones premium, considere nuestra suscripción. </p>
             <PayPalSmartPaymentButtons 
@@ -448,7 +461,7 @@ export default function HomePage() {
           </div>
         )}
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          El acceso Premium se basa en el estado de su suscripción (obtenido de la base de datos tras un inicio de sesión exitoso).
+          El acceso Premium se basa en el estado de su suscripción (obtenido de la base de datos tras un inicio de sesión exitoso y pago).
         </p>
       </CardContent>
     </Card>
@@ -476,7 +489,7 @@ export default function HomePage() {
               Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos), bases de datos, código (SAST), aplicaciones (DAST), Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias y redes.
               <strong className="text-foreground block mt-1">
                 {session ? 
-                  (isPremium ? `¡Bienvenido ${userProfile?.email || (session?.user?.email) ||  'Usuario Premium'}! Acceso completo a todas las funcionalidades avanzadas.` 
+                  (isUserPremium ? `¡Bienvenido ${userProfile?.email || (session?.user?.email) ||  'Usuario Premium'}! Acceso completo a todas las funcionalidades avanzadas.` 
                              : `Bienvenido ${userProfile?.email || (session?.user?.email) ||  'Usuario'}. Considere nuestra suscripción para acceso completo.`)
                 : "Inicie sesión para desbloquear informes técnicos detallados, escenarios de ataque, playbooks de remediación y descarga completa de resultados."}
               </strong>
@@ -534,18 +547,16 @@ export default function HomePage() {
             {!isLoadingAnalysis && analysisResult && (
               <div className="space-y-8">
                 <AnalysisSummaryCard result={analysisResult} />
-                <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremium} />
+                <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isUserPremium} />
 
-                {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isPremium && ( <> <Separator className="my-8 md:my-12" /> <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} /> </> )}
-                {!isPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && session && ( <PremiumFeatureCard title="Escenarios de Ataque Ilustrativos" description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." icon={Zap} isForPayPalSection={true} /> )}
-                {!session && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Escenarios de Ataque Ilustrativos" description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." icon={Zap} actionButton={<Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Ver</Button>} /> )}
+                {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isUserPremium && ( <> <Separator className="my-8 md:my-12" /> <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} /> </> )}
+                {!isUserPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Escenarios de Ataque Ilustrativos" description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." icon={Zap} isForPayPalSection={true} actionButton={!session ? <Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Activar Premium</Button> : undefined} /> )}
                 
-                {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isPremium && ( <> <Separator className="my-8 md:my-12" /> <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} /> </> )}
-                {!isPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && session && ( <PremiumFeatureCard title="Playbooks de Remediación Sugeridos" description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." icon={FileLock2} isForPayPalSection={true} /> )}
-                {!session && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Playbooks de Remediación Sugeridos" description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." icon={FileLock2} actionButton={<Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Ver</Button>} /> )}
+                {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isUserPremium && ( <> <Separator className="my-8 md:my-12" /> <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} /> </> )}
+                {!isUserPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Playbooks de Remediación Sugeridos" description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." icon={FileLock2} isForPayPalSection={true} actionButton={!session ? <Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Activar Premium</Button> : undefined} /> )}
 
 
-                 {!isPremium && session && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
+                 {!isUserPremium && session && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                   <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
                     <CardHeader> <CardTitle className="flex items-center gap-2 text-xl text-accent"> <Unlock className="h-6 w-6" /> ¡Desbloquee el Poder Completo de la Plataforma! </CardTitle> <CardDescription className="text-muted-foreground"> Su análisis ha revelado información inicial. Complete su suscripción para una visión integral y herramientas avanzadas. </CardDescription> </CardHeader>
                     <CardContent className="space-y-4">
@@ -566,7 +577,7 @@ export default function HomePage() {
                              onPaymentSuccess={handlePayPalPaymentSuccess} 
                              onPaymentError={handlePayPalPaymentError} 
                              onPaymentCancel={handlePayPalPaymentCancel}
-                             onLoginRequired={handleLoginForPayPal} // This should not be hit if session exists
+                             onLoginRequired={handleLoginForPayPal}
                          />
                       </div>
                        <p className="text-xs text-muted-foreground mt-3 text-center">
@@ -578,15 +589,15 @@ export default function HomePage() {
 
                 {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
-                    {isPremium && zipUrl ? ( <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) </a> </Button>
-                    ) : !isPremium && session && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
-                        <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed opacity-75" onClick={() => { /* Handled by PayPal button now */ }} > <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Suscripción </Button> </TooltipTrigger> <TooltipContent> <p>Suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
+                    {isUserPremium && zipUrl ? ( <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) </a> </Button>
+                    ) : !isUserPremium && session && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
+                        <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed opacity-75" > <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Suscripción </Button> </TooltipTrigger> <TooltipContent> <p>Suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
                     )}
                      {jsonExportUrl && ( <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"> <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}> <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON) </a> </Button> )}
                 </div>
                  )}
-                 {isPremium && zipUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El ZIP contiene informe, hallazgos, y (si generados) vectores de ataque y playbooks. El JSON contiene todos los hallazgos. </p> )}
-                 {!isPremium && session && jsonExportUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El JSON contiene todos los hallazgos. Suscríbase para la descarga ZIP completa. </p> )}
+                 {isUserPremium && zipUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El ZIP contiene informe, hallazgos, y (si generados) vectores de ataque y playbooks. El JSON contiene todos los hallazgos. </p> )}
+                 {!isUserPremium && session && jsonExportUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El JSON contiene todos los hallazgos. Suscríbase para la descarga ZIP completa. </p> )}
                  {!session && jsonExportUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El JSON contiene todos los hallazgos. Inicie sesión y suscríbase para la descarga ZIP completa. </p> )}
               </div>
             )}
@@ -614,7 +625,7 @@ export default function HomePage() {
                         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md"> 
                             {!session ? (
                                 <Button onClick={() => router.push('/login?redirect=/')} className="w-full" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
-                            ) : !isPremium ? (
+                            ) : !isUserPremium ? (
                                 <PayPalSmartPaymentButtons 
                                     onPaymentSuccess={handlePayPalPaymentSuccess} 
                                     onPaymentError={handlePayPalPaymentError} 
