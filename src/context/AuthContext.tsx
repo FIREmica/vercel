@@ -1,19 +1,19 @@
-
 "use client";
 
 import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation'; // For potential redirects
-import type { UserProfile } from '@/types/ai-schemas'; // Import UserProfile type
+import { useRouter } from 'next/navigation'; 
+import type { UserProfile } from '@/types/ai-schemas'; 
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userProfile: UserProfile | null; // Add userProfile
-  isPremium: boolean; // Add isPremium status
+  userProfile: UserProfile | null; 
+  isPremium: boolean; 
   isLoading: boolean;
   signOut: () => Promise<void>;
+  refreshUserProfile: () => Promise<void>; // Added to allow manual refresh
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,43 +26,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string | undefined) => {
+    if (!userId) {
+      setUserProfile(null);
+      setIsPremium(false);
+      return;
+    }
+
+    try {
       const { data: profiles, error } = await supabase
-        .from('user_profiles') // Ensure this matches your table name
+        .from('user_profiles')
         .select('*')
         .eq('id', userId);
-        // Removed .single() to handle cases where profile might not exist or (less likely) multiple exist.
 
       if (error) {
         console.error('Error fetching user profile:', error.message);
         setUserProfile(null);
         setIsPremium(false);
       } else if (profiles && profiles.length > 0) {
-        const profile = profiles[0]; // Take the first profile.
-        setUserProfile(profile as UserProfile); // Cast to UserProfile
+        const profile = profiles[0] as UserProfile;
+        setUserProfile(profile);
         // Determine premium status based on profile data
-        setIsPremium(profile?.subscription_status === 'active_premium' || profile?.subscription_status === 'premium_monthly' || profile?.subscription_status === 'premium_yearly');
+        // Adjust these statuses as per your subscription model
+        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active']; // Added 'active' as a general premium status
+        setIsPremium(premiumStatuses.includes(profile?.subscription_status || ''));
       } else {
-        // No profile found, or an empty array was returned.
         console.warn(`No user profile found for user ID: ${userId}. User will be treated as non-premium.`);
         setUserProfile(null);
         setIsPremium(false);
       }
-    };
+    } catch (e: any) {
+        console.error('Critical error in fetchUserProfile:', e.message);
+        setUserProfile(null);
+        setIsPremium(false);
+    }
+  };
 
+  useEffect(() => {
     const getSessionAndProfile = async () => {
       setIsLoading(true);
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-
-      if (currentSession?.user) {
-        await fetchUserProfile(currentSession.user.id);
-      } else {
-        setUserProfile(null);
-        setIsPremium(false);
-      }
+      await fetchUserProfile(currentSession?.user?.id);
       setIsLoading(false);
     };
 
@@ -73,29 +79,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(true);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-
-        if (currentSession?.user) {
-          await fetchUserProfile(currentSession.user.id);
-        } else {
-          setUserProfile(null);
-          setIsPremium(false);
-        }
+        await fetchUserProfile(currentSession?.user?.id);
         setIsLoading(false);
-        // Example: Redirect on login/logout if needed from a central place
-        // if (_event === 'SIGNED_IN') router.push('/');
-        // if (_event === 'SIGNED_OUT') router.push('/login');
       }
     );
 
     return () => {
       authListener?.unsubscribe();
     };
-  }, [router]); // router dependency was already there, keeping it
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    // The onAuthStateChange listener will handle setting session, user, and profile to null.
+    // Auth listener will handle setting session, user, and profile to null.
+    // Optionally, redirect here:
     // router.push('/login'); 
+  };
+
+  const refreshUserProfile = async () => {
+    if (user) {
+      setIsLoading(true);
+      await fetchUserProfile(user.id);
+      setIsLoading(false);
+    }
   };
 
   const value = {
@@ -105,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isPremium,
     isLoading,
     signOut,
+    refreshUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

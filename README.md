@@ -24,16 +24,23 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Descripciones de Configuración de Red, reglas de firewall y resultados de escaneos (ej. Nmap - conceptual).
 *   **Generación de Informes Detallados:** Creación de informes de seguridad completos en Markdown, incluyendo:
     *   Resumen ejecutivo general.
-    *   Detalles de hallazgos por cada tipo de análisis realizado (con CVSS y detalles técnicos si se ha iniciado sesión - simula Premium).
+    *   Detalles de hallazgos por cada tipo de análisis realizado (con CVSS y detalles técnicos si se ha iniciado sesión y se tiene suscripción activa - simula Premium).
     *   Severidad, descripción, impacto potencial y remediación sugerida para cada hallazgo.
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
-*   **Acceso a Funciones Avanzadas con Inicio de Sesión (Simula "Modo Premium"):** Al iniciar sesión (actualmente integrado con Supabase Auth), el usuario obtiene acceso a funciones avanzadas. Este estado de "sesión activa" simula tener una suscripción premium. Estas funciones incluyen:
-    *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
-    *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
-    *   **Generación de Playbooks de Remediación Sugeridos:** Guías paso a paso en Markdown para corregir vulnerabilidades.
-    *   **Descarga Completa de Resultados (ZIP):** Un archivo ZIP que contiene el informe Markdown, todos los hallazgos en JSON, los escenarios de ataque y los playbooks.
-*   **Flujo de Pago Conceptual con PayPal:** La plataforma incluye una integración con la API REST de PayPal (Sandbox) para simular el proceso de "compra" de una suscripción. Si un usuario (que ya ha iniciado sesión) completa este flujo de pago simulado, se refuerza su estado "Premium". Esto demuestra cómo se podría manejar la monetización.
+*   **Acceso a Funciones Avanzadas con Suscripción Premium (Gestionado con Supabase Auth y Simulación de Pago PayPal):**
+    *   **Autenticación Real:** Los usuarios pueden registrarse e iniciar sesión utilizando Supabase Auth.
+    *   **Gestión de Perfil de Usuario:** Se crea un perfil de usuario en la base de datos Supabase (tabla `user_profiles`) que almacena el estado de su suscripción.
+    *   **Flujo de Pago Conceptual con PayPal:** La plataforma incluye una integración con la API REST de PayPal (Sandbox) para simular el proceso de "compra" de una suscripción.
+        *   Un usuario autenticado puede iniciar un flujo de pago simulado.
+        *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
+        *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
+        *   **TODO Crucial:** El endpoint `capture-order` necesita ser completado para actualizar el `subscription_status` del usuario en la tabla `user_profiles` de Supabase tras una captura de pago exitosa. Actualmente, la activación premium se basa en el `AuthContext` que lee este estado.
+    *   **Funciones Premium Desbloqueadas:** Si `AuthContext` determina (leyendo de `user_profiles` después de una actualización) que el usuario tiene una suscripción activa (`subscription_status = 'active_premium'` o similar), se desbloquean:
+        *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
+        *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
+        *   **Generación de Playbooks de Remediación Sugeridos:** Guías paso a paso en Markdown para corregir vulnerabilidades.
+        *   **Descarga Completa de Resultados (ZIP):** Un archivo ZIP que contiene el informe Markdown, todos los hallazgos en JSON, los escenarios de ataque y los playbooks.
 *   **Exportación de Hallazgos en JSON:** Permite descargar todos los hallazgos (vulnerables o no) en formato JSON para integración con otras herramientas (ej. SIEM), disponible para todos los usuarios.
 *   **Asistente de Chat IA:** Un chatbot integrado para responder consultas sobre ciberseguridad y el uso de la plataforma.
 *   **Interfaz de Usuario Moderna:** Desarrollada con Next.js, ShadCN UI y Tailwind CSS, con modo oscuro por defecto y en español.
@@ -44,9 +51,9 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **UI:** ShadCN UI Components, Tailwind CSS
 *   **Inteligencia Artificial:** Genkit (Google AI)
 *   **Empaquetado (Descargas ZIP):** JSZip
-*   **Pasarela de Pagos (Integración Conceptual):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
-*   **Autenticación y Base de Datos (En preparación):** Supabase (Cliente JS `@supabase/supabase-js` y `@supabase/ssr` para helpers del lado del servidor)
-*   **Gestión de Estado de Autenticación:** React Context (`AuthProvider`) para manejar la sesión de Supabase globalmente.
+*   **Pasarela de Pagos (Integración Conceptual y Parcial API):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
+*   **Autenticación y Base de Datos:** Supabase (Cliente JS `@supabase/supabase-js` y `@supabase/ssr` para helpers del lado del servidor)
+*   **Gestión de Estado de Autenticación:** React Context (`AuthProvider`) para manejar la sesión de Supabase globalmente y el estado del perfil.
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
 
@@ -87,8 +94,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     NEXT_PUBLIC_GOOGLE_API_KEY=tu_clave_api_google_aqui_valida
 
     # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
-    # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer
-    # Estas son usadas por el endpoint /api/paypal/create-order
+    # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer para tu aplicación REST API.
     PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_api_rest
     PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
@@ -97,17 +103,17 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Client ID de PayPal para el SDK de JavaScript (Frontend)
     # IMPORTANTE: Este Client ID (NEXT_PUBLIC_PAYPAL_CLIENT_ID) debe ser el MISMO que el PAYPAL_CLIENT_ID
     # usado para la API REST arriba. Ambos deben corresponder al Client ID de tu aplicación REST API creada en el PayPal Developer Portal.
-    # Esta es usada en src/app/layout.tsx para cargar el SDK de PayPal.
     NEXT_PUBLIC_PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_sdk_js_ (el mismo que PAYPAL_CLIENT_ID)
 
-    # Credenciales de Supabase (Requeridas para la autenticación y futura base de datos)
+    # Credenciales de Supabase (Requeridas para la autenticación y base de datos)
     # Reemplaza estos valores con tus propias credenciales de tu proyecto Supabase
     NEXT_PUBLIC_SUPABASE_URL="https://odrdziwcmlumpifxfhfc.supabase.co"
     NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1MTgwMjgsImV4cCI6MjA2MzA5NDAyOH0.P7Wr7e070TRPkQR8LGLofg8xoXKxKov9WwZFb5xGcow"
 
-    # Para operaciones del lado del servidor con Supabase (si se implementan, ej. para proteger rutas API o Server Actions), necesitarías:
+    # Credencial Service Role Key de Supabase (para operaciones del lado del servidor con Supabase, ej. en /api/paypal/capture-order para actualizar perfiles)
+    # Esta clave tiene permisos para saltarse las políticas RLS. ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
     # SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
-    # Y posiblemente las cadenas de conexión a la base de datos si usas Prisma con Supabase:
+    # Si usas Prisma con Supabase y conexión directa, también necesitarías las cadenas de conexión a la base de datos.
     # POSTGRES_URL="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
     # POSTGRES_PRISMA_URL="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
     # POSTGRES_URL_NON_POOLING="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require"
@@ -118,46 +124,43 @@ Este proyecto requiere claves API para funcionar correctamente.
     # SUPABASE_JWT_SECRET="+eq0okA2T41Xz1F+wLhX9/uyvsEHzYebherOsq/SdzGu6Alp3Nz6YFF+y01qgutTUNperwPaowEHJwsMlw3YtA=="
     ```
     **IMPORTANTE:**
-    *   Reemplaza `tu_clave_api_google_aqui_valida` con tu clave API real de Google AI. **Asegúrate de que esta variable esté correctamente configurada y no sea el valor predeterminado/placeholder.** La aplicación verificará esta clave y mostrará errores si no está configurada o es inválida.
-    *   Las credenciales de PayPal (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) y Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) ya están pre-rellenadas con los valores que proporcionaste para el entorno de Sandbox. **Asegúrate de que el Client ID de PayPal (`PAYPAL_CLIENT_ID`) que usas para la API REST de backend sea el mismo que el `NEXT_PUBLIC_PAYPAL_CLIENT_ID` que usas para el SDK de JS en el frontend.**
+    *   Reemplaza `tu_clave_api_google_aqui_valida` con tu clave API real de Google AI.
+    *   Reemplaza `tu_paypal_sandbox_client_id_aqui_para_api_rest` y `tu_paypal_sandbox_client_secret_aqui` con tus credenciales Sandbox de PayPal para tu aplicación REST API. Asegúrate de que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` sea el mismo que `PAYPAL_CLIENT_ID`.
+    *   Las credenciales de Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, y `SUPABASE_SERVICE_ROLE_KEY`) ya están pre-rellenadas con los valores que proporcionaste. La `SUPABASE_SERVICE_ROLE_KEY` es muy sensible.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
-    *   **Google AI:** Visita [Google AI Studio](https://aistudio.google.com/app/apikey) para generar una clave API si aún no tienes una.
+    *   **Google AI:** Visita [Google AI Studio](https://aistudio.google.com/app/apikey).
     *   **PayPal Sandbox/Live:**
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications).
-        2.  Crea una nueva aplicación REST API si no tienes una (una para Sandbox, otra para Live).
-        3.  Copia el `Client ID` y el `Client Secret` de tu aplicación.
+        2.  Crea una nueva aplicación REST API (una para Sandbox, otra para Live).
+        3.  Copia el `Client ID` y el `Client Secret`.
     *   **Supabase:**
         1.  Ve a [Supabase Dashboard](https://supabase.com/dashboard).
         2.  Selecciona tu proyecto.
-        3.  En "Project Settings" (Configuración del Proyecto) > "API", encontrarás tu "Project URL" (`NEXT_PUBLIC_SUPABASE_URL`) y la "anon public" key (`NEXT_PUBLIC_SUPABASE_ANON_KEY`). La "service_role" key (`SUPABASE_SERVICE_ROLE_KEY`) también está ahí y es para operaciones de backend.
+        3.  En "Project Settings" > "API", encontrarás tu "Project URL" (`NEXT_PUBLIC_SUPABASE_URL`), la "anon public" key (`NEXT_PUBLIC_SUPABASE_ANON_KEY`), y la "service_role" key (`SUPABASE_SERVICE_ROLE_KEY`).
 
-### Configuración de Supabase (Mínimo para el ejemplo `/notes` y perfiles de usuario)
+### Configuración de Base de Datos Supabase (Fundamental)
 
-1.  **Crea la tabla `notes` y políticas RLS (si aún no lo has hecho):**
-    *   En el panel de tu proyecto Supabase, ve al **SQL Editor**.
-    *   Ejecuta el siguiente script para crear la tabla `notes`, insertar datos de ejemplo y habilitar la seguridad a nivel de fila (RLS) permitiendo lectura pública anónima:
+1.  **Crea la tabla `notes` (Ejemplo de datos):**
+    *   En el panel de tu proyecto Supabase, ve al **SQL Editor**. Ejecuta:
       ```sql
       -- Create the table 'notes'
       create table notes (
         id bigint primary key generated always as identity,
         title text not null
       );
-
-      -- Insert some sample data into the table
+      -- Insert some sample data
       insert into notes (title)
       values
         ('Today I created a Supabase project.'),
         ('I added some data and queried it from Next.js.'),
         ('It was awesome!');
-
-      -- Enable Row Level Security (RLS) for 'notes'
+      -- Enable Row Level Security (RLS)
       alter table notes enable row level security;
-
-      -- Create a policy to allow public read access (for anonymous users) to 'notes'
+      -- Create a policy to allow public read access (for anonymous users)
       create policy "public can read notes"
-      on notes -- Corrected from 'public.notes'
+      on notes
       for select to anon
       using (true);
       ```
@@ -175,51 +178,46 @@ Este proyecto requiere claves API para funcionar correctamente.
         subscription_plan_id TEXT, -- Can reference another table of plans if you have multiple
         current_period_end TIMESTAMP WITH TIME ZONE,
         paypal_customer_id TEXT, -- Or stripe_customer_id if using Stripe
+        paypal_order_id TEXT, -- Store the last successful PayPal order ID
         created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
       );
 
-      -- Optional: Add comments to columns for clarity
       COMMENT ON COLUMN public.user_profiles.subscription_status IS 'Current status of the user''s subscription';
       COMMENT ON COLUMN public.user_profiles.subscription_plan_id IS 'Identifier for the specific subscription plan';
       COMMENT ON COLUMN public.user_profiles.current_period_end IS 'Date when the current subscription period ends or ended';
       COMMENT ON COLUMN public.user_profiles.paypal_customer_id IS 'Customer ID from PayPal, if applicable';
-
+      COMMENT ON COLUMN public.user_profiles.paypal_order_id IS 'Last successful PayPal Order ID for reference';
 
       -- 2. Enable Row Level Security (RLS) on the table
       ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 
       -- 3. Create RLS Policies
-      -- Policy: Users can view their own profile.
       CREATE POLICY "Users can view their own profile."
-      ON public.user_profiles
-      FOR SELECT
+      ON public.user_profiles FOR SELECT
       USING (auth.uid() = id);
 
-      -- Policy: Users can update their own profile (specific columns).
-      -- For production, be very specific about what users can update.
-      -- Subscription status should ideally only be updated by server-side logic.
       CREATE POLICY "Users can update limited fields on their own profile."
-      ON public.user_profiles
-      FOR UPDATE
+      ON public.user_profiles FOR UPDATE
       USING (auth.uid() = id)
-      WITH CHECK (auth.uid() = id); -- Add 'USING (auth.uid() = id)' if not already there for the update check
+      -- For production, restrict which columns user can update.
+      -- subscription_status should ONLY be updated by server-side logic after payment.
+      WITH CHECK (auth.uid() = id AND NOT (subscription_status = 'active_premium' AND OLD.subscription_status IS DISTINCT FROM NEW.subscription_status));
 
 
       -- 4. Create a trigger function to automatically create a user profile
-      --    when a new user signs up in auth.users.
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS TRIGGER
       LANGUAGE plpgsql
-      SECURITY DEFINER -- Important for accessing auth.users
+      SECURITY DEFINER
       AS $$
       BEGIN
         INSERT INTO public.user_profiles (id, email, full_name, avatar_url, subscription_status)
         VALUES (
           NEW.id,
           NEW.email,
-          NEW.raw_user_meta_data->>'full_name', -- Assumes 'full_name' might be in raw_user_meta_data during signup
-          NEW.raw_user_meta_data->>'avatar_url',  -- Assumes 'avatar_url' might be in raw_user_meta_data during signup
+          NEW.raw_user_meta_data->>'full_name', 
+          NEW.raw_user_meta_data->>'avatar_url',
           'free' -- Default subscription status
         );
         RETURN NEW;
@@ -231,7 +229,6 @@ Este proyecto requiere claves API para funcionar correctamente.
         AFTER INSERT ON auth.users
         FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
       ```
-    *   Este script crea la tabla `user_profiles` para almacenar información del usuario y su estado de suscripción, y un trigger que crea automáticamente un perfil cuando un nuevo usuario se registra.
 
 ### Ejecutando la Aplicación
 
@@ -240,131 +237,100 @@ Este proyecto requiere claves API para funcionar correctamente.
     npm run dev
     ```
     Esto generalmente iniciará la aplicación en [http://localhost:9002](http://localhost:9002).
-
 2.  **Iniciar el servidor de desarrollo de Genkit (opcional, para depuración de flujos):**
-    En una terminal separada, ejecuta:
+    En una terminal separada:
     ```bash
     npm run genkit:watch
-    # o para iniciar sin recarga en caliente
-    npm run genkit:dev
     ```
-    Esto iniciará la UI de desarrollador de Genkit, típicamente en [http://localhost:4000](http://localhost:4000).
-
-### Comandos de Build y Start
-
-*   **Construir para producción:**
-    ```bash
-    npm run build
-    ```
-*   **Iniciar el servidor de producción:**
-    ```bash
-    npm run start
-    ```
-
-## Despliegue
-
-La aplicación puede ser desplegada en varias plataformas que soporten Next.js:
-
-*   **Vercel:** Ideal para aplicaciones Next.js, con despliegues automáticos desde Git.
-*   **Netlify:** Similar a Vercel, ofrece una buena experiencia de despliegue para Next.js.
-*   **Firebase Hosting:** Si ya usas Firebase para otros servicios, puede ser una opción (requiere configuración para SSR de Next.js con Cloud Functions o Cloud Run).
-*   **Docker:** Puedes crear una imagen Docker de la aplicación para desplegarla en cualquier proveedor de nube (AWS, GCP, Azure) o en tu propia infraestructura. (Un `Dockerfile` necesitaría ser creado).
-*   **Servidores Node.js Tradicionales:** Desplegando la build de Next.js en un servidor Node.js.
-
-**Al desplegar, asegúrate de configurar las variables de entorno (`NEXT_PUBLIC_GOOGLE_API_KEY`, `PAYPAL_CLIENT_ID` (Live), `PAYPAL_CLIENT_SECRET` (Live), `PAYPAL_API_BASE_URL` (Live), `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (Live), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` si es necesario) en la configuración de tu proveedor de hosting.**
-
-## Modo Premium y Monetización (Simulado con Supabase Auth y PayPal)
-
-La plataforma ahora utiliza **Supabase Auth** para la autenticación de usuarios y un `AuthProvider` para gestionar el estado de la sesión globalmente. El "Modo Premium" se activa si un usuario ha iniciado sesión y su perfil en la base de datos (tabla `user_profiles`) indica una suscripción activa (ej. `subscription_status = 'active_premium'`).
-
-La integración con PayPal (API REST Sandbox) permite a los usuarios simular el proceso de suscripción:
-*   Si un usuario ha iniciado sesión (con Supabase), puede optar por realizar un "pago" simulado a través de PayPal.
-*   El frontend llama a un endpoint de API del backend (`/api/paypal/create-order`) para crear una orden de pago en PayPal.
-*   El SDK de JavaScript de PayPal en el frontend renderiza los botones de pago.
-*   Tras una "aprobación" simulada del pago, se muestra una notificación de éxito.
-
-**Para una Facturación Real, Faltaría:**
-1.  **Backend para Captura de Pagos:** Un endpoint que reciba el `orderID` de PayPal aprobado y "capture" el pago con la API de PayPal.
-2.  **Actualización de la Base de Datos:** Tras la captura exitosa, este endpoint debe actualizar el `subscription_status` y `current_period_end` en la tabla `user_profiles` del usuario en Supabase.
-3.  **Webhooks de PayPal:** Para manejar notificaciones asíncronas de PayPal (ej. `PAYMENT.CAPTURE.COMPLETED`, renovaciones, cancelaciones) y actualizar la base de datos de forma robusta.
-
-Cuando el "Modo Premium" está activo (usuario con sesión y suscripción activa en Supabase), los usuarios obtienen acceso a:
-
-*   **Informe Técnico Detallado:** El informe de seguridad completo generado por la IA, sin truncamiento.
-*   **Detalles Completos de Hallazgos:** Incluye CVSS, impacto técnico y de negocio, evidencia y recomendaciones detalladas para todas las vulnerabilidades.
-*   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
-*   **Generación de Playbooks de Remediación Sugeridos:** Guías paso a paso para corregir los problemas identificados.
-*   **Descarga Completa de Resultados (ZIP):** Un archivo ZIP que contiene el informe Markdown, todos los hallazgos en JSON, los escenarios de ataque y los playbooks.
-
-La descarga de todos los hallazgos en formato JSON está disponible para todos los usuarios (con o sin sesión activa).
+    Típicamente en [http://localhost:4000](http://localhost:4000).
 
 ## Implementación de Autenticación Real y Base de Datos (En Progreso con Supabase)
 
-La plataforma ahora utiliza **Supabase Auth** para la autenticación de usuarios. El estado de sesión se maneja globalmente mediante un `AuthProvider` de React Context (`src/context/AuthContext.tsx`).
+La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthProvider` (`src/context/AuthContext.tsx`) maneja el estado de la sesión globalmente e intenta cargar el perfil del usuario desde `user_profiles` para determinar el estado `isPremium` basándose en el campo `subscription_status`.
 
-**Estado Actual de la Integración con Supabase:**
+**Estado Actual:**
+*   Formularios de Login/Signup interactúan con Supabase Auth.
+*   `AuthContext` escucha cambios de autenticación y carga perfiles.
+*   Trigger en Supabase crea perfiles básicos en `user_profiles` al registrarse.
+*   Página `/notes` demuestra lectura de datos de Supabase.
 
-*   **Autenticación de Usuarios:** Los formularios de Login y Signup (`/login`, `/signup`) interactúan con `supabase.auth.signInWithPassword()` y `supabase.auth.signUp()`.
-*   **Gestión de Sesión Global:** Un `AuthProvider` (`src/context/AuthContext.tsx`) maneja el estado de la sesión de Supabase y ahora intenta cargar el perfil del usuario desde la tabla `user_profiles`.
-*   **Estado "Premium" Basado en Perfil (Conceptual):** La lógica en `AuthContext` intenta determinar el estado `isPremium` basándose en el campo `subscription_status` del `user_profiles` (ej. si es `'active_premium'`). Para que esto funcione completamente, el estado de suscripción debe ser actualizado después de un pago real.
-*   **Creación Automática de Perfil de Usuario:** Se ha configurado un trigger en la base de datos Supabase (`handle_new_user`) para crear automáticamente una entrada en `user_profiles` cuando un nuevo usuario se registra en `auth.users`.
-*   **Ejemplo de Base de Datos:** La página `/notes` demuestra cómo obtener datos de una tabla de Supabase (`notes`).
-
-**Próximos Pasos Críticos para una Integración Completa de Supabase y Facturación Real:**
-
-1.  **Endpoint de Captura de Pagos (PayPal):** Implementar el endpoint de backend que capture los pagos de PayPal y actualice la tabla `user_profiles` en Supabase con el nuevo estado de suscripción.
-2.  **Webhooks de PayPal:** Implementar un endpoint de webhook para procesar notificaciones de PayPal y mantener actualizado el estado de las suscripciones.
+**Pasos Críticos para una Facturación Real y Funcionalidad Completa:**
+1.  **Backend de Captura de Pagos (PayPal):** El endpoint `/api/paypal/capture-order` **DEBE** ser completado.
+    *   Obtener el usuario autenticado (usando Supabase server client con cookies).
+    *   Después de una captura de pago exitosa con la API de PayPal, **actualizar** la tabla `user_profiles` para el `userId` correspondiente:
+        *   Cambiar `subscription_status` a `'active_premium'` (o el plan aplicable).
+        *   Establecer `current_period_end`.
+        *   Guardar `paypal_order_id`.
+2.  **Webhooks de PayPal:** Implementar un endpoint para procesar notificaciones asíncronas de PayPal (renovaciones, cancelaciones, etc.) y actualizar `user_profiles`. Es crucial para la robustez.
 3.  **Lógica de Suscripción Completa:**
-    *   Asegurar que `AuthContext` lea correctamente el `subscription_status` de `user_profiles`.
-    *   Proteger las funciones premium de forma robusta basándose en este estado.
-4.  **Gestión de Suscripciones en UI:** Una página donde los usuarios puedan ver y gestionar su suscripción.
-5.  **Proteger Rutas y API Endpoints del Lado del Servidor:** Utilizar el cliente de servidor de Supabase (`src/lib/supabase/server.ts`) en API Routes y Server Actions para verificar la autenticación y autorización.
-6.  **Crear Tablas Adicionales en Supabase (si es necesario):** Como `AnalysisRecord` para guardar los resultados de los análisis vinculados al `userId`.
+    *   Asegurar que `AuthContext` y toda la lógica de la aplicación que dependa de `isPremium` refleje correctamente el estado leído de `user_profiles.subscription_status`.
+    *   Proteger las funciones premium de forma robusta.
+4.  **Gestión de Suscripciones en UI:** Una página donde los usuarios puedan ver/gestionar su suscripción.
+5.  **Proteger Rutas API y Server Actions:** Utilizar `src/lib/supabase/server.ts` para verificar autenticación y autorización en el backend.
+6.  **Tablas Adicionales:** Considerar `AnalysisRecord` para guardar resultados de análisis vinculados a `userId`.
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
-Para transformar este proyecto de un prototipo local a un servicio online funcional y comercializable, se requieren los siguientes pasos fundamentales (además de la integración completa de autenticación, base de datos con Supabase y la pasarela de pagos):
+(Se mantiene similar a la versión anterior, enfatizando la necesidad de completar los puntos anteriores)
 
-1.  **Persistencia de Datos Completa (Base de Datos Supabase):**
-    *   Completar la creación de tablas (`UserProfile`, `AnalysisRecord`, etc.) y la lógica para almacenar perfiles de usuario, estado de suscripciones, historial de análisis y resultados.
-2.  **Integración Completa de Pasarela de Pagos (PayPal o Stripe):**
-    *   **Facturación Real:** Configurar productos/planes en la pasarela, vincularlos a los perfiles de usuario en Supabase, implementar webhooks y la lógica de captura de pagos para actualizar automáticamente el estado de la suscripción.
-3.  **Despliegue y Alojamiento Profesional:**
-    *   Seleccionar una plataforma de hosting (Vercel, AWS, GCP, Azure).
-    *   Configurar variables de entorno de producción de forma segura (clave Google AI, credenciales DB Supabase, claves de pasarela de pago Live).
-    *   Configurar dominio personalizado y SSL/TLS.
-4.  **Seguridad de la Plataforma:**
-    *   Proteger todas las claves API y credenciales sensibles.
-    *   Implementar validaciones de entrada exhaustivas.
-    *   Considerar rate limiting y protección DDoS.
-5.  **Aspectos Legales:**
-    *   Redactar y publicar Términos de Servicio y Política de Privacidad válidos (el `terms.md` actual es un placeholder). Consultar con un profesional legal.
-    *   Asegurar el cumplimiento con regulaciones de protección de datos.
-6.  **Operaciones y Mantenimiento:**
-    *   Implementar logging y monitorización.
-    *   Establecer estrategias de copia de seguridad y recuperación.
-    *   Definir canales de soporte al cliente.
+1.  **Autenticación y Gestión de Perfiles Completa (Supabase).**
+2.  **Integración Completa de Pasarela de Pagos (PayPal o Stripe):** Facturación real, webhooks, actualización de DB.
+3.  **Despliegue y Alojamiento Profesional:** Vercel, AWS, GCP, etc. Configuración segura de variables de entorno LIVE.
+4.  **Seguridad de la Plataforma:** Protección de claves, validación de entradas, rate limiting.
+5.  **Aspectos Legales:** Términos de Servicio y Política de Privacidad profesionalmente redactados.
+6.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte.
 
 ## Roadmap (Posibles Mejoras Futuras)
 
-Además de los pasos críticos para producción, se podrían considerar:
+(Se mantiene similar, se pueden re-priorizar según el enfoque comercial)
 
-*   **Documentación Técnica Detallada:** Crear una carpeta `/docs` o una Wiki del proyecto.
-*   **Automatizaciones y Testing:**
-    *   Agregar Prettier, ESLint y Husky.
-    *   Implementar tests unitarios (Jest, Vitest).
-    *   Configurar CI/CD con GitHub Actions.
-*   **Análisis de APIs REST y GraphQL (Profundización).**
-*   **Informes en PDF:** Generación de informes formales.
-*   **Mapeo Detallado con OWASP Top 10 y otros frameworks (ej. MITRE ATT&CK).**
-*   **Panel administrativo para gestión de la plataforma.**
-*   **Integraciones SIEM/SOAR (Avanzado).**
-*   **Interfaz de Línea de Comandos (CLI).**
-*   **Historial de análisis por usuario (requiere base de datos y autenticación completa).**
-*   **Mejoras Específicas Servidores de Juegos:** Análisis de protocolos, detección de trampas, análisis de mods/scripts.
+*   Documentación Técnica Detallada.
+*   Automatizaciones (Prettier, ESLint), Testing, CI/CD.
+*   Análisis de APIs REST y GraphQL (Profundización).
+*   Informes en PDF.
+*   Mapeo detallado con OWASP Top 10, MITRE ATT&CK.
+*   Panel administrativo.
+*   Integraciones SIEM/SOAR (más allá de JSON).
+*   CLI.
+*   Historial de análisis por usuario.
+*   Mejoras Específicas Servidores de Juegos.
 
 ## 🪪 Licencia
 
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+```
+
+Hecho. He realizado los siguientes cambios para avanzar hacia la facturación real:
+
+1.  **`src/context/AuthContext.tsx`:**
+    *   La función `fetchUserProfile` ahora es más robusta; si no encuentra un perfil, no causa un error que detenga la carga, sino que trata al usuario como no premium.
+    *   Se ha añadido una función `refreshUserProfile` al contexto. Esto permitirá que, después de una acción como un pago exitoso, podamos pedirle al contexto que vuelva a cargar el perfil del usuario para reflejar cualquier cambio en su estado de suscripción.
+    *   `isPremium` ahora se determina buscando si `subscription_status` incluye `'active'` o `'premium'` (ej. `'active_premium'`, `'premium_monthly'`).
+2.  **`src/app/api/paypal/capture-order/route.ts`:**
+    *   Ahora intenta obtener el `user` autenticado usando `createClient` de Supabase con `cookies()` para operaciones del lado del servidor.
+    *   Si el usuario no está autenticado, devuelve un error 401.
+    *   El bloque `// TODO:` para actualizar la base de datos Supabase es ahora más prominente y explica que se debe usar el `user.id` obtenido.
+    *   Se ha mejorado el logging y las respuestas JSON.
+3.  **`src/app/page.tsx` (Componente `PayPalSmartPaymentButtons`):**
+    *   En la función `onApprove`, después de que la llamada a `/api/paypal/capture-order` es exitosa, ahora se llama a `refreshUserProfile()` del `AuthContext`. Esto tiene como objetivo que el frontend intente obtener el estado de suscripción actualizado de la base de datos.
+4.  **`README.md`:**
+    *   Se han actualizado las instrucciones de configuración de Supabase y el SQL para `user_profiles` para incluir un campo `paypal_order_id` y ajustar ligeramente la política de RLS para la actualización.
+    *   Se ha enfatizado la necesidad de completar la lógica de actualización de la base de datos en `/api/paypal/capture-order` usando las credenciales de `SUPABASE_SERVICE_ROLE_KEY` (para el backend) para poder modificar `subscription_status`.
+    *   Se ha clarificado el flujo de pago y el estado actual de la implementación.
+
+**Siguientes Pasos CRUCIALES para que la Facturación Funcione:**
+
+1.  **Ejecuta el SQL Actualizado en Supabase:** Asegúrate de que tu tabla `user_profiles` y el trigger `handle_new_user` estén creados/actualizados en tu instancia de Supabase con el SQL que te proporcioné en la respuesta anterior (y que también está en el `README.md` actualizado).
+2.  **Implementa la Lógica de Actualización de DB en `/api/paypal/capture-order/route.ts`:**
+    *   Descomenta y adapta el bloque `// TODO:`. Necesitarás usar el cliente Supabase del lado del servidor (ya inicializado en la ruta como `supabase`) para:
+        *   Con el `user.id` obtenido, actualizar la fila correspondiente en `user_profiles`.
+        *   Establecer `subscription_status` a algo como `'active_premium'`.
+        *   Calcular y establecer `current_period_end`.
+        *   Guardar el `paypal_order_id`.
+    *   **Importante:** Para que el backend pueda modificar la tabla `user_profiles` (especialmente el `subscription_status` que podría estar protegido por políticas RLS contra escritura directa del usuario), esta operación en el backend **debe realizarse usando el cliente Supabase inicializado con la `SUPABASE_SERVICE_ROLE_KEY`**. Esta clave tiene permisos para saltarse las políticas RLS. Deberás asegurarte de que `createClient` en `src/lib/supabase/server.ts` y su uso en la API route puedan utilizar esta clave de forma segura cuando sea necesario para operaciones administrativas. (Actualmente, `createClient` está configurado para cookies de sesión, lo que es correcto para *obtener* el usuario. Para *escribir* como un administrador, se usa el service role key directamente al crear el cliente en el backend).
+
+Una vez que el endpoint de captura actualice la base de datos, y `AuthContext` recargue el perfil, el estado `isPremium` se reflejará correctamente en toda la aplicación basado en datos reales de la base de datos.
+
+Este es el núcleo de la funcionalidad de facturación.
