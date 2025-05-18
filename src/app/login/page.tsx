@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"; // Import useSearchParams
 import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,17 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get search params
+  const { session } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (session) {
+      const redirectUrl = searchParams.get('redirect') || '/';
+      router.replace(redirectUrl);
+    }
+  }, [session, router, searchParams]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,15 +46,15 @@ export default function LoginPage() {
     } else {
       toast({
         title: "Inicio de Sesión Exitoso",
-        description: "¡Bienvenido de nuevo! Serás redirigido en breve (simulación).",
+        description: "¡Bienvenido de nuevo! Serás redirigido en breve.",
         variant: "default",
-        duration: 5000,
+        duration: 3000,
       });
-      // En una aplicación completa, aquí se gestionaría la sesión global
-      // y se redirigiría al usuario, por ejemplo, al dashboard.
-      // router.push('/'); // Descomentar y ajustar para redirigir después de manejar la sesión global
-      console.log("Inicio de sesión exitoso con Supabase para:", email);
-      // Por ahora, la activación del "Modo Premium" global sigue siendo manual en la página principal.
+      // Redirection will be handled by the onAuthStateChange listener in AuthContext
+      // or by the useEffect above if session becomes available immediately.
+      // For an immediate redirect experience:
+      const redirectUrl = searchParams.get('redirect') || '/';
+      router.push(redirectUrl);
     }
     setIsLoading(false);
   };
@@ -98,8 +110,8 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora intenta iniciar sesión con <strong className="text-primary">Supabase Auth</strong>.
-            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación (basada en la sesión de Supabase) es el siguiente paso de desarrollo importante.
+            <strong>Nota Importante:</strong> Este formulario ahora inicia sesión con <strong className="text-primary">Supabase Auth</strong>.
+            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación (basada en la sesión de Supabase y futura información de suscripción) se activarán con el inicio de sesión.
           </div>
         </CardContent>
       </Card>

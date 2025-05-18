@@ -1,14 +1,21 @@
 
+"use client"; // Since we're using a hook (useAuth)
+
 import Link from 'next/link';
 import { ShieldCheck, UserCircle, LogIn, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { Skeleton } from '@/components/ui/skeleton';
 
-type AppHeaderProps = {
-  isPremiumUser: boolean; // Este estado ahora representa "usuario logueado Y con premium"
-  onAuthToggle: () => void; 
-};
+export function AppHeader() {
+  const { session, user, isLoading, signOut } = useAuth();
 
-export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
+  const handleSignOut = async () => {
+    await signOut();
+    // Redirect handled by onAuthStateChange or can be forced here if needed
+    // For instance, router.push('/login'); 
+  };
+
   return (
     <header className="py-6 px-4 md:px-8 border-b border-border bg-card shadow-sm">
       <div className="container mx-auto flex items-center justify-between">
@@ -19,23 +26,28 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
           </h1>
         </Link>
         
-        {isPremiumUser ? (
+        {isLoading ? (
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+        ) : session ? (
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" className="text-foreground" asChild>
-              {/* En un futuro, esto enlazaría a /profile o /dashboard */}
+              {/* Conceptual link, could go to /profile or /dashboard */}
               <Link href="#"> 
                 <UserCircle className="mr-2 h-4 w-4" />
-                Mi Perfil (Simulado)
+                {user?.email || "Mi Perfil"}
               </Link>
             </Button>
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={onAuthToggle} 
+              onClick={handleSignOut} 
               className="border-destructive text-destructive hover:bg-destructive/10"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión (Simulado)
+              Cerrar Sesión
             </Button>
           </div>
         ) : (
@@ -46,7 +58,7 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
               className="bg-accent hover:bg-accent/90 text-accent-foreground"
             >
               <LogIn className="mr-2 h-4 w-4" />
-              Iniciar Sesión / Premium
+              Iniciar Sesión / Registrarse
             </Button>
           </Link>
         )}
@@ -54,4 +66,3 @@ export function AppHeader({ isPremiumUser, onAuthToggle }: AppHeaderProps) {
     </header>
   );
 }
-
