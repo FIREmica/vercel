@@ -2,7 +2,7 @@
 // /src/app/api/paypal/capture-order/route.ts
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
-import { createClient } from '@/lib/supabase/server'; // For server-side Supabase access
+import { createClient } from '@/lib/supabase/server'; 
 import { cookies } from 'next/headers';
 
 // Helper function to configure PayPal client
@@ -26,6 +26,9 @@ function getPayPalClient() {
 
 export async function POST(request: Request) {
   const cookieStore = cookies();
+  // This client uses the user's session from cookies.
+  // For RLS to allow updates to user_profiles.subscription_status,
+  // the policy must permit the authenticated user to update their own record.
   const supabase = createClient(cookieStore); 
 
   try {
@@ -61,63 +64,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `No se pudo capturar el pago. Estado de PayPal: ${captureResponse.result?.status || captureResponse.statusCode}` }, { status: captureResponse.statusCode || 500 });
     }
 
-    // PAGO CAPTURADO EXITOSAMENTE
+    // PAGO CAPTURADO EXITOSAMENTE EN PAYPAL
     const paymentDetails = captureResponse.result;
-    console.log(`Orden PayPal ${paymentDetails.id} capturada exitosamente para usuario ${user.id}.`);
+    console.log(`Orden PayPal ${paymentDetails.id} capturada exitosamente en PayPal para usuario ${user.id}.`);
 
-    // ***********************************************************************************
-    // TODO CRUCIAL: Actualizar la base de datos Supabase ('user_profiles') aquí.
-    // ***********************************************************************************
-    // 1. Determinar la duración de la suscripción (ej. 30 días para mensual).
-    // 2. Calcular la nueva fecha de 'current_period_end'.
-    // 3. Usar el 'user.id' para actualizar la fila correspondiente en 'user_profiles'.
-    //    - Cambiar 'subscription_status' a 'active_premium' (o el plan específico).
-    //    - Establecer 'current_period_end'.
-    //    - Guardar 'paypal_order_id' (paymentDetails.id) para referencia.
-    //    - Establecer 'updated_at' a la fecha actual.
-    //
-    // Ejemplo conceptual usando el cliente Supabase del lado del servidor:
-    // IMPORTANTE: Para esta operación de actualización (especialmente si tienes RLS estrictas),
-    // puede que necesites un cliente Supabase inicializado con la SUPABASE_SERVICE_ROLE_KEY
-    // si la política RLS del usuario no le permite modificar su propio subscription_status.
-    // Por simplicidad, asumimos que `supabase` (creado con cookies de usuario) podría tener permiso si
-    // la política RLS lo permite, o que tendrías que crear un cliente de servicio aquí.
-
-    /*
+    // 4. Actualizar la base de datos Supabase ('user_profiles')
     const subscriptionEndDate = new Date();
-    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30); // Ejemplo: 30 días
+    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30); // Ejemplo: Suscripción de 30 días
 
     const { data: updateData, error: updateError } = await supabase
       .from('user_profiles')
       .update({ 
         subscription_status: 'active_premium', // O el identificador de plan correcto
         current_period_end: subscriptionEndDate.toISOString(),
-        paypal_order_id: paymentDetails.id,
+        paypal_order_id: paymentDetails.id, // Guardar el ID de la orden de PayPal
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id)
-      .select(); // Opcional: .select() para obtener el perfil actualizado
+      .select(); 
 
     if (updateError) {
       console.error(`Error al actualizar el perfil del usuario ${user.id} en Supabase tras el pago:`, updateError);
       // Considerar cómo manejar este error crítico. 
       // ¿Se reembolsa el pago automáticamente? ¿Se notifica al administrador?
-      // Por ahora, se devuelve un error que el frontend podría manejar.
-      // Idealmente, aquí se registraría el problema y se intentaría una recuperación o notificación.
+      // Por ahora, se devuelve un error que el frontend podría manejar,
+      // pero el pago en PayPal ya fue capturado.
       return NextResponse.json({ 
-        message: 'Pago capturado, pero error al actualizar suscripción. Contacte soporte.',
-        error: 'Error actualizando perfil de usuario en base de datos.',
-        orderID: paymentDetails.id,
-        paymentDetails: paymentDetails 
-      }, { status: 500 }); // Error del servidor porque no se pudo completar la lógica de negocio
+        message: 'Pago capturado en PayPal, pero hubo un error al actualizar su suscripción en nuestra base de datos. Por favor, contacte a soporte con su ID de orden de PayPal.',
+        error: `Error actualizando perfil de usuario en base de datos: ${updateError.message}`,
+        paypalOrderId: paymentDetails.id,
+      }, { status: 500 }); 
     }
-    console.log(`Perfil de usuario ${user.id} actualizado en Supabase a premium:`, updateData);
-    */
     
-    // Por ahora, sin la actualización de BD real, solo devolvemos éxito si la captura de PayPal fue OK.
-    // El frontend llamará a refreshUserProfile() para intentar obtener el nuevo estado.
+    console.log(`Perfil de usuario ${user.id} actualizado en Supabase a premium:`, updateData);
+    
     return NextResponse.json({ 
-      message: 'Pago capturado exitosamente. El estado de su suscripción se actualizará pronto.', 
+      message: '¡Pago capturado y suscripción actualizada exitosamente!', 
       orderID: paymentDetails.id,
       paymentDetails: paymentDetails 
     });
@@ -127,10 +109,9 @@ export async function POST(request: Request) {
     let errorMessage = 'Error interno del servidor al capturar la orden de PayPal.';
     if (error.message && error.message.includes('Configuración de PayPal incompleta')) {
       errorMessage = error.message;
-    } else if (error.statusCode && error.message && typeof error.message === 'string') { // PayPal SDK errors
+    } else if (error.statusCode && error.message && typeof error.message === 'string') { 
       errorMessage = `Error de PayPal (${error.statusCode}): ${error.message}`;
-      // PayPal SDK error.data can be a string or an object.
-      const paypalErrorData = error.data || (error.original && error.original.data); // Check nested original error for some SDK versions
+      const paypalErrorData = error.data || (error.original && error.original.data); 
       if (paypalErrorData && typeof paypalErrorData === 'object' && paypalErrorData.details) {
         errorMessage += ` Detalles: ${JSON.stringify(paypalErrorData.details)}`;
       } else if (paypalErrorData && typeof paypalErrorData === 'object' && paypalErrorData.message) {

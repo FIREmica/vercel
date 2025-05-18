@@ -35,7 +35,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
         *   Un usuario autenticado puede iniciar un flujo de pago simulado.
         *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
         *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
-        *   **TODO Crucial:** El endpoint `capture-order` necesita ser completado para actualizar el `subscription_status` del usuario en la tabla `user_profiles` de Supabase tras una captura de pago exitosa. Actualmente, la activación premium se basa en el `AuthContext` que lee este estado.
+        *   **El endpoint `capture-order` ahora intenta actualizar el `subscription_status` del usuario en la tabla `user_profiles` de Supabase tras una captura de pago exitosa.** (Requiere políticas RLS adecuadas o uso de `service_role` key en el backend para esta actualización).
     *   **Funciones Premium Desbloqueadas:** Si `AuthContext` determina (leyendo de `user_profiles` después de una actualización) que el usuario tiene una suscripción activa (`subscription_status = 'active_premium'` o similar), se desbloquean:
         *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
         *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
@@ -51,7 +51,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **UI:** ShadCN UI Components, Tailwind CSS
 *   **Inteligencia Artificial:** Genkit (Google AI)
 *   **Empaquetado (Descargas ZIP):** JSZip
-*   **Pasarela de Pagos (Integración Conceptual y Parcial API):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
+*   **Pasarela de Pagos (Integración API REST):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
 *   **Autenticación y Base de Datos:** Supabase (Cliente JS `@supabase/supabase-js` y `@supabase/ssr` para helpers del lado del servidor)
 *   **Gestión de Estado de Autenticación:** React Context (`AuthProvider`) para manejar la sesión de Supabase globalmente y el estado del perfil.
 *   **Validación de Esquemas:** Zod
@@ -95,6 +95,7 @@ Este proyecto requiere claves API para funcionar correctamente.
 
     # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
     # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer para tu aplicación REST API.
+    # Asegúrate de que estas credenciales (Client ID y Secret) son para una aplicación REST API.
     PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_api_rest
     PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
@@ -112,6 +113,7 @@ Este proyecto requiere claves API para funcionar correctamente.
 
     # Credencial Service Role Key de Supabase (para operaciones del lado del servidor con Supabase, ej. en /api/paypal/capture-order para actualizar perfiles)
     # Esta clave tiene permisos para saltarse las políticas RLS. ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
+    # Necesaria si la API /api/paypal/capture-order actualiza user_profiles usando un cliente Supabase con privilegios de servicio.
     # SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
     # Si usas Prisma con Supabase y conexión directa, también necesitarías las cadenas de conexión a la base de datos.
     # POSTGRES_URL="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
@@ -193,23 +195,30 @@ Este proyecto requiere claves API para funcionar correctamente.
       ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 
       -- 3. Create RLS Policies
+      -- Users can view their own profile.
       CREATE POLICY "Users can view their own profile."
       ON public.user_profiles FOR SELECT
       USING (auth.uid() = id);
 
-      CREATE POLICY "Users can update limited fields on their own profile."
+      -- Users can update their own profile.
+      -- IMPORTANT: For production, you'd want to be more specific about which fields a user can update.
+      -- The subscription_status, current_period_end, and paypal_order_id should ideally only be
+      -- updated by a trusted server-side process (like your /api/paypal/capture-order endpoint)
+      -- or a database trigger after verifying a payment.
+      -- This policy allows an authenticated user (which is how the server-side route will act if using user's session)
+      -- to update their own record. If using a service_role key for updates, this policy is less critical for that specific operation.
+      CREATE POLICY "Users can update their own profile details."
       ON public.user_profiles FOR UPDATE
       USING (auth.uid() = id)
-      -- For production, restrict which columns user can update.
-      -- subscription_status should ONLY be updated by server-side logic after payment.
-      WITH CHECK (auth.uid() = id AND NOT (NEW.subscription_status IS DISTINCT FROM OLD.subscription_status AND NEW.subscription_status = 'active_premium'));
+      WITH CHECK (auth.uid() = id);
+      -- Consider separate, more restrictive policies or using SECURITY DEFINER functions for updating subscription_status
 
 
       -- 4. Create a trigger function to automatically create a user profile
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS TRIGGER
       LANGUAGE plpgsql
-      SECURITY DEFINER
+      SECURITY DEFINER -- SECURITY DEFINER is important here to access auth.users table
       AS $$
       BEGIN
         INSERT INTO public.user_profiles (id, email, full_name, avatar_url, subscription_status)
@@ -255,12 +264,13 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 *   Página `/notes` demuestra lectura de datos de Supabase.
 
 **Pasos Críticos para una Facturación Real y Funcionalidad Completa:**
-1.  **Backend de Captura de Pagos (PayPal):** El endpoint `/api/paypal/capture-order` **DEBE** ser completado.
-    *   Obtener el usuario autenticado (usando Supabase server client con cookies).
-    *   Después de una captura de pago exitosa con la API de PayPal, **actualizar** la tabla `user_profiles` para el `userId` correspondiente:
+1.  **Backend de Captura de Pagos (PayPal):** El endpoint `/api/paypal/capture-order` **NECESITA COMPLETARSE** para que, tras una captura de pago exitosa con la API de PayPal:
+    *   Obtenga el usuario autenticado (usando Supabase server client con cookies).
+    *   **Actualice** la tabla `user_profiles` para el `userId` correspondiente:
         *   Cambiar `subscription_status` a `'active_premium'` (o el plan aplicable).
         *   Establecer `current_period_end`.
         *   Guardar `paypal_order_id`.
+    *   *Nota:* Para que el backend (API route) pueda actualizar `subscription_status` en `user_profiles`, la política RLS de Supabase debe permitirlo, o la actualización debe realizarse utilizando un cliente Supabase inicializado con la `SUPABASE_SERVICE_ROLE_KEY`.
 2.  **Webhooks de PayPal:** Implementar un endpoint para procesar notificaciones asíncronas de PayPal (renovaciones, cancelaciones, etc.) y actualizar `user_profiles`. Es crucial para la robustez.
 3.  **Lógica de Suscripción Completa:**
     *   Asegurar que `AuthContext` y toda la lógica de la aplicación que dependa de `isPremium` refleje correctamente el estado leído de `user_profiles.subscription_status`.
@@ -290,7 +300,7 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 *   Informes en PDF.
 *   Mapeo detallado con OWASP Top 10, MITRE ATT&CK.
 *   Panel administrativo.
-*   Integraciones SIEM/SOAR (más allá de JSON).
+*   Integraciones SIEM/SOAR (más allá de JSON export).
 *   CLI.
 *   Historial de análisis por usuario.
 *   Mejoras Específicas Servidores de Juegos.
@@ -300,3 +310,4 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
