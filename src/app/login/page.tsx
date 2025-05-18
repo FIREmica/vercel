@@ -7,33 +7,77 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter, useSearchParams } from "next/navigation"; // Import useSearchParams
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+// HCAPTCHA INTEGRATION - Temporarily disabled due to installation issues.
+// See README.md for instructions on how to re-enable and troubleshoot.
+// import HCaptcha from "react-hcaptcha";
+// interface HCaptchaInstance {
+//   resetCaptcha: () => void;
+//   execute: () => void;
+// }
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // const [captchaToken, setCaptchaToken] = useState<string | null>(null); // HCAPTCHA
+  // const captchaRef = useRef<HCaptchaInstance>(null); // HCAPTCHA
+
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Get search params
-  const { session } = useAuth();
+  const searchParams = useSearchParams();
+  const { session, isLoading: authIsLoading } = useAuth();
 
-  // Redirect if already logged in
   useEffect(() => {
-    if (session) {
+    if (!authIsLoading && session) {
       const redirectUrl = searchParams.get('redirect') || '/';
       router.replace(redirectUrl);
     }
-  }, [session, router, searchParams]);
+  }, [session, authIsLoading, router, searchParams]);
 
+  /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+  const onCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+  };
+
+  const onCaptchaExpire = () => {
+    setCaptchaToken(null);
+    captchaRef.current?.resetCaptcha();
+  };
+
+  const onCaptchaError = (err: string) => {
+    setCaptchaToken(null);
+    captchaRef.current?.resetCaptcha();
+    toast({
+      variant: "destructive",
+      title: "Error de CAPTCHA",
+      description: `Error de hCaptcha: ${err}. Por favor, intente de nuevo.`,
+    });
+  };
+  */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+    if (!captchaToken) {
+      toast({
+        variant: "destructive",
+        title: "Verificación Requerida",
+        description: "Por favor, complete el CAPTCHA.",
+      });
+      setIsLoading(false);
+      return;
+    }
+    */
+
+    // In a real implementation, you would send captchaToken to your backend for verification here.
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -50,14 +94,19 @@ export default function LoginPage() {
         variant: "default",
         duration: 3000,
       });
-      // Redirection will be handled by the onAuthStateChange listener in AuthContext
-      // or by the useEffect above if session becomes available immediately.
-      // For an immediate redirect experience:
-      const redirectUrl = searchParams.get('redirect') || '/';
-      router.push(redirectUrl);
+      // Redirection is handled by useEffect if the session changes.
     }
     setIsLoading(false);
+    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+    captchaRef.current?.resetCaptcha();
+    setCaptchaToken(null);
+    */
   };
+
+  if (authIsLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><p>Cargando...</p></div>;
+  }
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-secondary/50 p-4">
@@ -99,7 +148,21 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+
+            {/* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+            // See README.md for instructions on how to re-enable and troubleshoot.
+            <div className="flex justify-center my-4">
+              <HCaptcha
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
+                onVerify={onCaptchaVerify}
+                onExpire={onCaptchaExpire}
+                onError={onCaptchaError}
+                ref={captchaRef}
+              />
+            </div>
+            */}
+
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* HCAPTCHA - Temporarily disabled. || !captchaToken */ }>
               {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
@@ -110,8 +173,9 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora inicia sesión con <strong className="text-primary">Supabase Auth</strong>.
-            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación (basada en la sesión de Supabase y futura información de suscripción) se activarán con el inicio de sesión.
+            <strong>Nota Importante:</strong> Este formulario ahora interactúa con <strong className="text-primary">Supabase Auth</strong>.
+            La gestión del estado de sesión global y la activación de funciones premium se manejan a través de un Contexto de Autenticación.
+            La funcionalidad de CAPTCHA está temporalmente deshabilitada; sigue las instrucciones en el README para reactivarla.
           </div>
         </CardContent>
       </Card>

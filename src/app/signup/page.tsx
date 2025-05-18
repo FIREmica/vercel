@@ -7,31 +7,59 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserPlus } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-
+// HCAPTCHA INTEGRATION - Temporarily disabled due to installation issues.
+// See README.md for instructions on how to re-enable and troubleshoot.
+// import HCaptcha from "react-hcaptcha";
+// interface HCaptchaInstance {
+//   resetCaptcha: () => void;
+//   execute: () => void;
+// }
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // const [captchaToken, setCaptchaToken] = useState<string | null>(null); // HCAPTCHA
+  // const captchaRef = useRef<HCaptchaInstance>(null); // HCAPTCHA
+
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session } = useAuth();
+  const { session, isLoading: authIsLoading } = useAuth();
 
-  // Redirect if already logged in
   useEffect(() => {
-    if (session) {
+    if (!authIsLoading && session) {
       const redirectUrl = searchParams.get('redirect') || '/';
       router.replace(redirectUrl);
     }
-  }, [session, router, searchParams]);
+  }, [session, authIsLoading, router, searchParams]);
 
+  /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+  const onCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+  };
+
+  const onCaptchaExpire = () => {
+    setCaptchaToken(null);
+    captchaRef.current?.resetCaptcha();
+  };
+
+  const onCaptchaError = (err: string) => {
+    setCaptchaToken(null);
+    captchaRef.current?.resetCaptcha();
+    toast({
+      variant: "destructive",
+      title: "Error de CAPTCHA",
+      description: `Error de hCaptcha: ${err}. Por favor, intente de nuevo.`,
+    });
+  };
+  */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,14 +79,26 @@ export default function SignupPage() {
       });
       return;
     }
+
+    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+    if (!captchaToken) {
+      toast({
+        variant: "destructive",
+        title: "Verificación Requerida",
+        description: "Por favor, complete el CAPTCHA.",
+      });
+      return;
+    }
+    */
     setIsLoading(true);
+
+    // In a real implementation, you would send captchaToken to your backend for verification here.
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        // You can set emailRedirectTo if you want Supabase to handle email confirmation flow
-        // emailRedirectTo: `${window.location.origin}/auth/callback`, 
+        // emailRedirectTo: `${window.location.origin}/auth/callback`, // Optional: for email confirmation flow
       }
     });
 
@@ -68,24 +108,26 @@ export default function SignupPage() {
         title: "Error de Registro",
         description: error.message || "No se pudo completar el registro.",
       });
-    } else if (data.user && data.session) { 
+    } else if (data.user && data.session) {
       toast({
         title: "¡Registro Exitoso!",
         description: "Tu cuenta ha sido creada y has iniciado sesión. Serás redirigido.",
         variant: "default",
         duration: 3000,
       });
-      const redirectUrl = searchParams.get('redirect') || '/';
-      router.push(redirectUrl);
-    } else if (data.user) { 
+      // Redirection is handled by useEffect
+      // The Supabase trigger 'handle_new_user' should create the profile in user_profiles.
+    } else if (data.user) {
          toast({
             title: "Registro Casi Completo",
-            description: "Tu cuenta ha sido creada. Por favor, revisa tu correo electrónico para confirmar tu cuenta si es necesario (según configuración de Supabase).",
+            description: "Tu cuenta ha sido creada. Si la configuración de Supabase lo requiere, revisa tu correo electrónico para confirmar tu cuenta. Luego podrás iniciar sesión.",
             variant: "default",
             duration: 7000,
         });
-        router.push('/login'); 
-    } else { 
+        // The Supabase trigger 'handle_new_user' should create the profile in user_profiles.
+        console.log("SIMULACIÓN BD: Trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, data.user.email);
+        router.push('/login');
+    } else {
         toast({
             variant: "destructive",
             title: "Error de Registro",
@@ -93,7 +135,15 @@ export default function SignupPage() {
         });
     }
     setIsLoading(false);
+    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+    captchaRef.current?.resetCaptcha();
+    setCaptchaToken(null);
+    */
   };
+
+  if (authIsLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><p>Cargando...</p></div>;
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-secondary/50 p-4">
@@ -148,7 +198,21 @@ export default function SignupPage() {
                 disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+
+            {/* HCAPTCHA INTEGRATION - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+            // See README.md for instructions on how to re-enable and troubleshoot.
+            <div className="flex justify-center my-4">
+              <HCaptcha
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
+                onVerify={onCaptchaVerify}
+                onExpire={onCaptchaExpire}
+                onError={onCaptchaError}
+                ref={captchaRef}
+              />
+            </div>
+            */}
+
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* HCAPTCHA - Temporarily disabled. || !captchaToken */}>
               {isLoading ? "Registrando..." : "Registrarse"}
             </Button>
           </form>
@@ -160,7 +224,8 @@ export default function SignupPage() {
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> Este formulario ahora registra usuarios con <strong className="text-primary">Supabase Auth</strong>.
-            Dependiendo de la configuración de tu proyecto Supabase, podría requerirse confirmación por correo electrónico.
+            Un perfil básico se creará automáticamente en nuestra base de datos gracias a un trigger de Supabase.
+            La funcionalidad de CAPTCHA está temporalmente deshabilitada; sigue las instrucciones en el README para reactivarla.
           </div>
         </CardContent>
       </Card>

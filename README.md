@@ -29,13 +29,13 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
 *   **Acceso a Funciones Avanzadas con Suscripción Premium (Gestionado con Supabase Auth y Simulación de Pago PayPal):**
-    *   **Autenticación Real:** Los usuarios pueden registrarse e iniciar sesión utilizando Supabase Auth.
-    *   **Gestión de Perfil de Usuario:** Se crea un perfil de usuario en la base de datos Supabase (tabla `user_profiles`) que almacena el estado de su suscripción.
-    *   **Flujo de Pago Conceptual con PayPal:** La plataforma incluye una integración con la API REST de PayPal (Sandbox) para simular el proceso de "compra" de una suscripción.
-        *   Un usuario autenticado puede iniciar un flujo de pago simulado.
+    *   **Autenticación Real (en progreso):** Los usuarios pueden registrarse e iniciar sesión utilizando Supabase Auth. Un `AuthContext` gestiona la sesión globalmente.
+    *   **Gestión de Perfil de Usuario:** Se ha definido un esquema para `user_profiles` en la base de datos Supabase (tabla `user_profiles`) que almacenará el estado de su suscripción. Se ha proporcionado el SQL para crear esta tabla y un trigger para crear perfiles básicos al registrarse.
+    *   **Flujo de Pago con PayPal API REST (Simulación Avanzada):** La plataforma integra la API REST de PayPal (Sandbox) para simular el proceso de "compra" de una suscripción:
+        *   Un usuario autenticado puede iniciar un flujo de pago.
         *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
         *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
-        *   **El endpoint `capture-order` ahora intenta actualizar el `subscription_status` del usuario en la tabla `user_profiles` de Supabase tras una captura de pago exitosa.** (Requiere políticas RLS adecuadas o uso de `service_role` key en el backend para esta actualización).
+        *   El endpoint `/api/paypal/capture-order` ahora intenta capturar el pago con PayPal y luego actualiza el `subscription_status` del usuario en la tabla `user_profiles` de Supabase (utilizando la `SUPABASE_SERVICE_ROLE_KEY` para permisos).
     *   **Funciones Premium Desbloqueadas:** Si `AuthContext` determina (leyendo de `user_profiles` después de una actualización) que el usuario tiene una suscripción activa (`subscription_status = 'active_premium'` o similar), se desbloquean:
         *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
         *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
@@ -56,6 +56,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Gestión de Estado de Autenticación:** React Context (`AuthProvider`) para manejar la sesión de Supabase globalmente y el estado del perfil.
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
+*   **CAPTCHA (Temporalmente Deshabilitado):** hCaptcha (se intentó usar `react-hcaptcha`. Ver sección "Configuración de hCaptcha (Opcional)" para más detalles).
 
 ## Instalación y Ejecución Local
 
@@ -67,6 +68,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 *   npm o yarn
 *   Una cuenta de Supabase ([supabase.com](https://supabase.com/))
 *   Una cuenta de PayPal Developer ([developer.paypal.com](https://developer.paypal.com/)) para credenciales Sandbox.
+*   (Opcional) Una cuenta de hCaptcha ([hcaptcha.com](https://hcaptcha.com/)) para claves de sitio y secreta, si deseas reactivar esta funcionalidad.
 
 ### Instalación
 
@@ -82,6 +84,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
     # o
     yarn install
     ```
+    **Nota sobre `react-hcaptcha`:** Ha habido problemas persistentes con la instalación de este paquete. Actualmente está eliminado de `package.json` y su uso está comentado en los formularios. Consulta la sección "Configuración de hCaptcha (Opcional)" más abajo si deseas intentar instalarlo y reactivarlo.
 
 ### Configuración de Variables de Entorno
 
@@ -95,7 +98,6 @@ Este proyecto requiere claves API para funcionar correctamente.
 
     # Credenciales de PayPal API REST para el entorno Sandbox (Requeridas para la simulación de pagos)
     # Reemplaza estos valores con tus propias credenciales de Sandbox de PayPal Developer para tu aplicación REST API.
-    # Asegúrate de que estas credenciales (Client ID y Secret) son para una aplicación REST API.
     PAYPAL_CLIENT_ID=tu_paypal_sandbox_client_id_aqui_para_api_rest
     PAYPAL_CLIENT_SECRET=tu_paypal_sandbox_client_secret_aqui
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
@@ -115,20 +117,16 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Esta clave tiene permisos para saltarse las políticas RLS. ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
     # Necesaria si la API /api/paypal/capture-order actualiza user_profiles usando un cliente Supabase con privilegios de servicio.
     SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
-    # Si usas Prisma con Supabase y conexión directa, también necesitarías las cadenas de conexión a la base de datos.
-    # POSTGRES_URL="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
-    # POSTGRES_PRISMA_URL="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
-    # POSTGRES_URL_NON_POOLING="postgres://postgres.odrdziwcmlumpifxfhfc:kSixCdR8h6FvBDTv@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require"
-    # POSTGRES_USER="postgres"
-    # POSTGRES_PASSWORD="kSixCdR8h6FvBDTv"
-    # POSTGRES_HOST="db.odrdziwcmlumpifxfhfc.supabase.co"
-    # POSTGRES_DATABASE="postgres"
-    # SUPABASE_JWT_SECRET="+eq0okA2T41Xz1F+wLhX9/uyvsEHzYebherOsq/SdzGu6Alp3Nz6YFF+y01qgutTUNperwPaowEHJwsMlw3YtA=="
+    
+    # (Opcional, si reactivas hCaptcha) Clave de Sitio de hCaptcha para el frontend
+    # NEXT_PUBLIC_HCAPTCHA_SITE_KEY=22860de4-8b40-4054-95d8-fac6d9f477ca
+
+    # (Opcional y MUY IMPORTANTE para backend, si reactivas hCaptcha) Clave Secreta de hCaptcha para verificación en servidor
+    # HCAPTCHA_SECRET_KEY=TU_CLAVE_SECRETA_DE_HCAPTCHA_AQUI
     ```
     **IMPORTANTE:**
-    *   Reemplaza `tu_clave_api_google_aqui_valida` con tu clave API real de Google AI.
-    *   Reemplaza `tu_paypal_sandbox_client_id_aqui_para_api_rest` y `tu_paypal_sandbox_client_secret_aqui` con tus credenciales Sandbox de PayPal para tu aplicación REST API. Asegúrate de que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` sea el mismo que `PAYPAL_CLIENT_ID`.
-    *   Las credenciales de Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, y `SUPABASE_SERVICE_ROLE_KEY`) ya están pre-rellenadas con los valores que proporcionaste. La `SUPABASE_SERVICE_ROLE_KEY` es muy sensible.
+    *   Reemplaza los valores placeholder (`tu_clave_api_google_aqui_valida`, etc.) con tus claves reales.
+    *   Las credenciales de Supabase y PayPal que proporcionaste anteriormente ya están incluidas como ejemplo.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
@@ -141,10 +139,11 @@ Este proyecto requiere claves API para funcionar correctamente.
         1.  Ve a [Supabase Dashboard](https://supabase.com/dashboard).
         2.  Selecciona tu proyecto.
         3.  En "Project Settings" > "API", encontrarás tu "Project URL" (`NEXT_PUBLIC_SUPABASE_URL`), la "anon public" key (`NEXT_PUBLIC_SUPABASE_ANON_KEY`), y la "service_role" key (`SUPABASE_SERVICE_ROLE_KEY`).
+    *   **(Opcional) hCaptcha:** Ve a tu dashboard de hCaptcha para obtener tu Sitekey y Secret Key.
 
 ### Configuración de Base de Datos Supabase (Fundamental)
 
-1.  **Crea la tabla `notes` (Ejemplo de datos):**
+1.  **Crea la tabla `notes` (Ejemplo de datos para probar Supabase):**
     *   En el panel de tu proyecto Supabase, ve al **SQL Editor**. Ejecuta:
       ```sql
       -- Create the table 'notes'
@@ -200,18 +199,23 @@ Este proyecto requiere claves API para funcionar correctamente.
       ON public.user_profiles FOR SELECT
       USING (auth.uid() = id);
 
-      -- Users can update their own profile.
-      -- IMPORTANT: For production, you'd want to be more specific about which fields a user can update.
+      -- Users can update their own non-sensitive profile details.
       -- The subscription_status, current_period_end, and paypal_order_id should ideally only be
-      -- updated by a trusted server-side process (like your /api/paypal/capture-order endpoint)
-      -- or a database trigger after verifying a payment.
-      -- This policy allows an authenticated user (which is how the server-side route will act if using user's session)
-      -- to update their own record. If using a service_role key for updates, this policy is less critical for that specific operation.
-      CREATE POLICY "Users can update their own profile details."
+      -- updated by a trusted server-side process (like your /api/paypal/capture-order endpoint using the service_role key).
+      CREATE POLICY "Users can update their own non-sensitive profile details."
       ON public.user_profiles FOR UPDATE
       USING (auth.uid() = id)
-      WITH CHECK (auth.uid() = id);
-      -- Consider separate, more restrictive policies or using SECURITY DEFINER functions for updating subscription_status
+      WITH CHECK (
+        auth.uid() = id AND
+        NOT (
+          NEW.subscription_status IS DISTINCT FROM OLD.subscription_status OR
+          NEW.current_period_end IS DISTINCT FROM OLD.current_period_end OR
+          NEW.paypal_order_id IS DISTINCT FROM OLD.paypal_customer_id OR
+          NEW.paypal_customer_id IS DISTINCT FROM OLD.paypal_customer_id OR
+          NEW.subscription_plan_id IS DISTINCT FROM OLD.subscription_plan_id
+        )
+      );
+      -- Note: The SUPABASE_SERVICE_ROLE_KEY used in the backend /api/paypal/capture-order route bypasses RLS.
 
 
       -- 4. Create a trigger function to automatically create a user profile
@@ -253,6 +257,44 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```
     Típicamente en [http://localhost:4000](http://localhost:4000).
 
+### (Opcional) Configuración de hCaptcha (Solución de Problemas y Reactivación)
+
+**Estado Actual:** La integración de hCaptcha está temporalmente deshabilitada en el código de los formularios de login/signup debido a problemas persistentes con la instalación del paquete `react-hcaptcha` en el entorno de desarrollo.
+
+**Para intentar reactivarlo:**
+
+1.  **Solucionar el Problema de Instalación de `react-hcaptcha` (Tarea para el Usuario):**
+    *   **Limpia la caché de npm:** Ejecuta `npm cache clean --force` en tu terminal.
+    *   **Verifica tu registro de npm:** Ejecuta `npm config get registry`. Debería ser `https://registry.npmjs.org/`. Si no, configúralo con `npm config set registry https://registry.npmjs.org/`.
+    *   **Verifica tu conexión a internet y cualquier firewall/proxy** que pueda estar bloqueando el acceso al registro de npm.
+    *   **Intenta instalar el paquete directamente:**
+        ```bash
+        npm install react-hcaptcha
+        # o intenta con una versión específica listada en npmjs.com, ej:
+        # npm install react-hcaptcha@0.5.0 
+        ```
+    *   Si la instalación es exitosa, el paquete aparecerá en tu `package.json` y en `node_modules`.
+
+2.  **Si la Instalación es Exitosa, Configura las Variables de Entorno para hCaptcha:**
+    *   Obtén tu **Sitekey** (Clave del Sitio) y tu **Secret Key** (Clave Secreta) de tu dashboard en [hcaptcha.com](https://hcaptcha.com/).
+    *   Añade tu Sitekey a `.env.local` como `NEXT_PUBLIC_HCAPTCHA_SITE_KEY=TU_SITEKEY_AQUI`.
+    *   Añade tu Secret Key a `.env.local` como `HCAPTCHA_SECRET_KEY=TU_SECRET_KEY_AQUI` (esta clave es para el backend y debe mantenerse secreta).
+
+3.  **Descomenta el Código de hCaptcha en los Formularios:**
+    *   En `src/app/login/page.tsx` y `src/app/signup/page.tsx`:
+        *   Descomenta la línea `import HCaptcha from "react-hcaptcha";`.
+        *   Descomenta la definición de `HCaptchaInstance` (si es necesaria, depende de los tipos del paquete).
+        *   Descomenta los estados `captchaToken` y `captchaRef`.
+        *   Descomenta las funciones `onCaptchaVerify`, `onCaptchaExpire`, `onCaptchaError`.
+        *   Descomenta el componente `<HCaptcha ... />` dentro del JSX del formulario.
+        *   Descomenta la lógica que deshabilita el botón de envío si `!captchaToken`.
+        *   Descomenta las llamadas a `captchaRef.current?.resetCaptcha();` y `setCaptchaToken(null);` en `handleSubmit`.
+
+4.  **Implementa la Verificación en Backend (¡CRUCIAL!):**
+    *   Para que hCaptcha sea efectivo, **DEBES** verificar el token de CAPTCHA que recibes del frontend en tu lógica de backend (ej. en tus API routes o Server Actions que manejan el login/signup con Supabase).
+    *   Esto implica hacer una solicitud POST a `https://api.hcaptcha.com/siteverify` con tu `HCAPTCHA_SECRET_KEY` (leída desde variables de entorno del servidor) y el token del usuario. El inicio de sesión/registro solo debe proceder si la verificación es exitosa.
+    *   Consulta la documentación de hCaptcha para el formato exacto de esta solicitud de verificación del lado del servidor.
+
 ## Implementación de Autenticación Real y Base de Datos (En Progreso con Supabase)
 
 La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthProvider` (`src/context/AuthContext.tsx`) maneja el estado de la sesión globalmente e intenta cargar el perfil del usuario desde `user_profiles` para determinar el estado `isPremium` basándose en el campo `subscription_status`.
@@ -264,13 +306,10 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 *   Página `/notes` demuestra lectura de datos de Supabase.
 
 **Pasos Críticos para una Facturación Real y Funcionalidad Completa:**
-1.  **Backend de Captura de Pagos (PayPal):** El endpoint `/api/paypal/capture-order` **NECESITA COMPLETARSE** para que, tras una captura de pago exitosa con la API de PayPal:
-    *   Obtenga el usuario autenticado (usando Supabase server client con cookies).
-    *   **Actualice** la tabla `user_profiles` para el `userId` correspondiente:
-        *   Cambiar `subscription_status` a `'active_premium'` (o el plan aplicable).
-        *   Establecer `current_period_end`.
-        *   Guardar `paypal_order_id`.
-    *   *Nota:* Para que el backend (API route) pueda actualizar `subscription_status` en `user_profiles`, la política RLS de Supabase debe permitirlo, o la actualización debe realizarse utilizando un cliente Supabase inicializado con la `SUPABASE_SERVICE_ROLE_KEY`.
+1.  **Backend de Captura de Pagos (PayPal):** El endpoint `/api/paypal/capture-order` ahora intenta capturar el pago con PayPal y luego **actualiza** la tabla `user_profiles` para el `userId` correspondiente (usando la `SUPABASE_SERVICE_ROLE_KEY`):
+    *   Cambiar `subscription_status` a `'active_premium'` (o el plan aplicable).
+    *   Establecer `current_period_end`.
+    *   Guardar `paypal_order_id`.
 2.  **Webhooks de PayPal:** Implementar un endpoint para procesar notificaciones asíncronas de PayPal (renovaciones, cancelaciones, etc.) y actualizar `user_profiles`. Es crucial para la robustez.
 3.  **Lógica de Suscripción Completa:**
     *   Asegurar que `AuthContext` y toda la lógica de la aplicación que dependa de `isPremium` refleje correctamente el estado leído de `user_profiles.subscription_status`.
@@ -310,5 +349,6 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
 
 
