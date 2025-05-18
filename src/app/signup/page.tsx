@@ -32,6 +32,14 @@ export default function SignupPage() {
       });
       return;
     }
+    if (password.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Error de Registro",
+        description: "La contraseña debe tener al menos 6 caracteres.",
+      });
+      return;
+    }
     setIsLoading(true);
 
     const { data, error } = await supabase.auth.signUp({
@@ -50,28 +58,29 @@ export default function SignupPage() {
       });
     } else if (data.user && data.session) { // Usuario creado y sesión iniciada
       toast({
-        title: "Registro Exitoso",
-        description: "¡Tu cuenta ha sido creada y has iniciado sesión! Redirigiendo...",
+        title: "¡Registro Exitoso!",
+        description: "Tu cuenta ha sido creada y has iniciado sesión. Serás redirigido (simulación).",
         variant: "default",
+        duration: 5000,
       });
       // En una aplicación completa, aquí se gestionaría la sesión global
       // y se redirigiría al usuario.
-      // router.push('/'); // Descomentar para redirigir
+      // router.push('/'); // Descomentar y ajustar para redirigir después de manejar la sesión global
       console.log("Registro y inicio de sesión exitosos con Supabase para:", email);
-    } else if (data.user) { // Usuario creado, pero podría requerir confirmación
+    } else if (data.user) { // Usuario creado, pero podría requerir confirmación por email
          toast({
             title: "Registro Casi Completo",
             description: "Tu cuenta ha sido creada. Por favor, revisa tu correo electrónico para confirmar tu cuenta si es necesario.",
             variant: "default",
             duration: 7000,
         });
-        // router.push('/login'); // Opcionalmente redirigir a login
-        console.log("Registro exitoso con Supabase para:", email, " (puede requerir confirmación)");
-    } else {
-        toast({ // Caso genérico si no hay error pero tampoco usuario/sesión claros
+        // router.push('/login'); // Opcionalmente redirigir a login o mostrar mensaje de "revisar email"
+        console.log("Registro exitoso con Supabase para:", email, " (puede requerir confirmación por email)");
+    } else { // Caso genérico si no hay error pero tampoco usuario/sesión claros
+        toast({
             variant: "destructive",
             title: "Error de Registro",
-            description: "Ocurrió un problema inesperado durante el registro.",
+            description: "Ocurrió un problema inesperado durante el registro. Por favor, inténtalo de nuevo.",
         });
     }
     setIsLoading(false);
@@ -109,7 +118,7 @@ export default function SignupPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Mínimo 6 caracteres" // Supabase tiene un mínimo de 6 por defecto
+                placeholder="Mínimo 6 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -141,9 +150,9 @@ export default function SignupPage() {
             </Link>
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora intenta registrar usuarios con <strong className="text-primary">Supabase</strong>.
-            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación aún se simulan mediante el interruptor en la página principal.
+            <strong>Nota Importante:</strong> Este formulario ahora intenta registrar usuarios con <strong className="text-primary">Supabase Auth</strong>.
             Por defecto, Supabase puede requerir confirmación por correo electrónico.
+            La gestión del estado de sesión global y la activación automática de funciones premium son los siguientes pasos de desarrollo.
           </div>
         </CardContent>
       </Card>

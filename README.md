@@ -1,4 +1,5 @@
 
+
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), configuraciones de nube (AWS, Azure, GCP - conceptual), seguridad de contenedores (Docker, Kubernetes - conceptual), dependencias de software (conceptual) y descripciones de configuraciones de red (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -231,13 +232,13 @@ Los pasos conceptuales para integrar Supabase Auth y Base de Datos completamente
 
         -- Create a policy to allow public read access (for anonymous users)
         create policy "public can read notes"
-        on public.notes
+        on notes -- Se corrigió 'public.notes' a solo 'notes'
         for select to anon
         using (true);
         ```
         *Nota: Para `UserProfile` y `AnalysisRecord`, las políticas RLS serán más complejas, permitiendo a los usuarios solo acceder y modificar sus propios datos.*
 3.  **Crear y Conectar la UI de Autenticación:**
-    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (`supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`) y manejar las respuestas y errores correctamente. (Progreso inicial realizado, se necesita refinar).
+    *   Modificar las páginas `src/app/login/page.tsx` y `src/app/signup/page.tsx` para usar las funciones de autenticación de Supabase (`supabase.auth.signInWithPassword()`, `supabase.auth.signUp()`) y manejar las respuestas y errores correctamente. (Progreso realizado, la interacción básica con Supabase Auth está implementada).
     *   Considerar usar `@supabase/auth-ui-react` para una UI preconstruida si se desea una implementación más rápida de la UI.
 4.  **Manejo de Sesiones Global:**
     *   Utilizar el cliente de Supabase para gestionar el estado de la sesión del usuario en toda la aplicación. Esto típicamente involucra:

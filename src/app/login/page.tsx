@@ -34,12 +34,13 @@ export default function LoginPage() {
     } else {
       toast({
         title: "Inicio de Sesión Exitoso",
-        description: "¡Bienvenido de nuevo! Redirigiendo...",
+        description: "¡Bienvenido de nuevo! Serás redirigido en breve (simulación).",
         variant: "default",
+        duration: 5000,
       });
       // En una aplicación completa, aquí se gestionaría la sesión global
       // y se redirigiría al usuario, por ejemplo, al dashboard.
-      // router.push('/'); // Descomentar para redirigir
+      // router.push('/'); // Descomentar y ajustar para redirigir después de manejar la sesión global
       console.log("Inicio de sesión exitoso con Supabase para:", email);
       // Por ahora, la activación del "Modo Premium" global sigue siendo manual en la página principal.
     }
@@ -97,8 +98,8 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora intenta iniciar sesión con <strong className="text-primary">Supabase</strong>.
-            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación aún se simulan mediante el interruptor en la página principal.
+            <strong>Nota Importante:</strong> Este formulario ahora intenta iniciar sesión con <strong className="text-primary">Supabase Auth</strong>.
+            La gestión del estado de sesión global y la activación automática de funciones premium en toda la aplicación (basada en la sesión de Supabase) es el siguiente paso de desarrollo importante.
           </div>
         </CardContent>
       </Card>
