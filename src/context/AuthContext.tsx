@@ -4,16 +4,16 @@
 import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import type { UserProfile } from '@/types/ai-schemas';
+import type { UserProfile } from '@/types/ai-schemas'; // Assuming UserProfile type is defined here
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userProfile: UserProfile | null;
+  userProfile: UserProfile | null; // Add userProfile state
   isPremium: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
-  refreshUserProfile: () => Promise<void>;
+  refreshUserProfile: () => Promise<void>; // Add refreshUserProfile
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,7 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // State for UserProfile
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // Fetch from user_profiles table
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -46,9 +47,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = profiles[0] as UserProfile;
         setUserProfile(profile);
         // Determine premium status based on profile data
-        // Consider statuses like 'active_premium', 'premium_monthly', 'active', etc.
-        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active'];
+        // Define what constitutes a "premium" status. This could be a specific string or an array of strings.
+        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active']; // Example statuses
         setIsPremium(premiumStatuses.some(status => profile?.subscription_status?.toLowerCase().includes(status)));
+        console.log("User profile fetched and premium status set:", profile, isPremium);
       } else {
         console.warn(`No user profile found for user ID: ${userId}. User will be treated as non-premium.`);
         setUserProfile(null);
@@ -67,18 +69,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-      await fetchUserProfile(currentSession?.user?.id);
+      await fetchUserProfile(currentSession?.user?.id); // Fetch profile after getting session
       setIsLoading(false);
     };
 
     getSessionAndProfile();
 
-    const { data } = supabase.auth.onAuthStateChange(
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, currentSession) => {
         setIsLoading(true);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        await fetchUserProfile(currentSession?.user?.id);
+        await fetchUserProfile(currentSession?.user?.id); // Fetch profile on auth state change
         setIsLoading(false);
         // If a user logs out, ensure premium status is reset
         if (!currentSession) {
@@ -88,17 +90,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    const authListener = data.subscription; // Assign the subscription object
-
     return () => {
-      authListener?.unsubscribe();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
+    setIsLoading(true);
     await supabase.auth.signOut();
-    // Auth listener will handle setting session, user, and profile to null.
-    // setIsPremium(false); // Explicitly set here for immediate UI feedback if needed
+    // Auth listener will handle setting session, user, and profile to null,
+    // which in turn will set isPremium to false via fetchUserProfile.
+    setIsLoading(false);
   };
 
   const refreshUserProfile = async () => {
