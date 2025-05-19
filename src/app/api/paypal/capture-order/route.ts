@@ -2,7 +2,7 @@
 // /src/app/api/paypal/capture-order/route.ts
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
-import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'; 
+import { createServerClient as createServerSupabaseClient } from '@/lib/supabase/server'; 
 import { createClient as createAdminSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
@@ -31,6 +31,11 @@ export async function POST(request: Request) {
   const supabaseUserClient = createServerSupabaseClient(cookieStore); 
 
   // For updating user_profiles with service_role privileges
+  // IMPORTANT: Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in your environment
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('Error en capture-order: Variables de entorno de Supabase para cliente admin no configuradas.');
+    return NextResponse.json({ error: 'Configuración del servidor incompleta para operaciones de base de datos.' }, { status: 500 });
+  }
   const supabaseAdminClient = createAdminSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -80,9 +85,9 @@ export async function POST(request: Request) {
     const { data: updateData, error: updateError } = await supabaseAdminClient
       .from('user_profiles')
       .update({ 
-        subscription_status: 'active_premium', // O el identificador de plan correcto
+        subscription_status: 'active_premium', 
         current_period_end: subscriptionEndDate.toISOString(),
-        paypal_order_id: paymentDetails.id, // Guardar el ID de la orden de PayPal
+        paypal_order_id: paymentDetails.id, 
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id)

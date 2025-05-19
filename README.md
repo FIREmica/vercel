@@ -210,7 +210,7 @@ Este proyecto requiere claves API para funcionar correctamente.
         NOT (
           NEW.subscription_status IS DISTINCT FROM OLD.subscription_status OR
           NEW.current_period_end IS DISTINCT FROM OLD.current_period_end OR
-          NEW.paypal_order_id IS DISTINCT FROM OLD.paypal_customer_id OR
+          NEW.paypal_order_id IS DISTINCT FROM OLD.paypal_order_id OR
           NEW.paypal_customer_id IS DISTINCT FROM OLD.paypal_customer_id OR
           NEW.subscription_plan_id IS DISTINCT FROM OLD.subscription_plan_id
         )
@@ -352,10 +352,6 @@ Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LI
 **Idea y Visión:** Ronald Gonzalez Niche
 
 
-
-
-
-
-
-
+```
+Idea y visión: Ronald Gonzalez Niche
 ```
