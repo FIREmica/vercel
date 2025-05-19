@@ -1,5 +1,4 @@
 
-
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -56,7 +55,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Gestión de Estado de Autenticación:** React Context (`AuthProvider`) para manejar la sesión de Supabase globalmente y el estado del perfil.
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
-*   **CAPTCHA (Temporalmente Deshabilitado):** hCaptcha (se intentó usar `react-hcaptcha`. Ver sección "Configuración de hCaptcha (Opcional)" para más detalles).
+*   **Analíticas (Opcional):** Firebase Analytics
 
 ## Instalación y Ejecución Local
 
@@ -68,7 +67,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 *   npm o yarn
 *   Una cuenta de Supabase ([supabase.com](https://supabase.com/))
 *   Una cuenta de PayPal Developer ([developer.paypal.com](https://developer.paypal.com/)) para credenciales Sandbox.
-*   (Opcional) Una cuenta de hCaptcha ([hcaptcha.com](https://hcaptcha.com/)) para claves de sitio y secreta, si deseas reactivar esta funcionalidad.
+*   Una cuenta de Firebase (opcional, si deseas usar Firebase Analytics u otros servicios de Firebase).
 
 ### Instalación
 
@@ -84,7 +83,6 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
     # o
     yarn install
     ```
-    **Nota sobre `react-hcaptcha`:** Ha habido problemas persistentes con la instalación de este paquete. Actualmente está eliminado de `package.json` y su uso está comentado en los formularios. Consulta la sección "Configuración de hCaptcha (Opcional)" más abajo si deseas intentar instalarlo y reactivarlo.
 
 ### Configuración de Variables de Entorno
 
@@ -117,6 +115,12 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Esta clave tiene permisos para saltarse las políticas RLS. ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
     # Necesaria si la API /api/paypal/capture-order actualiza user_profiles usando un cliente Supabase con privilegios de servicio.
     SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
+
+    # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics u otros servicios de cliente)
+    # Reemplaza con tu clave API de Firebase Web. Se encuentra en la configuración de tu proyecto Firebase.
+    NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
+    # Las otras configuraciones de Firebase (authDomain, projectId, etc.) están actualmente incrustadas en src/lib/firebase/client.ts
+    # pero podrías moverlas a variables de entorno también si lo prefieres (ej. NEXT_PUBLIC_FIREBASE_PROJECT_ID).
     
     # (Opcional, si reactivas hCaptcha) Clave de Sitio de hCaptcha para el frontend
     # NEXT_PUBLIC_HCAPTCHA_SITE_KEY=22860de4-8b40-4054-95d8-fac6d9f477ca
@@ -125,8 +129,8 @@ Este proyecto requiere claves API para funcionar correctamente.
     # HCAPTCHA_SECRET_KEY=TU_CLAVE_SECRETA_DE_HCAPTCHA_AQUI
     ```
     **IMPORTANTE:**
-    *   Reemplaza los valores placeholder (`tu_clave_api_google_aqui_valida`, etc.) con tus claves reales.
-    *   Las credenciales de Supabase y PayPal que proporcionaste anteriormente ya están incluidas como ejemplo.
+    *   Reemplaza los valores placeholder (`tu_clave_api_google_aqui_valida`, `tu_paypal_sandbox_client_id_aqui_para_api_rest`, `TU_FIREBASE_WEB_API_KEY`, etc.) con tus claves reales.
+    *   Las credenciales de Supabase que proporcionaste ya están incluidas como ejemplo.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
@@ -134,11 +138,17 @@ Este proyecto requiere claves API para funcionar correctamente.
     *   **PayPal Sandbox/Live:**
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications).
         2.  Crea una nueva aplicación REST API (una para Sandbox, otra para Live).
-        3.  Copia el `Client ID` y el `Client Secret`.
+        3.  Copia el `Client ID` y el `Client Secret`. **Asegúrate de que el `Client ID` que usas para `PAYPAL_CLIENT_ID` (backend) y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (frontend SDK) sea el mismo y corresponda a tu aplicación REST API.**
     *   **Supabase:**
         1.  Ve a [Supabase Dashboard](https://supabase.com/dashboard).
         2.  Selecciona tu proyecto.
         3.  En "Project Settings" > "API", encontrarás tu "Project URL" (`NEXT_PUBLIC_SUPABASE_URL`), la "anon public" key (`NEXT_PUBLIC_SUPABASE_ANON_KEY`), y la "service_role" key (`SUPABASE_SERVICE_ROLE_KEY`).
+    *   **Firebase (si usas Analytics):**
+        1.  Ve a la [Consola de Firebase](https://console.firebase.google.com/).
+        2.  Selecciona o crea tu proyecto.
+        3.  Ve a "Configuración del proyecto" (Project settings) -> "General".
+        4.  En la sección "Tus apps", busca tu aplicación web (o añade una nueva).
+        5.  El objeto de configuración de Firebase (`firebaseConfig`) contendrá tu `apiKey`. Ese es el valor para `NEXT_PUBLIC_FIREBASE_API_KEY`.
     *   **(Opcional) hCaptcha:** Ve a tu dashboard de hCaptcha para obtener tu Sitekey y Secret Key.
 
 ### Configuración de Base de Datos Supabase (Fundamental)
@@ -286,7 +296,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     *   Si la instalación es exitosa, el paquete aparecerá en tu `package.json` y `node_modules`.
 2.  **Si la Instalación es Exitosa, Configura las Variables de Entorno para hCaptcha:**
     *   Obtén tu **Sitekey** y **Secret Key** de tu dashboard en [hcaptcha.com](https://hcaptcha.com/).
-    *   Añade `NEXT_PUBLIC_HCAPTCHA_SITE_KEY=TU_SITEKEY_AQUI` y `HCAPTCHA_SECRET_KEY=TU_SECRET_KEY_AQUI` a `.env.local`.
+    *   Añade `NEXT_PUBLIC_HCAPTCHA_SITE_KEY=22860de4-8b40-4054-95d8-fac6d9f477ca` y `HCAPTCHA_SECRET_KEY=TU_CLAVE_SECRETA_DE_HCAPTCHA_AQUI` a `.env.local`.
 3.  **Descomenta el Código de hCaptcha en los Formularios:**
     *   En `src/app/login/page.tsx` y `src/app/signup/page.tsx`:
         *   Descomenta la importación de `HCaptcha`.
@@ -350,7 +360,7 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-
 ```
+
 Idea y visión: Ronald Gonzalez Niche
 ```
