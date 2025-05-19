@@ -1,19 +1,22 @@
+// Remove "use client"; directive
+// "use client"; 
 
 import type {Metadata} from 'next';
 import Script from 'next/script';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google'; // Corrected: Assuming Geist is the correct package name
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
-import { useEffect } from 'react';
+// Remove useEffect as it's not needed for basic analytics init here and causes metadata export issues
+// import { useEffect } from 'react'; 
 import { analytics } from '@/lib/firebase/client'; // Import analytics
 
-const geistSans = Geist({
+const geistSans = Geist({ // Corrected: Assuming Geist is the correct package name
   variable: '--font-geist-sans',
   subsets: ['latin'],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = Geist_Mono({ // Corrected: Assuming Geist_Mono is the correct package name
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
@@ -30,15 +33,12 @@ export default function RootLayout({
 }>) {
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "YOUR_PAYPAL_SANDBOX_CLIENT_ID_HERE";
 
-  useEffect(() => {
-    // This effect runs only on the client-side after hydration
-    // Firebase Analytics initialization is handled in @/lib/firebase/client.ts
-    // You can log custom events here if needed, e.g., page_view
-    if (analytics) {
-      console.log("Firebase Analytics initialized successfully.");
-      // Example: logEvent(analytics, 'page_view', { page_path: window.location.pathname });
-    }
-  }, []);
+  // useEffect for analytics console.log removed to keep RootLayout as a Server Component
+  // useEffect(() => {
+  //   if (analytics) {
+  //     console.log("Firebase Analytics initialized successfully in Layout.");
+  //   }
+  // }, []);
 
   return (
     <html lang="es" suppressHydrationWarning className="dark">
@@ -49,7 +49,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider> {/* Wrap children with AuthProvider */}
+        <AuthProvider> {/* AuthProvider itself is a Client Component */}
           {children}
           <Toaster />
         </AuthProvider>
