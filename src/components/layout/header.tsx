@@ -1,67 +1,158 @@
 
-"use client"; // Since we're using a hook (useAuth)
+"use client";
 
 import Link from 'next/link';
-import { ShieldCheck, UserCircle, LogIn, LogOut } from 'lucide-react';
+import { ShieldCheck, UserCircle, LogIn, LogOut, Menu } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useState } from 'react';
+
+const navItems = [
+  { href: "/", label: "Inicio" },
+  { href: "/#servicios", label: "Servicios" }, // Enlace a sección en la homepage
+  { href: "/resources", label: "Recursos" },
+  { href: "/about", label: "Sobre Nosotros" },
+  { href: "/contact", label: "Contacto" },
+];
 
 export function AppHeader() {
   const { session, user, isLoading, signOut } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
-    // Redirect handled by onAuthStateChange or can be forced here if needed
-    // For instance, router.push('/login'); 
+    // Redirección manejada por onAuthStateChange o puede ser forzada si es necesario
   };
 
+  const renderNavLinks = (isMobile = false) => (
+    navItems.map(item => (
+      <Link
+        key={item.label}
+        href={item.href}
+        onClick={() => isMobile && setMobileMenuOpen(false)}
+        className={isMobile 
+          ? "block py-2 px-3 text-base font-medium text-foreground hover:bg-accent hover:text-accent-foreground rounded-md" 
+          : "text-sm font-medium text-muted-foreground hover:text-primary transition-colors"}
+      >
+        {item.label}
+      </Link>
+    ))
+  );
+
   return (
-    <header className="py-6 px-4 md:px-8 border-b border-border bg-card shadow-sm">
-      <div className="container mx-auto flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 cursor-pointer">
-          <ShieldCheck className="h-8 w-8 text-primary" />
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground">
-            Centro de Análisis de Seguridad Integral
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
+        <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+          <ShieldCheck className="h-7 w-7 text-primary" />
+          <h1 className="text-lg font-semibold text-foreground whitespace-nowrap">
+            Seguridad Integral
           </h1>
         </Link>
         
-        {isLoading ? (
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-24" />
-          </div>
-        ) : session ? (
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="text-foreground" asChild>
-              {/* Conceptual link, could go to /profile or /dashboard */}
-              <Link href="#"> 
-                <UserCircle className="mr-2 h-4 w-4" />
-                {user?.email || "Mi Perfil"}
-              </Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleSignOut} 
-              className="border-destructive text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        ) : (
-          <Link href="/login" passHref>
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="bg-accent hover:bg-accent/90 text-accent-foreground"
-            >
-              <LogIn className="mr-2 h-4 w-4" />
-              Iniciar Sesión / Registrarse
-            </Button>
-          </Link>
-        )}
+        <nav className="hidden md:flex items-center gap-6">
+          {renderNavLinks()}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20 md:hidden" /> {/* Skeleton for mobile trigger */}
+            </div>
+          ) : session ? (
+            <>
+              <Button variant="ghost" size="sm" className="hidden md:inline-flex text-foreground" asChild>
+                <Link href="#"> 
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  {user?.email?.split('@')[0] || "Mi Perfil"}
+                </Link>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSignOut} 
+                className="border-destructive text-destructive hover:bg-destructive/10 hidden md:inline-flex"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+            </>
+          ) : (
+            <Link href="/login" passHref className="hidden md:inline-flex">
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Iniciar Sesión
+              </Button>
+            </Link>
+          )}
+
+          {/* Mobile Menu */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild className="md:hidden">
+              <Button variant="outline" size="icon">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Abrir menú</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[360px] p-0">
+              <SheetHeader className="p-6 pb-0">
+                <SheetTitle>
+                  <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <ShieldCheck className="h-6 w-6 text-primary" />
+                    <span className="text-lg font-semibold text-foreground">Seguridad Integral</span>
+                  </Link>
+                </SheetTitle>
+              </SheetHeader>
+              <div className="p-6 space-y-3">
+                {renderNavLinks(true)}
+                <hr className="my-4 border-border" />
+                {session ? (
+                  <>
+                    <Button variant="ghost" size="sm" className="w-full justify-start text-foreground" asChild>
+                      <Link href="#" onClick={() => setMobileMenuOpen(false)}> 
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        {user?.email?.split('@')[0] || "Mi Perfil"}
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => { handleSignOut(); setMobileMenuOpen(false); }} 
+                      className="w-full justify-start border-destructive text-destructive hover:bg-destructive/10"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Cerrar Sesión
+                    </Button>
+                  </>
+                ) : (
+                  <Link href="/login" passHref className="w-full" onClick={() => setMobileMenuOpen(false)}>
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Iniciar Sesión / Registrarse
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

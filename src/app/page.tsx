@@ -18,8 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search } from "lucide-react";
-import { HackingInfoSection } from "@/components/hacking-info-section";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search, Lightbulb, Target, Users2, Award, MessageSquareText } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
@@ -153,18 +152,20 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             onPaymentCancel();
           },
         });
-
-        BCPC.innerHTML = ''; // Clear previous buttons if any
-        buttonsInstance.render(BCPC)
-        .then(() => {
-            setPayPalButtonInstance(buttonsInstance);
-            console.log("PayPal Buttons rendered successfully.");
-        })
-        .catch((renderError: any) => {
-          const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
-          toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
-          console.error("PayPal SDK .render() error:", renderError);
-        });
+        
+        if (paypalButtonsContainerRef.current) {
+             paypalButtonsContainerRef.current.innerHTML = ''; 
+             buttonsInstance.render(paypalButtonsContainerRef.current)
+            .then(() => {
+                setPayPalButtonInstance(buttonsInstance);
+                console.log("PayPal Buttons rendered successfully.");
+            })
+            .catch((renderError: any) => {
+              const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
+              toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
+              console.error("PayPal SDK .render() error:", renderError);
+            });
+        }
       } catch (error) {
         const initError = error as Error;
         toast({ variant: "destructive", title: "Error Crítico de SDK de PayPal", description: `No se pudo inicializar la interfaz de pago de PayPal: ${initError.message}` });
@@ -209,8 +210,6 @@ export default function HomePage() {
   const { toast } = useToast();
   const router = useRouter();
   const { session, isLoading: isLoadingAuth, isPremium, userProfile, signOut, refreshUserProfile } = useAuth();
-
-  const isUserPremium = isPremium;
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php";
 
@@ -361,7 +360,7 @@ export default function HomePage() {
         return;
       }
 
-      const result = await performAnalysisAction(params, isUserPremium);
+      const result = await performAnalysisAction(params, isPremium); // isPremium from useAuth()
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) {
@@ -374,12 +373,12 @@ export default function HomePage() {
           if (result.allFindings && result.allFindings.length > 0) {
              await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
-          if (isUserPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
+          if (isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { // isPremium from useAuth()
             await generateZipFile(result, currentTargetDesc);
           }
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isUserPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funciones premium.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión y suscríbase para acceder a todas las funciones premium.'}`,
             variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
@@ -426,32 +425,45 @@ export default function HomePage() {
     router.push('/login?redirect=/');
   };
 
-
-  const PremiumFeatureCard = ({ title, description, icon: Icon, actionButton, isForPayPalSection = false }: { title: string, description:string, icon: React.ElementType, actionButton?: React.ReactNode, isForPayPalSection?: boolean }) => (
-    <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl text-accent"> <Icon className="h-6 w-6" /> {title} (Función Premium) </CardTitle>
+  const FeatureCard = ({ title, description, icon: Icon }: { title: string, description: string, icon: React.ElementType }) => (
+    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 bg-card border-border">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center text-lg">
+          <Icon className="h-6 w-6 mr-3 text-primary" />
+          {title}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-muted-foreground mb-4">{description}</p>
-        {actionButton && !isForPayPalSection && actionButton}
-        {isForPayPalSection && session && !isUserPremium && (
-           <div className="mt-4 flex flex-col items-center gap-4">
-            <p className="text-sm text-center text-foreground"> Para acceder a esta y todas las funciones premium, considere nuestra suscripción. </p>
-            <PayPalSmartPaymentButtons
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+
+  const PremiumFeatureCard = ({ title, description, icon: Icon }: { title: string, description:string, icon: React.ElementType }) => (
+    <Card className="mt-6 shadow-lg border-l-4 border-accent bg-accent/5">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg text-accent"> <Icon className="h-5 w-5" /> {title} </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground mb-3">{description}</p>
+        {!session ? (
+            <Button onClick={() => router.push('/login?redirect=/')} className="w-full sm:w-auto bg-accent hover:bg-accent/80 text-accent-foreground">
+                <LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Acceder
+            </Button>
+        ) : !isPremium ? (
+             <PayPalSmartPaymentButtons
                 onPaymentSuccess={handlePayPalPaymentSuccess}
                 onPaymentError={handlePayPalPaymentError}
                 onPaymentCancel={handlePayPalPaymentCancel}
                 onLoginRequired={handleLoginForPayPal}
             />
-          </div>
+        ) : (
+            <p className="text-sm text-green-600 font-semibold flex items-center"><ShieldCheck className="mr-2 h-4 w-4"/>¡Función Premium Activada!</p>
         )}
-        <p className="text-xs text-muted-foreground mt-3 text-center">
-          El acceso Premium se basa en el estado de su suscripción (obtenido de la base de datos tras un inicio de sesión exitoso y pago).
-        </p>
       </CardContent>
     </Card>
   );
+
 
   if (isLoadingAuth) {
     return (
@@ -464,206 +476,179 @@ export default function HomePage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen flex flex-col bg-secondary/50">
+      <div className="min-h-screen flex flex-col bg-background">
         <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
 
-          <section className="mb-12">
-            <Card className="bg-card shadow-2xl overflow-hidden rounded-xl border-primary/20 border">
-                <div className="p-8 md:p-12 bg-gradient-to-br from-primary/90 via-primary to-primary/80 text-primary-foreground">
-                    <h2 className="text-3xl md:text-4xl font-bold mb-3">Centro de Análisis de Seguridad Integral</h2>
-                    <p className="text-lg md:text-xl text-primary-foreground/90 mb-6 max-w-3xl">
-                        Identifique y mitigue proactivamente las vulnerabilidades en sus aplicaciones web, servidores, bases de datos, código fuente, configuraciones cloud, contenedores y más, con el poder de la Inteligencia Artificial.
-                    </p>
-                    <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md" onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}>
-                        <Search className="mr-2" /> Iniciar Análisis Ahora
-                    </Button>
-                </div>
-            </Card>
+          {/* Hero Section */}
+          <section className="text-center py-12 md:py-20 bg-gradient-to-b from-background to-secondary/30 rounded-xl shadow-inner border border-border">
+            <ShieldCheck className="h-16 w-16 text-primary mx-auto mb-6" />
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
+              Centro de Análisis de Seguridad Integral
+            </h2>
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+              Identifique y mitigue proactivamente vulnerabilidades en sus activos digitales con el poder de la Inteligencia Artificial. Proteja su negocio, datos y reputación.
+            </p>
+            <Button 
+              size="lg" 
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg px-8 py-3 text-lg" 
+              onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              <Search className="mr-2 h-5 w-5" /> Iniciar Análisis Ahora
+            </Button>
           </section>
 
-          <section className="mb-12">
-            <h3 className="text-2xl md:text-3xl font-semibold text-foreground mb-6 text-center">Nuestros Servicios de Análisis</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Services Section */}
+          <section id="servicios" className="py-12 md:py-16">
+            <h3 className="text-3xl font-semibold text-foreground mb-10 text-center">Nuestros Servicios de Análisis Impulsados por IA</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[
-                { title: "Análisis Web (URL)", Icon: Globe, desc: "Detecta XSS, SQLi, y más en URLs públicas." },
-                { title: "Análisis de Servidores", Icon: ServerIcon, desc: "Evalúa configuraciones de SO, servicios y puertos." },
-                { title: "Análisis Servidores de Juegos", Icon: Gamepad2, desc: "Seguridad específica para Lineage 2, Roblox, etc." },
-                { title: "Análisis de Bases de Datos", Icon: Database, desc: "Identifica debilidades en configuración y acceso a BD." },
-                { title: "Análisis SAST (Código)", Icon: SearchCode, desc: "Revisa fragmentos de código en busca de fallos." },
-                { title: "Análisis DAST (Dinámico)", Icon: Network, desc: "Pruebas en aplicaciones web en ejecución (simulado)." },
-                { title: "Análisis Cloud (AWS, Azure, GCP)", Icon: Cloud, desc: "Revisa configuraciones de seguridad en la nube." },
-                { title: "Análisis de Contenedores", Icon: BoxIcon, desc: "Evalúa Dockerfiles e imágenes de contenedores." },
-                { title: "Análisis de Dependencias", Icon: LibraryIcon, desc: "Busca vulnerabilidades en bibliotecas de terceros." },
-                { title: "Análisis de Red", Icon: Wifi, desc: "Interpreta descripciones de red y escaneos (Nmap)." },
+                { title: "Análisis Web (URL)", Icon: Globe, desc: "Detecta XSS, SQLi y más en URLs públicas." },
+                { title: "Servidores (General)", Icon: ServerIcon, desc: "Evalúa configuraciones de SO y servicios." },
+                { title: "Servidores de Juegos", Icon: Gamepad2, desc: "Seguridad específica para Lineage 2, Roblox, etc." },
+                { title: "Bases de Datos", Icon: Database, desc: "Identifica debilidades en configuración y acceso a BD." },
+                { title: "Código (SAST)", Icon: SearchCode, desc: "Revisa fragmentos de código en busca de fallos." },
+                { title: "Dinámico (DAST)", Icon: Network, desc: "Pruebas en aplicaciones web en ejecución (simulado)." },
+                { title: "Cloud (AWS, Azure, GCP)", Icon: Cloud, desc: "Revisa configuraciones de seguridad en la nube." },
+                { title: "Contenedores", Icon: BoxIcon, desc: "Evalúa Dockerfiles e imágenes de contenedores." },
+                { title: "Dependencias", Icon: LibraryIcon, desc: "Busca vulnerabilidades en bibliotecas de terceros." },
+                { title: "Red (Conceptual)", Icon: Wifi, desc: "Interpreta descripciones de red y escaneos." },
               ].map(service => (
-                <Card key={service.title} className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card border">
-                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                    <service.Icon className="h-8 w-8 text-primary" />
-                    <CardTitle className="text-lg">{service.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{service.desc}</p>
-                  </CardContent>
-                </Card>
+                <FeatureCard key={service.title} title={service.title} description={service.desc} icon={service.Icon} />
               ))}
             </div>
           </section>
-
-          <section id="analysis-form-section" className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl border border-border">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <h2 className="text-xl md:text-2xl font-semibold text-foreground"> Realizar Nuevo Análisis </h2>
+          
+          {/* Why Choose Us Section */}
+          <section className="py-12 md:py-16 bg-secondary/30 rounded-xl shadow-inner border border-border">
+            <div className="container mx-auto px-4">
+              <h3 className="text-3xl font-semibold text-foreground mb-10 text-center">¿Por Qué Elegirnos?</h3>
+              <div className="grid md:grid-cols-3 gap-8 text-center">
+                <div className="flex flex-col items-center p-6 bg-card rounded-lg shadow-md border border-border">
+                  <Lightbulb className="h-12 w-12 text-accent mb-4" />
+                  <h4 className="text-xl font-semibold mb-2 text-foreground">Análisis Inteligente</h4>
+                  <p className="text-muted-foreground text-sm">Utilizamos IA avanzada para detectar vulnerabilidades que otros pasan por alto, ofreciendo una comprensión más profunda de sus riesgos.</p>
+                </div>
+                <div className="flex flex-col items-center p-6 bg-card rounded-lg shadow-md border border-border">
+                  <Target className="h-12 w-12 text-accent mb-4" />
+                  <h4 className="text-xl font-semibold mb-2 text-foreground">Cobertura Integral</h4>
+                  <p className="text-muted-foreground text-sm">Desde su sitio web hasta su infraestructura en la nube y servidores de juegos, ofrecemos una visión 360° de su postura de seguridad.</p>
+                </div>
+                <div className="flex flex-col items-center p-6 bg-card rounded-lg shadow-md border border-border">
+                  <ShieldCheck className="h-12 w-12 text-accent mb-4" />
+                  <h4 className="text-xl font-semibold mb-2 text-foreground">Resultados Accionables</h4>
+                  <p className="text-muted-foreground text-sm">No solo identificamos problemas, sino que proporcionamos informes detallados y (con premium) playbooks para ayudarle a remediarlos.</p>
+                </div>
+              </div>
             </div>
-            <UrlInputForm onSubmit={handleFormSubmit} isLoading={isLoadingAnalysis} defaultUrl={exampleUrl} />
           </section>
 
-          <Separator className="my-8 md:my-12" />
-          <HackingInfoSection />
-          <Separator className="my-8 md:my-12" />
-
-          <section className="max-w-4xl mx-auto mb-8 md:mb-12">
-            <Card className="shadow-lg border-l-4 border-primary bg-card">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-3 text-xl md:text-2xl text-primary"> <Briefcase className="h-7 w-7" /> Capacidades Empresariales Avanzadas </CardTitle>
-                    <CardDescription className="text-muted-foreground"> Nuestra plataforma ofrece herramientas de seguridad de nivel empresarial, con muchas funcionalidades en desarrollo activo, simulación y planificación estratégica: </CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    {[
-                        { icon: SearchCode, title: "Análisis SAST (Estático)", desc: "Análisis de fragmentos de código para identificar vulnerabilidades.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: Network, title: "Análisis DAST (Dinámico App)", desc: "Pruebas de seguridad en aplicaciones web en ejecución.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: Cloud, title: "Análisis Config. Cloud (AWS, Azure, GCP)", desc: "Evaluación de seguridad para infraestructuras en la nube.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: BoxIcon, title: "Análisis Seguridad Contenedores", desc: "Análisis de imágenes Docker y configuraciones Kubernetes.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: LibraryIcon, title: "Análisis de Dependencias de Software", desc: "Detección de vulnerabilidades en bibliotecas y frameworks.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: Wifi, title: "Análisis de Configuración de Red", desc: "Evaluación de descripciones de red, reglas de firewall y resultados de escaneos.", status: "Implementado", badgeColor: "border-green-500 text-green-500" },
-                        { icon: FileLock2, title: "Generación de Playbooks de Remediación", desc: "Guías detalladas para solucionar vulnerabilidades (Premium).", status: "Implementado (Requiere Premium)", badgeColor: "border-green-500 text-green-500" },
-                        { icon: AlertOctagon, title: "Pruebas de Penetración Automatizadas", desc: "Simulación de ataques avanzados en entornos controlados (Premium, con precaución).", status: "Explorando", badgeColor: "border-yellow-500 text-yellow-500" },
-                        { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
-                        { icon: ShieldEllipsis, title: "Mapeo a Controles de Cumplimiento", desc: "Relacionar hallazgos con controles de SOC2, ISO 27001, etc. (Informativo).", status: "Mejorado", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: Waypoints, title: "Integración SIEM/SOAR (vía JSON export)", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Base Implementada", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado (Requiere Autenticación Real)" },
-                        { icon: BarChart3, title: "Paneles de Control Avanzados", desc: "Visualizaciones y analítica de riesgos personalizables.", status: "Planificado" },
-                        { icon: GitBranch, title: "Integración con CI/CD", desc: "Automatización de análisis en pipelines de desarrollo (DevSecOps).", status: "Explorando" },
-                        { icon: Columns, title: "Interfaz de Línea de Comandos (CLI)", desc: "Automatización y gestión de análisis desde la terminal.", status: "Considerando" },
-                        { icon: Gamepad2, title: "Mejoras Específicas Servidores de Juegos", desc: "Análisis de protocolos, detección de trampas, análisis de mods/scripts.", status: "Planificado" },
-                        { icon: ShieldCheck, title: "Informes de Cumplimiento Detallados", desc: "Generación de informes formales mapeados a normativas (PDF vía Markdown).", status: "Mejorado", badgeColor: "border-blue-500 text-blue-500" },
-                    ].map(item => (
-                        <div key={item.title} className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
-                            <item.icon className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                            <div> <span className="font-semibold text-foreground">{item.title}</span> <p className="text-muted-foreground">{item.desc}</p> <Badge variant="outline" className={cn("mt-1", item.badgeColor || "border-border text-muted-foreground")}>{item.status}</Badge> </div>
-                        </div>
-                    ))}
-                </CardContent>
+          <section id="analysis-form-section" className="py-12 md:py-16">
+            <Card className="max-w-4xl mx-auto bg-card p-6 md:p-10 rounded-xl shadow-2xl border border-primary/20">
+              <CardHeader className="text-center p-0 pb-6">
+                <CardTitle className="text-2xl md:text-3xl font-semibold text-foreground">Realice su Análisis de Seguridad Ahora</CardTitle>
+                <CardDescription className="text-muted-foreground md:text-lg">Seleccione los activos que desea analizar.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <UrlInputForm onSubmit={handleFormSubmit} isLoading={isLoadingAnalysis} defaultUrl={exampleUrl} />
+              </CardContent>
             </Card>
           </section>
 
-          <section className="max-w-4xl mx-auto">
-            {isLoadingAnalysis && (
-              <div className="space-y-8 mt-8">
-                <Card className="shadow-lg animate-pulse bg-card"> <CardHeader> <Skeleton className="h-8 w-1/2 bg-muted" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-6 w-3/4 mb-4 bg-muted" /> <div className="grid grid-cols-2 md:grid-cols-4 gap-4"> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> </div> <Skeleton className="h-40 w-full mt-4 bg-muted" /> </CardContent> </Card>
-                <Card className="shadow-lg animate-pulse bg-card"> <CardHeader> <Skeleton className="h-8 w-3/4 bg-muted" /> <Skeleton className="h-4 w-1/2 mt-2 bg-muted" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-4 w-full bg-muted" /> <Skeleton className="h-4 w-full bg-muted" /> <Skeleton className="h-4 w-5/6 bg-muted" /> <Skeleton className="h-20 w-full mt-4 bg-muted" /> </CardContent> </Card>
-              </div>
-            )}
+          <Separator className="my-8 md:my-12" />
 
-            {!isLoadingAnalysis && analysisResult && (
-              <div className="space-y-8">
-                <AnalysisSummaryCard result={analysisResult} />
-                <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isUserPremium} />
+          {/* Testimonials Placeholder Section */}
+          <section className="py-12 md:py-16">
+            <h3 className="text-3xl font-semibold text-foreground mb-10 text-center">La Confianza de Nuestros Clientes</h3>
+            <div className="grid md:grid-cols-2 gap-8">
+              <Card className="bg-card border-border shadow-sm">
+                <CardContent className="pt-6">
+                  <MessageSquareText className="h-8 w-8 text-primary mb-3" />
+                  <p className="text-muted-foreground mb-4 italic">\"Desde que usamos el Centro de Análisis de Seguridad Integral, hemos mejorado drásticamente nuestra postura de seguridad y reducido los tiempos de respuesta a incidentes. ¡Imprescindible!\"</p>
+                  <p className="font-semibold text-foreground">- CEO, Tech Solutions Inc.</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card border-border shadow-sm">
+                <CardContent className="pt-6">
+                  <MessageSquareText className="h-8 w-8 text-primary mb-3" />
+                  <p className="text-muted-foreground mb-4 italic">\"La capacidad de analizar nuestros servidores de juegos y la configuración de la nube en una sola plataforma nos ha ahorrado innumerables horas y nos ha dado una tranquilidad invaluable.\"</p>
+                  <p className="font-semibold text-foreground">- Admin de Sistemas, Gaming Universe Ltd.</p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+          
+          <Separator className="my-8 md:my-12" />
 
-                {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isUserPremium && ( <> <Separator className="my-8 md:my-12" /> <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} /> </> )}
-                {!isUserPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Escenarios de Ataque Ilustrativos" description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." icon={Zap} isForPayPalSection={true} actionButton={!session ? <Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Activar Premium</Button> : undefined} /> )}
+          {isLoadingAnalysis && (
+            <div className="space-y-8 mt-8">
+              <Card className="shadow-lg animate-pulse bg-card"> <CardHeader> <Skeleton className="h-8 w-1/2 bg-muted" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-6 w-3/4 mb-4 bg-muted" /> <div className="grid grid-cols-2 md:grid-cols-4 gap-4"> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> </div> <Skeleton className="h-40 w-full mt-4 bg-muted" /> </CardContent> </Card>
+            </div>
+          )}
 
-                {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isUserPremium && ( <> <Separator className="my-8 md:my-12" /> <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} /> </> )}
-                {!isUserPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Playbooks de Remediación Sugeridos" description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." icon={FileLock2} isForPayPalSection={true} actionButton={!session ? <Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Activar Premium</Button> : undefined} /> )}
+          {!isLoadingAnalysis && analysisResult && (
+            <div className="space-y-8">
+              <AnalysisSummaryCard result={analysisResult} />
+              <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={isPremium} />
 
+              {isPremium && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
+                 <> <Separator className="my-8 md:my-12" /> <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} /> </> 
+              )}
+              {!isPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( 
+                <PremiumFeatureCard title="Escenarios de Ataque Ilustrativos (Premium)" description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." icon={Zap} />
+              )}
 
-                 {!isUserPremium && session && (analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
-                  <Card className="mt-8 shadow-lg border-l-4 border-accent bg-accent/5">
-                    <CardHeader> <CardTitle className="flex items-center gap-2 text-xl text-accent"> <Unlock className="h-6 w-6" /> ¡Desbloquee el Poder Completo de la Plataforma! </CardTitle> <CardDescription className="text-muted-foreground"> Su análisis ha revelado información inicial. Complete su suscripción para una visión integral y herramientas avanzadas. </CardDescription> </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h3 className="font-semibold text-foreground mb-2">Con una suscripción premium, usted obtiene:</h3>
-                        <ul className="space-y-2 text-muted-foreground text-sm">
-                           <li className="flex items-start gap-2"> <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" /> <span><strong className="text-foreground">Informe Técnico Detallado Completo</strong></span> </li>
-                          <li className="flex items-start gap-2"> <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" /> <span><strong className="text-foreground">Escenarios de Ataque Ilustrativos</strong></span> </li>
-                          <li className="flex items-start gap-2"> <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" /> <span><strong className="text-foreground">Playbooks de Remediación Detallados</strong></span> </li>
-                          <li className="flex items-start gap-2"> <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" /> <span><strong className="text-foreground">Detalles Técnicos Exhaustivos</strong></span> </li>
-                          <li className="flex items-start gap-2"> <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" /> <span><strong className="text-foreground">Descarga Completa de Resultados (ZIP)</strong></span> </li>
-                        </ul>
-                      </div>
-                      {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
-                      <div className="mt-6 flex flex-col items-center gap-4">
-                        <p className="text-lg font-semibold text-center text-foreground"> Suscríbase para Acceso Premium </p>
-                         <PayPalSmartPaymentButtons
-                             onPaymentSuccess={handlePayPalPaymentSuccess}
-                             onPaymentError={handlePayPalPaymentError}
-                             onPaymentCancel={handlePayPalPaymentCancel}
-                             onLoginRequired={handleLoginForPayPal}
-                         />
-                      </div>
-                       <p className="text-xs text-muted-foreground mt-3 text-center">
-                         La activación real de Premium se realiza en el backend tras confirmar el pago y actualizar su perfil de usuario en nuestra base de datos.
-                       </p>
-                    </CardContent>
-                  </Card>
-                )}
+              {isPremium && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && ( 
+                <> <Separator className="my-8 md:my-12" /> <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} /> </> 
+              )}
+               {!isPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && (
+                <PremiumFeatureCard title="Playbooks de Remediación Sugeridos (Premium)" description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." icon={FileLock2} />
+               )}
 
-                {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
+              {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
-                    {isUserPremium && zipUrl ? ( <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) </a> </Button>
-                    ) : !isUserPremium && session && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
-                         <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={handleLoginForPayPal}> <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Inicie Sesión/Suscríbase </Button> </TooltipTrigger> <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
+                    {isPremium && zipUrl ? ( <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) </a> </Button>
+                    ) : !isPremium && session && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
+                         <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}> <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)</Button> </TooltipTrigger> <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
                     )}
                      {jsonExportUrl && ( <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"> <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}> <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON) </a> </Button> )}
                 </div>
                  )}
-                 {isUserPremium && zipUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El ZIP contiene informe, hallazgos, y (si generados) vectores de ataque y playbooks. El JSON contiene todos los hallazgos. </p> )}
-                 {!isUserPremium && session && jsonExportUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El JSON contiene todos los hallazgos. Suscríbase para la descarga ZIP completa. </p> )}
+                 {isPremium && zipUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El ZIP contiene informe, hallazgos, y (si generados) vectores de ataque y playbooks. El JSON contiene todos los hallazgos. </p> )}
+                 {!isPremium && session && jsonExportUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El JSON contiene todos los hallazgos. Suscríbase para la descarga ZIP completa. </p> )}
                  {!session && jsonExportUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El JSON contiene todos los hallazgos. Inicie sesión y suscríbase para la descarga ZIP completa. </p> )}
-              </div>
-            )}
+            </div>
+          )}
 
-            {!isLoadingAnalysis && !analysisResult && (
-               <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary bg-card">
-                <CardHeader> <CardTitle className="flex items-center gap-3 text-xl"> <ShieldCheck className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad Asistido por IA </CardTitle> <CardDescription className="text-muted-foreground"> Fortalezca la seguridad de sus aplicaciones web, servidores (juegos populares), bases de datos, código (SAST), aplicaciones (DAST), Cloud, Contenedores, Dependencias y Redes. </CardDescription> </CardHeader>
-                <CardContent className="space-y-4">
-                    <p className="text-muted-foreground"> Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado. <strong className="text-foreground block mt-1">Inicie sesión y suscríbase para acceder a escenarios de ataque, detalles técnicos y playbooks de remediación.</strong></p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="mr-2 h-5 w-5 text-primary"/> Análisis Web/URL.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="mr-2 h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Database className="mr-2 h-5 w-5 text-primary"/> Chequeo de Bases de Datos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Gamepad2 className="mr-2 h-5 w-5 text-primary"/> Análisis Servidores de Juegos.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <SearchCode className="mr-2 h-5 w-5 text-primary"/> Análisis de Código (SAST).</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Network className="mr-2 h-5 w-5 text-primary"/> Análisis Dinámico (DAST).</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Cloud className="mr-2 h-5 w-5 text-primary"/> Análisis Config. Cloud.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <BoxIcon className="mr-2 h-5 w-5 text-primary"/> Análisis Contenedores.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <LibraryIcon className="mr-2 h-5 w-5 text-primary"/> Análisis Dependencias.</div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Wifi className="mr-2 h-5 w-5 text-primary"/> Análisis Config. Red.</div>
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4">
-                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6 text-accent" /> Suscríbase para Acceso Premium</h3>
-                         <p className="text-sm text-center text-muted-foreground max-w-md"> Inicie sesión para comenzar el proceso de suscripción y desbloquear todas las funcionalidades avanzadas de nuestra plataforma. </p>
-                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                            {!session ? (
-                                <Button onClick={() => router.push('/login?redirect=/')} className="w-full" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
-                            ) : !isUserPremium ? (
-                                <PayPalSmartPaymentButtons
-                                    onPaymentSuccess={handlePayPalPaymentSuccess}
-                                    onPaymentError={handlePayPalPaymentError}
-                                    onPaymentCancel={handlePayPalPaymentCancel}
-                                    onLoginRequired={handleLoginForPayPal}
-                                />
-                            ) : (
-                                 <p className="text-center text-green-600 font-semibold mt-3 flex items-center gap-2"><ShieldCheck className="h-5 w-5"/> ¡Suscripción Premium Activa!</p>
-                            )}
-                        </div>
-                         <p className="text-xs text-muted-foreground mt-3 text-center">
-                           El flujo de pago de PayPal es para demostración con el entorno Sandbox. La activación real de Premium y la persistencia de la suscripción dependen de la correcta configuración de la base de datos (Supabase) y el endpoint de captura de pagos en el backend.
-                         </p>
-                    </div>
-                </CardContent>
-               </Card>
-            )}
-          </section>
+          {!isLoadingAnalysis && !analysisResult && (
+             <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary bg-card">
+              <CardHeader> <CardTitle className="flex items-center gap-3 text-xl"> <ShieldCheck className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad </CardTitle> <CardDescription className="text-muted-foreground"> Ingrese los detalles en el formulario superior para iniciar un análisis de seguridad asistido por IA. </CardDescription> </CardHeader>
+              <CardContent className="space-y-4">
+                  <p className="text-muted-foreground"> Nuestra plataforma analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST simulado), configuraciones Cloud, contenedores, dependencias y redes. </p>
+                  <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6 text-accent" /> Suscríbase para Acceso Premium</h3>
+                       <p className="text-sm text-center text-muted-foreground max-w-md"> Desbloquee informes técnicos detallados, escenarios de ataque, playbooks de remediación y descargas ZIP completas. </p>
+                      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                          {!session ? (
+                              <Button onClick={() => router.push('/login?redirect=/')} className="w-full" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
+                          ) : !isPremium ? (
+                              <PayPalSmartPaymentButtons
+                                  onPaymentSuccess={handlePayPalPaymentSuccess}
+                                  onPaymentError={handlePayPalPaymentError}
+                                  onPaymentCancel={handlePayPalPaymentCancel}
+                                  onLoginRequired={handleLoginForPayPal}
+                              />
+                          ) : (
+                               <p className="text-center text-green-600 font-semibold mt-3 flex items-center gap-2"><ShieldCheck className="h-5 w-5"/> ¡Suscripción Premium Activa!</p>
+                          )}
+                      </div>
+                       <p className="text-xs text-muted-foreground mt-3 text-center">
+                         Flujo de pago simulado con PayPal Sandbox. La activación real de Premium requiere completar la lógica de captura y actualización de base de datos en el backend.
+                       </p>
+                  </div>
+              </CardContent>
+             </Card>
+          )}
         </main>
 
         <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
@@ -672,18 +657,20 @@ export default function HomePage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[450px] p-0 border-0 shadow-none bg-transparent">
             <DialogHeader>
-              <DialogTitle className="sr-only">Asistente de Chat IA</DialogTitle>
+             <DialogTitle className="sr-only">Asistente de Chat IA</DialogTitle>
             </DialogHeader>
             <ChatAssistant />
           </DialogContent>
         </Dialog>
 
-        <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
-          <p>© {new Date().getFullYear()} Centro de Análisis de Seguridad Integral. Impulsado por GenAI.</p>
-          <p>Herramienta educativa y de evaluación avanzada para profesionales.</p>
-          <Link href="/terms" className="text-xs text-primary hover:underline"> Términos y Condiciones </Link>
-           <span className="text-xs text-primary mx-1">|</span>
-          <Link href="/privacy" className="text-xs text-primary hover:underline"> Política de Privacidad </Link>
+        <footer className="text-center py-8 text-sm text-muted-foreground border-t border-border bg-card">
+          <p>© {new Date().getFullYear()} Centro de Análisis de Seguridad Integral. Todos los derechos reservados.</p>
+          <p className="mb-2">Idea y Visión: Ronald Gonzalez Niche</p>
+          <div className="space-x-3">
+            <Link href="/terms" className="text-xs text-primary hover:underline"> Términos y Condiciones </Link>
+            <span className="text-xs text-muted-foreground">|</span>
+            <Link href="/privacy" className="text-xs text-primary hover:underline"> Política de Privacidad </Link>
+          </div>
         </footer>
       </div>
     </TooltipProvider>
