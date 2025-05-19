@@ -259,41 +259,32 @@ Este proyecto requiere claves API para funcionar correctamente.
 
 ### (Opcional) Configuración de hCaptcha (Solución de Problemas y Reactivación)
 
-**Estado Actual:** La integración de hCaptcha está temporalmente deshabilitada en el código de los formularios de login/signup debido a problemas persistentes con la instalación del paquete `react-hcaptcha` en el entorno de desarrollo.
+**Estado Actual:** La integración de hCaptcha está temporalmente deshabilitada en el código de los formularios de login/signup debido a problemas persistentes con la instalación del paquete `react-hcaptcha` en el entorno de desarrollo. El paquete ha sido eliminado de `package.json`.
 
-**Para intentar reactivarlo:**
+**Para intentar reactivarlo (Tarea Avanzada para el Usuario):**
 
-1.  **Solucionar el Problema de Instalación de `react-hcaptcha` (Tarea para el Usuario):**
-    *   **Limpia la caché de npm:** Ejecuta `npm cache clean --force` en tu terminal.
-    *   **Verifica tu registro de npm:** Ejecuta `npm config get registry`. Debería ser `https://registry.npmjs.org/`. Si no, configúralo con `npm config set registry https://registry.npmjs.org/`.
-    *   **Verifica tu conexión a internet y cualquier firewall/proxy** que pueda estar bloqueando el acceso al registro de npm.
+1.  **Solucionar el Problema de Instalación de `react-hcaptcha`:**
+    *   **Limpia la caché de npm:** `npm cache clean --force`.
+    *   **Verifica tu registro de npm:** `npm config get registry` (debería ser `https://registry.npmjs.org/`).
+    *   **Verifica tu conexión a internet y cualquier firewall/proxy.**
     *   **Intenta instalar el paquete directamente:**
         ```bash
         npm install react-hcaptcha
         # o intenta con una versión específica listada en npmjs.com, ej:
         # npm install react-hcaptcha@0.5.0 
         ```
-    *   Si la instalación es exitosa, el paquete aparecerá en tu `package.json` y en `node_modules`.
-
+    *   Si la instalación es exitosa, el paquete aparecerá en tu `package.json` y `node_modules`.
 2.  **Si la Instalación es Exitosa, Configura las Variables de Entorno para hCaptcha:**
-    *   Obtén tu **Sitekey** (Clave del Sitio) y tu **Secret Key** (Clave Secreta) de tu dashboard en [hcaptcha.com](https://hcaptcha.com/).
-    *   Añade tu Sitekey a `.env.local` como `NEXT_PUBLIC_HCAPTCHA_SITE_KEY=TU_SITEKEY_AQUI`.
-    *   Añade tu Secret Key a `.env.local` como `HCAPTCHA_SECRET_KEY=TU_SECRET_KEY_AQUI` (esta clave es para el backend y debe mantenerse secreta).
-
+    *   Obtén tu **Sitekey** y **Secret Key** de tu dashboard en [hcaptcha.com](https://hcaptcha.com/).
+    *   Añade `NEXT_PUBLIC_HCAPTCHA_SITE_KEY=TU_SITEKEY_AQUI` y `HCAPTCHA_SECRET_KEY=TU_SECRET_KEY_AQUI` a `.env.local`.
 3.  **Descomenta el Código de hCaptcha en los Formularios:**
     *   En `src/app/login/page.tsx` y `src/app/signup/page.tsx`:
-        *   Descomenta la línea `import HCaptcha from "react-hcaptcha";`.
-        *   Descomenta la definición de `HCaptchaInstance` (si es necesaria, depende de los tipos del paquete).
-        *   Descomenta los estados `captchaToken` y `captchaRef`.
-        *   Descomenta las funciones `onCaptchaVerify`, `onCaptchaExpire`, `onCaptchaError`.
-        *   Descomenta el componente `<HCaptcha ... />` dentro del JSX del formulario.
-        *   Descomenta la lógica que deshabilita el botón de envío si `!captchaToken`.
-        *   Descomenta las llamadas a `captchaRef.current?.resetCaptcha();` y `setCaptchaToken(null);` en `handleSubmit`.
-
+        *   Descomenta la importación de `HCaptcha`.
+        *   Descomenta los estados `captchaToken`, `captchaRef` y las funciones `onCaptchaVerify`, `onCaptchaExpire`, `onCaptchaError`.
+        *   Descomenta el componente `<HCaptcha ... />` en el JSX.
+        *   Descomenta la lógica que deshabilita el botón de envío si `!captchaToken` y las llamadas a `resetCaptcha()`.
 4.  **Implementa la Verificación en Backend (¡CRUCIAL!):**
-    *   Para que hCaptcha sea efectivo, **DEBES** verificar el token de CAPTCHA que recibes del frontend en tu lógica de backend (ej. en tus API routes o Server Actions que manejan el login/signup con Supabase).
-    *   Esto implica hacer una solicitud POST a `https://api.hcaptcha.com/siteverify` con tu `HCAPTCHA_SECRET_KEY` (leída desde variables de entorno del servidor) y el token del usuario. El inicio de sesión/registro solo debe proceder si la verificación es exitosa.
-    *   Consulta la documentación de hCaptcha para el formato exacto de esta solicitud de verificación del lado del servidor.
+    *   Debes verificar el `captchaToken` en tu lógica de backend que maneja el login/signup. Esto implica hacer una solicitud POST a `https://api.hcaptcha.com/siteverify` con tu `HCAPTCHA_SECRET_KEY` y el token del usuario. Procede solo si la verificación es exitosa.
 
 ## Implementación de Autenticación Real y Base de Datos (En Progreso con Supabase)
 
@@ -349,6 +340,7 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
 
 
 

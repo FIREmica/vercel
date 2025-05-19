@@ -47,12 +47,12 @@ export default function LoginPage() {
 
   const onCaptchaExpire = () => {
     setCaptchaToken(null);
-    captchaRef.current?.resetCaptcha();
+    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
   };
 
   const onCaptchaError = (err: string) => {
     setCaptchaToken(null);
-    captchaRef.current?.resetCaptcha();
+    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
     toast({
       variant: "destructive",
       title: "Error de CAPTCHA",
@@ -65,7 +65,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+    /* HCAPTCHA - Temporarily disabled.
     if (!captchaToken) {
       toast({
         variant: "destructive",
@@ -94,12 +94,12 @@ export default function LoginPage() {
         variant: "default",
         duration: 3000,
       });
-      // Redirection is handled by useEffect if the session changes.
+      router.push('/'); // Redirect on successful login
     }
     setIsLoading(false);
-    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
-    captchaRef.current?.resetCaptcha();
-    setCaptchaToken(null);
+    /* HCAPTCHA - Temporarily disabled.
+    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
+    // setCaptchaToken(null);
     */
   };
 
@@ -151,15 +151,15 @@ export default function LoginPage() {
 
             {/* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
             // See README.md for instructions on how to re-enable and troubleshoot.
-            <div className="flex justify-center my-4">
-              <HCaptcha
-                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
-                onVerify={onCaptchaVerify}
-                onExpire={onCaptchaExpire}
-                onError={onCaptchaError}
-                ref={captchaRef}
-              />
-            </div>
+            // <div className="flex justify-center my-4">
+            //  <HCaptcha
+            //    sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
+            //    onVerify={onCaptchaVerify}
+            //    onExpire={onCaptchaExpire}
+            //    onError={onCaptchaError}
+            //    ref={captchaRef} // Ensure captchaRef is defined and typed if uncommenting
+            //  />
+            // </div>
             */}
 
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* HCAPTCHA - Temporarily disabled. || !captchaToken */ }>
@@ -175,7 +175,7 @@ export default function LoginPage() {
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> Este formulario ahora interactúa con <strong className="text-primary">Supabase Auth</strong>.
             La gestión del estado de sesión global y la activación de funciones premium se manejan a través de un Contexto de Autenticación.
-            La funcionalidad de CAPTCHA está temporalmente deshabilitada; sigue las instrucciones en el README para reactivarla.
+            La funcionalidad de CAPTCHA está temporalmente deshabilitada debido a problemas persistentes con la instalación del paquete `react-hcaptcha`. Sigue las instrucciones en el README para intentar reactivarla.
           </div>
         </CardContent>
       </Card>

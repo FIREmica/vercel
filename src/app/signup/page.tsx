@@ -47,12 +47,12 @@ export default function SignupPage() {
 
   const onCaptchaExpire = () => {
     setCaptchaToken(null);
-    captchaRef.current?.resetCaptcha();
+    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
   };
 
   const onCaptchaError = (err: string) => {
     setCaptchaToken(null);
-    captchaRef.current?.resetCaptcha();
+    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
     toast({
       variant: "destructive",
       title: "Error de CAPTCHA",
@@ -80,7 +80,7 @@ export default function SignupPage() {
       return;
     }
 
-    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
+    /* HCAPTCHA - Temporarily disabled.
     if (!captchaToken) {
       toast({
         variant: "destructive",
@@ -99,6 +99,10 @@ export default function SignupPage() {
       password,
       options: {
         // emailRedirectTo: `${window.location.origin}/auth/callback`, // Optional: for email confirmation flow
+        // You can pass user metadata here if needed for the handle_new_user trigger
+        // data: {
+        //   full_name: 'Initial Full Name', // Example
+        // }
       }
     });
 
@@ -109,25 +113,29 @@ export default function SignupPage() {
         description: error.message || "No se pudo completar el registro.",
       });
     } else if (data.user && data.session) {
+      // User is created and logged in immediately
       toast({
         title: "¡Registro Exitoso!",
         description: "Tu cuenta ha sido creada y has iniciado sesión. Serás redirigido.",
         variant: "default",
         duration: 3000,
       });
-      // Redirection is handled by useEffect
-      // The Supabase trigger 'handle_new_user' should create the profile in user_profiles.
+      console.log("Registro y sesión exitosos para:", data.user.email);
+      console.log("INFO: El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id);
+      router.push('/'); // Redirect on successful signup and login
     } else if (data.user) {
+         // User is created but may require email confirmation or other steps
          toast({
             title: "Registro Casi Completo",
             description: "Tu cuenta ha sido creada. Si la configuración de Supabase lo requiere, revisa tu correo electrónico para confirmar tu cuenta. Luego podrás iniciar sesión.",
             variant: "default",
             duration: 7000,
         });
-        // The Supabase trigger 'handle_new_user' should create the profile in user_profiles.
-        console.log("SIMULACIÓN BD: Trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, data.user.email);
-        router.push('/login');
+        console.log("Registro exitoso (posiblemente requiere confirmación) para:", data.user.email);
+        console.log("INFO: El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id);
+        router.push('/login'); // Redirect to login page to complete if confirmation is needed
     } else {
+        // Unexpected response from Supabase
         toast({
             variant: "destructive",
             title: "Error de Registro",
@@ -135,9 +143,9 @@ export default function SignupPage() {
         });
     }
     setIsLoading(false);
-    /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
-    captchaRef.current?.resetCaptcha();
-    setCaptchaToken(null);
+    /* HCAPTCHA - Temporarily disabled.
+    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
+    // setCaptchaToken(null);
     */
   };
 
@@ -201,15 +209,15 @@ export default function SignupPage() {
 
             {/* HCAPTCHA INTEGRATION - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
             // See README.md for instructions on how to re-enable and troubleshoot.
-            <div className="flex justify-center my-4">
-              <HCaptcha
-                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
-                onVerify={onCaptchaVerify}
-                onExpire={onCaptchaExpire}
-                onError={onCaptchaError}
-                ref={captchaRef}
-              />
-            </div>
+            // <div className="flex justify-center my-4">
+            //  <HCaptcha
+            //    sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
+            //    onVerify={onCaptchaVerify}
+            //    onExpire={onCaptchaExpire}
+            //    onError={onCaptchaError}
+            //    ref={captchaRef} // Ensure captchaRef is defined and typed if uncommenting
+            //  />
+            // </div>
             */}
 
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* HCAPTCHA - Temporarily disabled. || !captchaToken */}>
@@ -225,7 +233,7 @@ export default function SignupPage() {
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> Este formulario ahora registra usuarios con <strong className="text-primary">Supabase Auth</strong>.
             Un perfil básico se creará automáticamente en nuestra base de datos gracias a un trigger de Supabase.
-            La funcionalidad de CAPTCHA está temporalmente deshabilitada; sigue las instrucciones en el README para reactivarla.
+            La funcionalidad de CAPTCHA está temporalmente deshabilitada debido a problemas persistentes con la instalación del paquete `react-hcaptcha`. Sigue las instrucciones en el README para intentar reactivarla y recuerda que la verificación del CAPTCHA en el backend es crucial.
           </div>
         </CardContent>
       </Card>
