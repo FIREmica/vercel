@@ -351,7 +351,6 @@ Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LI
 
 **Idea y Visión:** Ronald Gonzalez Niche
 
-
 ```
 Idea y visión: Ronald Gonzalez Niche
 ```

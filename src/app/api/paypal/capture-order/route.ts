@@ -27,14 +27,12 @@ function getPayPalClient() {
 
 export async function POST(request: Request) {
   const cookieStore = cookies();
-  // This client uses the user's session from cookies to identify the user.
   const supabaseUserClient = createServerSupabaseClient(cookieStore); 
 
   // For updating user_profiles with service_role privileges
-  // IMPORTANT: Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in your environment
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error('Error en capture-order: Variables de entorno de Supabase para cliente admin no configuradas.');
-    return NextResponse.json({ error: 'Configuración del servidor incompleta para operaciones de base de datos.' }, { status: 500 });
+    return NextResponse.json({ error: 'Configuración del servidor incompleta para operaciones de base de datos (admin).' }, { status: 500 });
   }
   const supabaseAdminClient = createAdminSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,10 +65,10 @@ export async function POST(request: Request) {
 
     console.log(`Intentando capturar orden PayPal ${orderID} para usuario ${user.id}`);
     const captureResponse = await paypalClient.execute(captureRequest);
-    console.log("Respuesta de captura de PayPal:", JSON.stringify(captureResponse.result, null, 2));
+    
 
     if (captureResponse.statusCode !== 201 || !captureResponse.result || captureResponse.result.status !== 'COMPLETED') {
-      console.error(`Error al capturar orden PayPal ${orderID}. Status: ${captureResponse.statusCode}, Result Status: ${captureResponse.result?.status}`);
+      console.error(`Error al capturar orden PayPal ${orderID}. Status: ${captureResponse.statusCode}, Result Status: ${captureResponse.result?.status}, Details: ${JSON.stringify(captureResponse.result?.details)}`);
       return NextResponse.json({ error: `No se pudo capturar el pago. Estado de PayPal: ${captureResponse.result?.status || captureResponse.statusCode}` }, { status: captureResponse.statusCode || 500 });
     }
 
@@ -80,18 +78,19 @@ export async function POST(request: Request) {
 
     // 4. Actualizar la base de datos Supabase ('user_profiles') con el cliente admin
     const subscriptionEndDate = new Date();
-    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30); // Ejemplo: Suscripción de 30 días
+    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30); // Suscripción de 30 días
 
+    console.log(`Actualizando perfil de usuario ${user.id} en Supabase a premium...`);
     const { data: updateData, error: updateError } = await supabaseAdminClient
       .from('user_profiles')
       .update({ 
-        subscription_status: 'active_premium', 
+        subscription_status: 'active_premium', // o el estado que hayas definido para premium
         current_period_end: subscriptionEndDate.toISOString(),
-        paypal_order_id: paymentDetails.id, 
+        paypal_order_id: paymentDetails.id, // Guardamos el ID de la orden de PayPal
         updated_at: new Date().toISOString()
       })
-      .eq('id', user.id)
-      .select(); 
+      .eq('id', user.id) // Asegúrate de que la columna 'id' en user_profiles es el auth.users.id
+      .select(); // Opcional: .select() para obtener los datos actualizados
 
     if (updateError) {
       console.error(`Error al actualizar el perfil del usuario ${user.id} en Supabase tras el pago:`, updateError);
@@ -118,13 +117,17 @@ export async function POST(request: Request) {
     let errorMessage = 'Error interno del servidor al capturar la orden de PayPal.';
     if (error.message && error.message.includes('Configuración de PayPal incompleta')) {
       errorMessage = error.message;
+    } else if (error.message && error.message.includes('UNPROCESSABLE_ENTITY') && error.details && error.details[0]?.issue === 'ORDER_ALREADY_CAPTURED') {
+      errorMessage = 'Esta orden de PayPal ya ha sido capturada previamente.';
+      // Podrías querer verificar el estado de la suscripción en la DB aquí y responder acorde
+      return NextResponse.json({ message: errorMessage, orderID: (request.json() as any).orderID }, { status: 200 }); // O 400 si se considera un error del cliente
     } else if (error.statusCode && error.message && typeof error.message === 'string') { 
       errorMessage = `Error de PayPal (${error.statusCode}): ${error.message}`;
       const paypalErrorData = error.data || (error.original && error.original.data); 
-      if (paypalErrorData && typeof paypalErrorData === 'object' && paypalErrorData.details) {
-        errorMessage += ` Detalles: ${JSON.stringify(paypalErrorData.details)}`;
-      } else if (paypalErrorData && typeof paypalErrorData === 'object' && paypalErrorData.message) {
-        errorMessage += ` Mensaje de PayPal: ${paypalErrorData.message}`;
+      if (paypalErrorData && typeof paypalErrorData === 'object' && (paypalErrorData as any).details) {
+        errorMessage += ` Detalles: ${JSON.stringify((paypalErrorData as any).details)}`;
+      } else if (paypalErrorData && typeof paypalErrorData === 'object' && (paypalErrorData as any).message) {
+        errorMessage += ` Mensaje de PayPal: ${(paypalErrorData as any).message}`;
       } else if (typeof paypalErrorData === 'string') {
         errorMessage += ` Detalles: ${paypalErrorData}`;
       }
