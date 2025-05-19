@@ -1,5 +1,4 @@
 
-
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -261,7 +260,9 @@ Este proyecto requiere claves API para funcionar correctamente.
 
 **Estado Actual:** La integración de hCaptcha está temporalmente deshabilitada en el código de los formularios de login/signup debido a problemas persistentes con la instalación del paquete `react-hcaptcha` en el entorno de desarrollo. El paquete ha sido eliminado de `package.json`.
 
-**Para intentar reactivarlo (Tarea Avanzada para el Usuario):**
+**Nota Importante sobre Errores de CAPTCHA con Supabase:** Si, después de configurar tu proyecto Supabase, encuentras errores como "captcha verification process failed" al intentar iniciar sesión o registrarte (incluso con el widget de hCaptcha deshabilitado en nuestro código), es muy probable que tengas la protección con CAPTCHA **activada a nivel de proyecto en la configuración de Autenticación de Supabase**. Deberás ir a tu panel de Supabase > Authentication > Settings y desactivar la protección CAPTCHA allí si no planeas usarla o si la integración del frontend no está completa.
+
+**Para intentar reactivar hCaptcha en la aplicación (Tarea Avanzada para el Usuario):**
 
 1.  **Solucionar el Problema de Instalación de `react-hcaptcha`:**
     *   **Limpia la caché de npm:** `npm cache clean --force`.
@@ -340,6 +341,7 @@ La plataforma ahora utiliza **Supabase Auth** para la autenticación. Un `AuthPr
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
 
 
 
