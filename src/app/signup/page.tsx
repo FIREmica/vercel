@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session, isLoading: authIsLoading } = useAuth();
+  const { session, isLoading: authIsLoading, refreshUserProfile } = useAuth();
 
   useEffect(() => {
     if (!authIsLoading && session) {
@@ -92,25 +91,24 @@ export default function SignupPage() {
     */
     setIsLoading(true);
 
-    // In a real implementation, you would send captchaToken to your backend for verification here.
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        // emailRedirectTo: `${window.location.origin}/auth/callback`, // Optional: for email confirmation flow
-        // You can pass user metadata here if needed for the handle_new_user trigger
-        // data: {
-        //   full_name: 'Initial Full Name', // Example
-        // }
-      }
+      // options: { // No options needed for basic signup, captcha handled server-side by Supabase if enabled
+      //   // emailRedirectTo: `${window.location.origin}/auth/callback`, 
+      // }
     });
 
     if (error) {
+      let description = error.message || "No se pudo completar el registro.";
+      if (error.message.toLowerCase().includes("captcha verification process failed") || error.message.toLowerCase().includes("captcha required")) {
+        description = "Error de CAPTCHA de Supabase: La verificación CAPTCHA falló. Por favor, asegúrate de que la protección CAPTCHA esté DESACTIVADA en la configuración de tu proyecto Supabase (Authentication -> Settings -> CAPTCHA protection) y guarda los cambios. Si persiste, contacta el soporte de Supabase.";
+      }
       toast({
         variant: "destructive",
         title: "Error de Registro",
-        description: error.message || "No se pudo completar el registro.",
+        description: description,
+        duration: 9000,
       });
     } else if (data.user && data.session) {
       // User is created and logged in immediately
@@ -120,9 +118,10 @@ export default function SignupPage() {
         variant: "default",
         duration: 3000,
       });
-      console.log("Registro y sesión exitosos para:", data.user.email);
+      console.log("INFO: Registro y sesión exitosos para:", data.user.email);
       console.log("INFO: El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id);
-      router.push('/'); // Redirect on successful signup and login
+      await refreshUserProfile();
+      router.push('/'); 
     } else if (data.user) {
          // User is created but may require email confirmation or other steps
          toast({
@@ -131,14 +130,14 @@ export default function SignupPage() {
             variant: "default",
             duration: 7000,
         });
-        console.log("Registro exitoso (posiblemente requiere confirmación) para:", data.user.email);
+        console.log("INFO: Registro exitoso (posiblemente requiere confirmación) para:", data.user.email);
         console.log("INFO: El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id);
-        router.push('/login'); // Redirect to login page to complete if confirmation is needed
+        router.push('/login'); 
     } else {
         // Unexpected response from Supabase
         toast({
             variant: "destructive",
-            title: "Error de Registro",
+            title: "Error de Registro Inesperado",
             description: "Ocurrió un problema inesperado durante el registro. Por favor, inténtalo de nuevo.",
         });
     }
@@ -233,7 +232,7 @@ export default function SignupPage() {
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> Este formulario ahora registra usuarios con <strong className="text-primary">Supabase Auth</strong>.
             Un perfil básico se creará automáticamente en nuestra base de datos gracias a un trigger de Supabase.
-            La funcionalidad de CAPTCHA está temporalmente deshabilitada debido a problemas persistentes con la instalación del paquete `react-hcaptcha`. Sigue las instrucciones en el README para intentar reactivarla y recuerda que la verificación del CAPTCHA en el backend es crucial.
+            La funcionalidad de CAPTCHA del frontend está temporalmente deshabilitada. Si experimenta errores de CAPTCHA, asegúrese de que la protección CAPTCHA esté DESACTIVADA en la configuración de su proyecto Supabase (Authentication {"->"} Settings).
           </div>
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
 
+
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -262,6 +263,14 @@ Este proyecto requiere claves API para funcionar correctamente.
 
 **Nota Importante sobre Errores de CAPTCHA con Supabase:** Si, después de configurar tu proyecto Supabase, encuentras errores como "captcha verification process failed" al intentar iniciar sesión o registrarte (incluso con el widget de hCaptcha deshabilitado en nuestro código), es muy probable que tengas la protección con CAPTCHA **activada a nivel de proyecto en la configuración de Autenticación de Supabase**. Deberás ir a tu panel de Supabase > Authentication > Settings y desactivar la protección CAPTCHA allí si no planeas usarla o si la integración del frontend no está completa.
 
+**Solución de Problemas de CAPTCHA Persistente (Si el error "captcha verification process failed" continúa):**
+
+1.  **Verifica Doblemente la Configuración de Supabase:** Ve a tu proyecto en [supabase.com](https://supabase.com/) -> "Authentication" -> "Settings". Desplázate hacia abajo hasta la sección "CAPTCHA protection". Asegúrate de que esté **DESACTIVADA**. Haz clic en "Save" en la parte inferior de la página de configuración de Autenticación de Supabase, incluso si parece que ya estaba desactivada.
+2.  **Espera Unos Minutos:** A veces, los cambios de configuración en los servicios en la nube pueden tardar unos minutos en propagarse completamente.
+3.  **Limpia la Caché del Navegador y Cookies:** Para el sitio `localhost:9002` (o donde estés probando).
+4.  **Reinicia el Servidor de Desarrollo de Next.js:** Detén `npm run dev` y vuelve a iniciarlo.
+5.  **Revisa los Logs de Supabase:** En tu panel de Supabase, ve a "Logs" (o "Database Logs" / "Auth Logs") para ver si hay más detalles sobre por qué la verificación del CAPTCHA está fallando del lado de Supabase.
+
 **Para intentar reactivar hCaptcha en la aplicación (Tarea Avanzada para el Usuario):**
 
 1.  **Solucionar el Problema de Instalación de `react-hcaptcha`:**
@@ -348,3 +357,5 @@ Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LI
 
 
 
+
+```

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session, isLoading: authIsLoading } = useAuth();
+  const { session, isLoading: authIsLoading, refreshUserProfile } = useAuth();
 
   useEffect(() => {
     if (!authIsLoading && session) {
@@ -77,15 +76,18 @@ export default function LoginPage() {
     }
     */
 
-    // In a real implementation, you would send captchaToken to your backend for verification here.
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      let description = error.message || "No se pudo iniciar sesión. Por favor, verifica tus credenciales.";
+      if (error.message.toLowerCase().includes("captcha verification process failed") || error.message.toLowerCase().includes("captcha required")) {
+        description = "Error de CAPTCHA de Supabase: La verificación CAPTCHA falló. Por favor, asegúrate de que la protección CAPTCHA esté DESACTIVADA en la configuración de tu proyecto Supabase (Authentication -> Settings -> CAPTCHA protection) y guarda los cambios. Si persiste, contacta el soporte de Supabase.";
+      }
       toast({
         variant: "destructive",
         title: "Error de Inicio de Sesión",
-        description: error.message || "No se pudo iniciar sesión. Por favor, verifica tus credenciales.",
+        description: description,
+        duration: 9000,
       });
     } else {
       toast({
@@ -94,6 +96,7 @@ export default function LoginPage() {
         variant: "default",
         duration: 3000,
       });
+      await refreshUserProfile(); // Refresh user profile to get latest subscription status
       router.push('/'); // Redirect on successful login
     }
     setIsLoading(false);
@@ -174,8 +177,8 @@ export default function LoginPage() {
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> Este formulario ahora interactúa con <strong className="text-primary">Supabase Auth</strong>.
-            La gestión del estado de sesión global y la activación de funciones premium se manejan a través de un Contexto de Autenticación.
-            La funcionalidad de CAPTCHA está temporalmente deshabilitada debido a problemas persistentes con la instalación del paquete `react-hcaptcha`. Sigue las instrucciones en el README para intentar reactivarla.
+            La funcionalidad de CAPTCHA del frontend está temporalmente deshabilitada debido a problemas persistentes con la instalación del paquete `react-hcaptcha`.
+            Si experimenta errores de CAPTCHA, asegúrese de que la protección CAPTCHA esté DESACTIVADA en la configuración de su proyecto Supabase (Authentication {"->"} Settings).
           </div>
         </CardContent>
       </Card>
