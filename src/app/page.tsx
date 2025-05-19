@@ -29,9 +29,9 @@ import { useRouter } from "next/navigation";
 
 declare global {
   interface Window {
-    paypal?: { // Make paypal optional as it might not be loaded immediately
+    paypal?: { 
       Buttons?: (options: any) => ({ 
-        render: (selector: string) => Promise<void>;
+        render: (selector: string | HTMLElement) => Promise<void>;
         isEligible: () => boolean; 
         close: () => Promise<void>;
       });
@@ -51,29 +51,25 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
       if (typeof window !== 'undefined' && window.paypal && typeof window.paypal.Buttons === 'function') {
         setIsPayPalSDKReady(true);
       } else {
-        setTimeout(checkPayPalSDK, 100); // Check again shortly
+        setTimeout(checkPayPalSDK, 100); 
       }
     };
     checkPayPalSDK();
   }, []);
 
   useEffect(() => {
+    const BCPC = paypalButtonsContainerRef.current; 
+
     if (!session) { 
-      // User logged out, ensure PayPal buttons are cleared if they were rendered
-      if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = '';
+      if (BCPC) BCPC.innerHTML = '';
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error closing PayPal buttons on session loss:", err));
       }
-      setPayPalButtonInstance(null); // Reset instance
-      return; // Don't render buttons if no session
+      setPayPalButtonInstance(null); 
+      return; 
     }
 
-    if (isPayPalSDKReady && paypalButtonsContainerRef.current && !payPalButtonInstance) {
-      // Clear previous buttons if any (though instance check should prevent duplicates)
-      if (paypalButtonsContainerRef.current.childElementCount > 0) {
-         // paypalButtonsContainerRef.current.innerHTML = ''; // Avoid aggressive clearing if instance managing it
-      }
-      
+    if (isPayPalSDKReady && BCPC && !payPalButtonInstance) {
       try {
         if (typeof window.paypal?.Buttons !== 'function') {
             toast({ variant: "destructive", title: "Error de SDK de PayPal", description: "Los componentes de botones de PayPal no están disponibles." });
@@ -89,9 +85,9 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             label: 'pay',
           },
           createOrder: async () => {
-            if (!session) { // Double check session before creating order
+            if (!session) { 
                 toast({ variant: "destructive", title: "Error de Autenticación", description: "Debe iniciar sesión para crear una orden de pago." });
-                onLoginRequired(); // Trigger login flow
+                onLoginRequired(); 
                 return Promise.reject(new Error("User not logged in"));
             }
             try {
@@ -99,7 +95,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), // Example amount
+                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), 
               });
               const orderData = await response.json();
               if (!response.ok || orderData.error) {
@@ -108,7 +104,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
                 onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
-              toast({ title: "Orden Creada", description: "Redirigiendo a PayPal para completar el pago.", variant: "default" });
+              toast({ title: "Orden Creada", description: `Redirigiendo a PayPal para completar el pago. OrderID: ${orderData.orderID}`, variant: "default" });
               return orderData.orderID;
             } catch (error: any) {
               toast({ variant: "destructive", title: "Error de Pago", description: `No se pudo conectar con el servidor de pagos: ${error.message}` });
@@ -119,7 +115,6 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
           onApprove: async (data: any, actions: any) => {
             toast({ title: "Pago Aprobado por Usuario", description: "Procesando la confirmación del pago con nuestro servidor...", variant: "default" });
             try {
-              // Call your backend to capture the order
               const response = await fetch('/api/paypal/capture-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -130,11 +125,12 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
               if (!response.ok || captureData.error) {
                 const errorMsg = captureData.error || "No se pudo capturar el pago en el servidor.";
                 toast({ variant: "destructive", title: "Error al Confirmar Pago", description: errorMsg });
+                console.error("Error capturing order in backend:", captureData);
                 onPaymentError(new Error(errorMsg));
               } else {
                  toast({ title: "¡Pago Confirmado Exitosamente!", description: `Orden ${captureData.orderID || data.orderID} completada. Actualizando estado de suscripción...`, variant: "default", duration: 7000 });
-                 await refreshUserProfile(); // Attempt to refresh profile after successful payment
-                 onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id }); 
+                 await refreshUserProfile(); 
+                 onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id, captureDetails: captureData }); 
               }
             } catch (error: any) {
               toast({ variant: "destructive", title: "Error Post-Aprobación", description: `Hubo un problema al finalizar la activación Premium: ${error.message}` });
@@ -143,10 +139,10 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
           },
           onError: (err: any) => {
             let userMessage = "Ocurrió un error con el sistema de PayPal. Por favor, intente de nuevo.";
-            if (typeof err === 'string' && err.includes('Window closed')) {
+             if (err && typeof err.message === 'string' && err.message.includes('Window closed')) { // More robust check
                 userMessage = "Ventana de pago cerrada por el usuario antes de completar.";
-            } else if (err && err.message && typeof err.message === 'string') { // Check if err.message is string
-                 userMessage = err.message.substring(0, 150); // Avoid very long technical messages
+            } else if (err && err.message && typeof err.message === 'string') { 
+                 userMessage = err.message.substring(0, 250); 
             }
             toast({ variant: "destructive", title: "Error de PayPal", description: userMessage });
             console.error("PayPal Buttons onError:", err);
@@ -157,43 +153,36 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             onPaymentCancel();
           },
         });
-
-        if (paypalButtonsContainerRef.current) {
-             // Ensure container is empty before rendering new buttons
-             paypalButtonsContainerRef.current.innerHTML = ''; 
-             buttonsInstance.render(paypalButtonsContainerRef.current)
-            .then(() => {
-                setPayPalButtonInstance(buttonsInstance); // Store instance
-                console.log("PayPal Buttons rendered successfully.");
-            })
-            .catch((renderError: any) => {
-              const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
-              toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
-              console.error("PayPal SDK .render() error:", renderError); 
-            });
-        }
+        
+        BCPC.innerHTML = ''; // Clear container before rendering new buttons
+        buttonsInstance.render(BCPC)
+        .then(() => {
+            setPayPalButtonInstance(buttonsInstance); 
+            console.log("PayPal Buttons rendered successfully.");
+        })
+        .catch((renderError: any) => {
+          const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
+          toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
+          console.error("PayPal SDK .render() error:", renderError); 
+        });
       } catch (error) {
-        toast({ variant: "destructive", title: "Error Crítico de SDK de PayPal", description: "No se pudo inicializar la interfaz de pago de PayPal." });
+        const initError = error as Error;
+        toast({ variant: "destructive", title: "Error Crítico de SDK de PayPal", description: `No se pudo inicializar la interfaz de pago de PayPal: ${initError.message}` });
         console.error("Error initializing PayPal Buttons:", error);
       }
     }
     
-    // Cleanup function
     return () => {
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
       }
-      // Optional: if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = '';
     };
-  // Dependencies: isPayPalSDKReady, session (to re-render if session changes), and other callbacks.
-  // Removed payPalButtonInstance from dependencies to avoid re-rendering loop if instance itself is stored.
-  }, [isPayPalSDKReady, session, onPaymentError, onPaymentSuccess, onPaymentCancel, toast, onLoginRequired, refreshUserProfile]);
+  }, [isPayPalSDKReady, session, onPaymentError, onPaymentSuccess, onPaymentCancel, toast, onLoginRequired, refreshUserProfile, payPalButtonInstance]);
 
   if (!isPayPalSDKReady) {
     return <div className="mt-4 text-center text-muted-foreground">Cargando opciones de pago... <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin"/></div>;
   }
   
-  // If user is not logged in, show login prompt instead of PayPal buttons
   if (!session) {
     return (
       <div className="mt-4 text-center">
@@ -206,7 +195,6 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
     );
   }
 
-  // Container for PayPal buttons, will be populated by SDK
   return <div ref={paypalButtonsContainerRef} className="mt-4 paypal-buttons-container min-h-[100px]"></div>;
 };
 
@@ -222,12 +210,11 @@ export default function HomePage() {
   const router = useRouter();
   const { session, isLoading: isLoadingAuth, isPremium, userProfile, signOut, refreshUserProfile } = useAuth(); 
 
-  const isUserPremium = isPremium; // Use isPremium from AuthContext
+  const isUserPremium = isPremium; 
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php";
 
   useEffect(() => {
-    // Cleanup object URLs on component unmount or when URLs change
     const currentZipUrl = zipUrl;
     const currentJsonUrl = jsonExportUrl;
     return () => {
@@ -285,7 +272,7 @@ export default function HomePage() {
     try {
       const blob = await zip.generateAsync({ type: "blob" });
       const newZipUrl = URL.createObjectURL(blob);
-      if (zipUrl) URL.revokeObjectURL(zipUrl); // Clean up old URL if exists
+      if (zipUrl) URL.revokeObjectURL(zipUrl); 
       setZipUrl(newZipUrl);
       toast({ title: "Archivo ZIP Listo", description: "El ZIP con los resultados está listo para descargar.", variant: "default" });
     } catch (error) {
@@ -303,7 +290,7 @@ export default function HomePage() {
         const jsonString = await exportAllFindingsAsJsonAction(findings);
         const blob = new Blob([jsonString], { type: "application/json" });
         const newJsonUrl = URL.createObjectURL(blob);
-        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl); // Clean up old URL
+        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl); 
         setJsonExportUrl(newJsonUrl);
         toast({ title: "Archivo JSON Listo", description: "Los hallazgos están listos para descargar en formato JSON.", variant: "default" });
     } catch (error) {
@@ -331,7 +318,6 @@ export default function HomePage() {
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
-    // Revoke old blob URLs to free up memory
     if (zipUrl) { URL.revokeObjectURL(zipUrl); setZipUrl(null); }
     if (jsonExportUrl) { URL.revokeObjectURL(jsonExportUrl); setJsonExportUrl(null); }
 
@@ -449,7 +435,7 @@ export default function HomePage() {
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
         {actionButton && !isForPayPalSection && actionButton}
-        {isForPayPalSection && session && !isUserPremium && ( // Only show PayPal if logged in AND not premium
+        {isForPayPalSection && session && !isUserPremium && ( 
            <div className="mt-4 flex flex-col items-center gap-4">
             <p className="text-sm text-center text-foreground"> Para acceder a esta y todas las funciones premium, considere nuestra suscripción. </p>
             <PayPalSmartPaymentButtons 
@@ -481,19 +467,53 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col bg-secondary/50">
         <AppHeader /> 
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
-          <section className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                <h2 className="text-2xl md:text-3xl font-semibold text-foreground"> Centro de Análisis de Seguridad Integral </h2>
+         
+          <section className="mb-12">
+            <Card className="bg-card shadow-2xl overflow-hidden rounded-xl border-primary/20 border">
+                <div className="p-8 md:p-12 bg-gradient-to-br from-primary/90 via-primary to-primary/80 text-primary-foreground">
+                    <h2 className="text-3xl md:text-4xl font-bold mb-3">Centro de Análisis de Seguridad Integral</h2>
+                    <p className="text-lg md:text-xl text-primary-foreground/90 mb-6 max-w-3xl">
+                        Identifique y mitigue proactivamente las vulnerabilidades en sus aplicaciones web, servidores, bases de datos, código fuente, configuraciones cloud, contenedores y más, con el poder de la Inteligencia Artificial.
+                    </p>
+                    <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md" onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                        <Search className="mr-2" /> Iniciar Análisis Ahora
+                    </Button>
+                </div>
+            </Card>
+          </section>
+
+          <section className="mb-12">
+            <h3 className="text-2xl md:text-3xl font-semibold text-foreground mb-6 text-center">Nuestros Servicios de Análisis</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { title: "Análisis Web (URL)", Icon: Globe, desc: "Detecta XSS, SQLi, y más en URLs públicas." },
+                { title: "Análisis de Servidores", Icon: ServerIcon, desc: "Evalúa configuraciones de SO, servicios y puertos." },
+                { title: "Análisis Servidores de Juegos", Icon: Gamepad2, desc: "Seguridad específica para Lineage 2, Roblox, etc." },
+                { title: "Análisis de Bases de Datos", Icon: Database, desc: "Identifica debilidades en configuración y acceso a BD." },
+                { title: "Análisis SAST (Código)", Icon: SearchCode, desc: "Revisa fragmentos de código en busca de fallos." },
+                { title: "Análisis DAST (Dinámico)", Icon: Network, desc: "Pruebas en aplicaciones web en ejecución (simulado)." },
+                { title: "Análisis Cloud (AWS, Azure, GCP)", Icon: Cloud, desc: "Revisa configuraciones de seguridad en la nube." },
+                { title: "Análisis de Contenedores", Icon: BoxIcon, desc: "Evalúa Dockerfiles e imágenes de contenedores." },
+                { title: "Análisis de Dependencias", Icon: LibraryIcon, desc: "Busca vulnerabilidades en bibliotecas de terceros." },
+                { title: "Análisis de Red", Icon: Wifi, desc: "Interpreta descripciones de red y escaneos (Nmap)." },
+              ].map(service => (
+                <Card key={service.title} className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card border">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <service.Icon className="h-8 w-8 text-primary" />
+                    <CardTitle className="text-lg">{service.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">{service.desc}</p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <p className="text-muted-foreground mb-6">
-              Nuestra plataforma IA analiza URLs, servidores (incluyendo juegos), bases de datos, código (SAST), aplicaciones (DAST), Cloud (AWS, Azure, GCP), contenedores (Docker, K8s), dependencias y redes.
-              <strong className="text-foreground block mt-1">
-                {session ? 
-                  (isUserPremium ? `¡Bienvenido ${userProfile?.email || (session?.user?.email) ||  'Usuario Premium'}! Acceso completo a todas las funcionalidades avanzadas.` 
-                             : `Bienvenido ${userProfile?.email || (session?.user?.email) ||  'Usuario'}. Considere nuestra suscripción para acceso completo.`)
-                : "Inicie sesión para desbloquear informes técnicos detallados, escenarios de ataque, playbooks de remediación y descarga completa de resultados."}
-              </strong>
-            </p>
+          </section>
+          
+          <section id="analysis-form-section" className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl border border-border">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 className="text-xl md:text-2xl font-semibold text-foreground"> Realizar Nuevo Análisis </h2>
+            </div>
             <UrlInputForm onSubmit={handleFormSubmit} isLoading={isLoadingAnalysis} defaultUrl={exampleUrl} />
           </section>
 
@@ -502,10 +522,10 @@ export default function HomePage() {
           <Separator className="my-8 md:my-12" />
           
           <section className="max-w-4xl mx-auto mb-8 md:mb-12">
-            <Card className="shadow-lg border-l-4 border-primary">
+            <Card className="shadow-lg border-l-4 border-primary bg-card">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-3 text-xl md:text-2xl"> <Briefcase className="h-7 w-7 text-primary" /> Capacidades Empresariales Avanzadas </CardTitle>
-                    <CardDescription> Nuestra plataforma ofrece herramientas de seguridad de nivel empresarial, con muchas funcionalidades en desarrollo activo, simulación y planificación estratégica: </CardDescription>
+                    <CardTitle className="flex items-center gap-3 text-xl md:text-2xl text-primary"> <Briefcase className="h-7 w-7" /> Capacidades Empresariales Avanzadas </CardTitle>
+                    <CardDescription className="text-muted-foreground"> Nuestra plataforma ofrece herramientas de seguridad de nivel empresarial, con muchas funcionalidades en desarrollo activo, simulación y planificación estratégica: </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {[
@@ -520,7 +540,7 @@ export default function HomePage() {
                         { icon: SlidersHorizontal, title: "Motor de Reglas Personalizadas", desc: "Definición de políticas y reglas de detección específicas para empresas.", status: "Planificado" },
                         { icon: ShieldEllipsis, title: "Mapeo a Controles de Cumplimiento", desc: "Relacionar hallazgos con controles de SOC2, ISO 27001, etc. (Informativo).", status: "Mejorado", badgeColor: "border-blue-500 text-blue-500" },
                         { icon: Waypoints, title: "Integración SIEM/SOAR (vía JSON export)", desc: "Exportación de datos y automatización de respuestas a incidentes.", status: "Base Implementada", badgeColor: "border-blue-500 text-blue-500" },
-                        { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado (Requiere Base de Datos)" },
+                        { icon: Users, title: "Gestión de Usuarios y RBAC", desc: "Control de acceso basado en roles y gestión de equipos.", status: "Planificado (Requiere Autenticación Real)" },
                         { icon: BarChart3, title: "Paneles de Control Avanzados", desc: "Visualizaciones y analítica de riesgos personalizables.", status: "Planificado" },
                         { icon: GitBranch, title: "Integración con CI/CD", desc: "Automatización de análisis en pipelines de desarrollo (DevSecOps).", status: "Explorando" },
                         { icon: Columns, title: "Interfaz de Línea de Comandos (CLI)", desc: "Automatización y gestión de análisis desde la terminal.", status: "Considerando" },
@@ -529,7 +549,7 @@ export default function HomePage() {
                     ].map(item => (
                         <div key={item.title} className="flex items-start gap-3 p-3 border rounded-md bg-secondary/30">
                             <item.icon className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                            <div> <span className="font-semibold text-foreground">{item.title}</span> <p className="text-muted-foreground">{item.desc}</p> <Badge variant="outline" className={cn("mt-1", item.badgeColor || "border-gray-400 text-gray-500")}>{item.status}</Badge> </div>
+                            <div> <span className="font-semibold text-foreground">{item.title}</span> <p className="text-muted-foreground">{item.desc}</p> <Badge variant="outline" className={cn("mt-1", item.badgeColor || "border-border text-muted-foreground")}>{item.status}</Badge> </div>
                         </div>
                     ))}
                 </CardContent>
@@ -539,8 +559,8 @@ export default function HomePage() {
           <section className="max-w-4xl mx-auto">
             {isLoadingAnalysis && (
               <div className="space-y-8 mt-8">
-                <Card className="shadow-lg animate-pulse"> <CardHeader> <Skeleton className="h-8 w-1/2" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-6 w-3/4 mb-4" /> <div className="grid grid-cols-2 md:grid-cols-4 gap-4"> <Skeleton className="h-16 w-full" /> <Skeleton className="h-16 w-full" /> <Skeleton className="h-16 w-full" /> <Skeleton className="h-16 w-full" /> </div> <Skeleton className="h-40 w-full mt-4" /> </CardContent> </Card>
-                <Card className="shadow-lg animate-pulse"> <CardHeader> <Skeleton className="h-8 w-3/4" /> <Skeleton className="h-4 w-1/2 mt-2" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-4 w-full" /> <Skeleton className="h-4 w-full" /> <Skeleton className="h-4 w-5/6" /> <Skeleton className="h-20 w-full mt-4" /> </CardContent> </Card>
+                <Card className="shadow-lg animate-pulse bg-card"> <CardHeader> <Skeleton className="h-8 w-1/2 bg-muted" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-6 w-3/4 mb-4 bg-muted" /> <div className="grid grid-cols-2 md:grid-cols-4 gap-4"> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> </div> <Skeleton className="h-40 w-full mt-4 bg-muted" /> </CardContent> </Card>
+                <Card className="shadow-lg animate-pulse bg-card"> <CardHeader> <Skeleton className="h-8 w-3/4 bg-muted" /> <Skeleton className="h-4 w-1/2 mt-2 bg-muted" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-4 w-full bg-muted" /> <Skeleton className="h-4 w-full bg-muted" /> <Skeleton className="h-4 w-5/6 bg-muted" /> <Skeleton className="h-20 w-full mt-4 bg-muted" /> </CardContent> </Card>
               </div>
             )}
 
@@ -591,7 +611,7 @@ export default function HomePage() {
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
                     {isUserPremium && zipUrl ? ( <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) </a> </Button>
                     ) : !isUserPremium && session && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
-                        <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary/70 text-primary-foreground w-full sm:w-auto cursor-not-allowed opacity-75" > <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Requiere Suscripción </Button> </TooltipTrigger> <TooltipContent> <p>Suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
+                         <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={handleLoginForPayPal}> <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) - Inicie Sesión/Suscríbase </Button> </TooltipTrigger> <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
                     )}
                      {jsonExportUrl && ( <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"> <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}> <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON) </a> </Button> )}
                 </div>
@@ -603,10 +623,10 @@ export default function HomePage() {
             )}
 
             {!isLoadingAnalysis && !analysisResult && (
-               <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary">
-                <CardHeader> <CardTitle className="flex items-center gap-3 text-xl"> <ShieldCheck className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad Asistido por IA </CardTitle> <CardDescription> Fortalezca la seguridad de sus aplicaciones web, servidores (juegos populares), bases de datos, código (SAST), aplicaciones (DAST), Cloud, Contenedores, Dependencias y Redes. </CardDescription> </CardHeader>
+               <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary bg-card">
+                <CardHeader> <CardTitle className="flex items-center gap-3 text-xl"> <ShieldCheck className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad Asistido por IA </CardTitle> <CardDescription className="text-muted-foreground"> Fortalezca la seguridad de sus aplicaciones web, servidores (juegos populares), bases de datos, código (SAST), aplicaciones (DAST), Cloud, Contenedores, Dependencias y Redes. </CardDescription> </CardHeader>
                 <CardContent className="space-y-4">
-                    <p className="text-muted-foreground"> Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado. <strong className="text-foreground">Inicie sesión y suscríbase para acceder a escenarios de ataque, detalles técnicos y playbooks de remediación.</strong></p>
+                    <p className="text-muted-foreground"> Proporcione detalles de su URL, servidor, base de datos, código, URL DAST, configuración Cloud, información de contenedores, archivos de dependencias o descripción de red. Nuestro motor IA identificará vulnerabilidades y generará un informe detallado. <strong className="text-foreground block mt-1">Inicie sesión y suscríbase para acceder a escenarios de ataque, detalles técnicos y playbooks de remediación.</strong></p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <Globe className="mr-2 h-5 w-5 text-primary"/> Análisis Web/URL.</div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-md flex-1 bg-background hover:shadow-md transition-shadow"> <ServerIcon className="mr-2 h-5 w-5 text-primary"/> Evaluación de Servidores.</div>
@@ -637,7 +657,7 @@ export default function HomePage() {
                             )}
                         </div>
                          <p className="text-xs text-muted-foreground mt-3 text-center">
-                           El flujo de pago de PayPal es para demostración. La activación real de Premium se haría en el backend tras confirmar el pago y actualizar su perfil de usuario en la base de datos.
+                           El flujo de pago de PayPal es para demostración con el entorno Sandbox. La activación real de Premium y la persistencia de la suscripción dependen de la correcta configuración de la base de datos (Supabase) y el endpoint de captura de pagos en el backend.
                          </p>
                     </div>
                 </CardContent>
@@ -657,8 +677,11 @@ export default function HomePage() {
           <p>© {new Date().getFullYear()} Centro de Análisis de Seguridad Integral. Impulsado por GenAI.</p>
           <p>Herramienta educativa y de evaluación avanzada para profesionales.</p>
           <Link href="/terms" className="text-xs text-primary hover:underline"> Términos y Condiciones </Link>
+           <span className="text-xs text-primary mx-1">|</span>
+          <Link href="/privacy" className="text-xs text-primary hover:underline"> Política de Privacidad </Link>
         </footer>
       </div>
     </TooltipProvider>
   );
 }
+
