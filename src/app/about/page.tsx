@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Shield, Target, Zap, Building } from "lucide-react";
+import { Users, Shield, Target, Zap, Building } from "lucide-react"; // Changed Users2 to Users
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/header";
 
@@ -38,7 +38,7 @@ export default function AboutPage() {
           <Card className="shadow-lg border border-border">
             <CardHeader>
               <CardTitle className="text-xl text-primary flex items-center">
-                <Users2 className="mr-2 h-6 w-6" /> Nuestro Equipo (Conceptual)
+                <Users className="mr-2 h-6 w-6" /> Nuestro Equipo (Conceptual) 
               </CardTitle>
             </CardHeader>
             <CardContent className="text-muted-foreground text-sm space-y-3">
