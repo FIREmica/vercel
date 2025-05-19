@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import JSZip from 'jszip';
 import Link from "next/link";
-import { AppHeader } from "@/components/layout/header"; 
+import { AppHeader } from "@/components/layout/header";
 import { UrlInputForm, type UrlInputFormValues } from "@/components/url-input-form";
 import { VulnerabilityReportDisplay } from "@/components/vulnerability-report-display";
 import { AttackVectorsDisplay } from "@/components/attack-vectors-display";
@@ -24,15 +24,15 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext"; 
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
 declare global {
   interface Window {
-    paypal?: { 
-      Buttons?: (options: any) => ({ 
+    paypal?: {
+      Buttons?: (options: any) => ({
         render: (selector: string | HTMLElement) => Promise<void>;
-        isEligible: () => boolean; 
+        isEligible: () => boolean;
         close: () => Promise<void>;
       });
     };
@@ -44,29 +44,29 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
   const { toast } = useToast();
   const [isPayPalSDKReady, setIsPayPalSDKReady] = useState(false);
   const [payPalButtonInstance, setPayPalButtonInstance] = useState<any>(null);
-  const { session, refreshUserProfile } = useAuth(); 
+  const { session, refreshUserProfile } = useAuth();
 
   useEffect(() => {
     const checkPayPalSDK = () => {
       if (typeof window !== 'undefined' && window.paypal && typeof window.paypal.Buttons === 'function') {
         setIsPayPalSDKReady(true);
       } else {
-        setTimeout(checkPayPalSDK, 100); 
+        setTimeout(checkPayPalSDK, 100);
       }
     };
     checkPayPalSDK();
   }, []);
 
   useEffect(() => {
-    const BCPC = paypalButtonsContainerRef.current; 
+    const BCPC = paypalButtonsContainerRef.current;
 
-    if (!session) { 
+    if (!session) {
       if (BCPC) BCPC.innerHTML = '';
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error closing PayPal buttons on session loss:", err));
       }
-      setPayPalButtonInstance(null); 
-      return; 
+      setPayPalButtonInstance(null);
+      return;
     }
 
     if (isPayPalSDKReady && BCPC && !payPalButtonInstance) {
@@ -85,9 +85,9 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             label: 'pay',
           },
           createOrder: async () => {
-            if (!session) { 
+            if (!session) {
                 toast({ variant: "destructive", title: "Error de Autenticación", description: "Debe iniciar sesión para crear una orden de pago." });
-                onLoginRequired(); 
+                onLoginRequired();
                 return Promise.reject(new Error("User not logged in"));
             }
             try {
@@ -95,7 +95,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), 
+                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }),
               });
               const orderData = await response.json();
               if (!response.ok || orderData.error) {
@@ -129,8 +129,8 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
                 onPaymentError(new Error(errorMsg));
               } else {
                  toast({ title: "¡Pago Confirmado Exitosamente!", description: `Orden ${captureData.orderID || data.orderID} completada. Actualizando estado de suscripción...`, variant: "default", duration: 7000 });
-                 await refreshUserProfile(); 
-                 onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id, captureDetails: captureData }); 
+                 await refreshUserProfile();
+                 onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id, captureDetails: captureData });
               }
             } catch (error: any) {
               toast({ variant: "destructive", title: "Error Post-Aprobación", description: `Hubo un problema al finalizar la activación Premium: ${error.message}` });
@@ -139,10 +139,10 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
           },
           onError: (err: any) => {
             let userMessage = "Ocurrió un error con el sistema de PayPal. Por favor, intente de nuevo.";
-             if (err && typeof err.message === 'string' && err.message.includes('Window closed')) { 
+             if (err && typeof err.message === 'string' && err.message.includes('Window closed')) {
                 userMessage = "Ventana de pago cerrada por el usuario antes de completar.";
-            } else if (err && err.message && typeof err.message === 'string') { 
-                 userMessage = err.message.substring(0, 250); 
+            } else if (err && err.message && typeof err.message === 'string') {
+                 userMessage = err.message.substring(0, 250);
             }
             toast({ variant: "destructive", title: "Error de PayPal", description: userMessage });
             console.error("PayPal Buttons onError:", err);
@@ -153,17 +153,17 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             onPaymentCancel();
           },
         });
-        
-        BCPC.innerHTML = '';
+
+        BCPC.innerHTML = ''; // Clear previous buttons if any
         buttonsInstance.render(BCPC)
         .then(() => {
-            setPayPalButtonInstance(buttonsInstance); 
+            setPayPalButtonInstance(buttonsInstance);
             console.log("PayPal Buttons rendered successfully.");
         })
         .catch((renderError: any) => {
           const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
           toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
-          console.error("PayPal SDK .render() error:", renderError); 
+          console.error("PayPal SDK .render() error:", renderError);
         });
       } catch (error) {
         const initError = error as Error;
@@ -171,7 +171,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
         console.error("Error initializing PayPal Buttons:", error);
       }
     }
-    
+
     return () => {
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
@@ -182,7 +182,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
   if (!isPayPalSDKReady) {
     return <div className="mt-4 text-center text-muted-foreground">Cargando opciones de pago... <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin"/></div>;
   }
-  
+
   if (!session) {
     return (
       <div className="mt-4 text-center">
@@ -208,9 +208,9 @@ export default function HomePage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { session, isLoading: isLoadingAuth, isPremium, userProfile, signOut, refreshUserProfile } = useAuth(); 
+  const { session, isLoading: isLoadingAuth, isPremium, userProfile, signOut, refreshUserProfile } = useAuth();
 
-  const isUserPremium = isPremium; 
+  const isUserPremium = isPremium;
 
   const exampleUrl = "http://testphp.vulnweb.com/userinfo.php";
 
@@ -272,7 +272,7 @@ export default function HomePage() {
     try {
       const blob = await zip.generateAsync({ type: "blob" });
       const newZipUrl = URL.createObjectURL(blob);
-      if (zipUrl) URL.revokeObjectURL(zipUrl); 
+      if (zipUrl) URL.revokeObjectURL(zipUrl);
       setZipUrl(newZipUrl);
       toast({ title: "Archivo ZIP Listo", description: "El ZIP con los resultados está listo para descargar.", variant: "default" });
     } catch (error) {
@@ -290,7 +290,7 @@ export default function HomePage() {
         const jsonString = await exportAllFindingsAsJsonAction(findings);
         const blob = new Blob([jsonString], { type: "application/json" });
         const newJsonUrl = URL.createObjectURL(blob);
-        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl); 
+        if (jsonExportUrl) URL.revokeObjectURL(jsonExportUrl);
         setJsonExportUrl(newJsonUrl);
         toast({ title: "Archivo JSON Listo", description: "Los hallazgos están listos para descargar en formato JSON.", variant: "default" });
     } catch (error) {
@@ -314,7 +314,7 @@ export default function HomePage() {
     if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
     if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
     if (values.networkDescription || values.networkScanResults || values.networkFirewallRules) descriptionParts.push('Red');
-    
+
     const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
     setSubmittedTargetDescription(currentTargetDesc);
 
@@ -380,7 +380,7 @@ export default function HomePage() {
           toast({
             title: "Análisis Completo",
             description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${isUserPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión para acceder a todas las funciones premium.'}`,
-            variant: vulnerableCount > 0 ? "default" : "default", 
+            variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
@@ -423,7 +423,7 @@ export default function HomePage() {
       toast({ title: "Pago Cancelado", description: "Ha cancelado el proceso de pago.", variant: "default" });
   };
    const handleLoginForPayPal = () => {
-    router.push('/login?redirect=/'); 
+    router.push('/login?redirect=/');
   };
 
 
@@ -435,12 +435,12 @@ export default function HomePage() {
       <CardContent>
         <p className="text-muted-foreground mb-4">{description}</p>
         {actionButton && !isForPayPalSection && actionButton}
-        {isForPayPalSection && session && !isUserPremium && ( 
+        {isForPayPalSection && session && !isUserPremium && (
            <div className="mt-4 flex flex-col items-center gap-4">
             <p className="text-sm text-center text-foreground"> Para acceder a esta y todas las funciones premium, considere nuestra suscripción. </p>
-            <PayPalSmartPaymentButtons 
-                onPaymentSuccess={handlePayPalPaymentSuccess} 
-                onPaymentError={handlePayPalPaymentError} 
+            <PayPalSmartPaymentButtons
+                onPaymentSuccess={handlePayPalPaymentSuccess}
+                onPaymentError={handlePayPalPaymentError}
                 onPaymentCancel={handlePayPalPaymentCancel}
                 onLoginRequired={handleLoginForPayPal}
             />
@@ -465,9 +465,9 @@ export default function HomePage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-secondary/50">
-        <AppHeader /> 
+        <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
-         
+
           <section className="mb-12">
             <Card className="bg-card shadow-2xl overflow-hidden rounded-xl border-primary/20 border">
                 <div className="p-8 md:p-12 bg-gradient-to-br from-primary/90 via-primary to-primary/80 text-primary-foreground">
@@ -509,7 +509,7 @@ export default function HomePage() {
               ))}
             </div>
           </section>
-          
+
           <section id="analysis-form-section" className="max-w-3xl mx-auto bg-card p-6 md:p-8 rounded-xl shadow-2xl border border-border">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h2 className="text-xl md:text-2xl font-semibold text-foreground"> Realizar Nuevo Análisis </h2>
@@ -520,7 +520,7 @@ export default function HomePage() {
           <Separator className="my-8 md:my-12" />
           <HackingInfoSection />
           <Separator className="my-8 md:my-12" />
-          
+
           <section className="max-w-4xl mx-auto mb-8 md:mb-12">
             <Card className="shadow-lg border-l-4 border-primary bg-card">
                 <CardHeader>
@@ -571,7 +571,7 @@ export default function HomePage() {
 
                 {analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && isUserPremium && ( <> <Separator className="my-8 md:my-12" /> <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} /> </> )}
                 {!isUserPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Escenarios de Ataque Ilustrativos" description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." icon={Zap} isForPayPalSection={true} actionButton={!session ? <Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Activar Premium</Button> : undefined} /> )}
-                
+
                 {analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && isUserPremium && ( <> <Separator className="my-8 md:my-12" /> <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} /> </> )}
                 {!isUserPremium && analysisResult.allFindings && analysisResult.allFindings.some(f => f.isVulnerable) && ( <PremiumFeatureCard title="Playbooks de Remediación Sugeridos" description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." icon={FileLock2} isForPayPalSection={true} actionButton={!session ? <Button onClick={() => router.push('/login?redirect=/')}><LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Activar Premium</Button> : undefined} /> )}
 
@@ -593,9 +593,9 @@ export default function HomePage() {
                       {analysisResult.error && <p className="text-sm text-destructive mt-2">{analysisResult.error}</p>}
                       <div className="mt-6 flex flex-col items-center gap-4">
                         <p className="text-lg font-semibold text-center text-foreground"> Suscríbase para Acceso Premium </p>
-                         <PayPalSmartPaymentButtons 
-                             onPaymentSuccess={handlePayPalPaymentSuccess} 
-                             onPaymentError={handlePayPalPaymentError} 
+                         <PayPalSmartPaymentButtons
+                             onPaymentSuccess={handlePayPalPaymentSuccess}
+                             onPaymentError={handlePayPalPaymentError}
                              onPaymentCancel={handlePayPalPaymentCancel}
                              onLoginRequired={handleLoginForPayPal}
                          />
@@ -642,13 +642,13 @@ export default function HomePage() {
                     <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4">
                         <h3 className="text-lg font-semibold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6 text-accent" /> Suscríbase para Acceso Premium</h3>
                          <p className="text-sm text-center text-muted-foreground max-w-md"> Inicie sesión para comenzar el proceso de suscripción y desbloquear todas las funcionalidades avanzadas de nuestra plataforma. </p>
-                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md"> 
+                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                             {!session ? (
                                 <Button onClick={() => router.push('/login?redirect=/')} className="w-full" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
                             ) : !isUserPremium ? (
-                                <PayPalSmartPaymentButtons 
-                                    onPaymentSuccess={handlePayPalPaymentSuccess} 
-                                    onPaymentError={handlePayPalPaymentError} 
+                                <PayPalSmartPaymentButtons
+                                    onPaymentSuccess={handlePayPalPaymentSuccess}
+                                    onPaymentError={handlePayPalPaymentError}
                                     onPaymentCancel={handlePayPalPaymentCancel}
                                     onLoginRequired={handleLoginForPayPal}
                                 />
@@ -670,7 +670,12 @@ export default function HomePage() {
          <DialogTrigger asChild>
               <Button variant="outline" size="icon" className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-primary-foreground/50" aria-label="Abrir Asistente IA" > <Bot className="h-7 w-7" /> </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[450px] p-0 border-0 shadow-none bg-transparent"> <ChatAssistant /> </DialogContent>
+          <DialogContent className="sm:max-w-[450px] p-0 border-0 shadow-none bg-transparent">
+            <DialogHeader>
+              <DialogTitle className="sr-only">Asistente de Chat IA</DialogTitle>
+            </DialogHeader>
+            <ChatAssistant />
+          </DialogContent>
         </Dialog>
 
         <footer className="text-center py-6 text-sm text-muted-foreground border-t border-border">
@@ -684,4 +689,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
