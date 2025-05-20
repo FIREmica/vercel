@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import JSZip from 'jszip';
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/header";
@@ -17,8 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search, Lightbulb, Target, Menu, UserCircle as UserCircleIcon, Building } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Lightbulb, Target, Menu, UserCircle as UserCircleIcon, Building, Search, FileText, ChevronDown } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
@@ -38,18 +38,30 @@ declare global {
   }
 }
 
-const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPaymentCancel, onLoginRequired }: { onPaymentSuccess: (details: any) => Promise<void>, onPaymentError: (err: any) => void, onPaymentCancel: () => void, onLoginRequired: () => void }) => {
+const PayPalSmartPaymentButtons = ({ 
+  onPaymentSuccess, 
+  onPaymentError, 
+  onPaymentCancel, 
+  onLoginRequired 
+}: { 
+  onPaymentSuccess: (details: any) => Promise<void>, 
+  onPaymentError: (err: any) => void, 
+  onPaymentCancel: () => void, 
+  onLoginRequired: () => void 
+}) => {
   const paypalButtonsContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isPayPalSDKReady, setIsPayPalSDKReady] = useState(false);
   const [payPalButtonInstance, setPayPalButtonInstance] = useState<any>(null);
-  const { session } = useAuth();
+  const { session, refreshUserProfile } = useAuth();
 
   useEffect(() => {
     const checkPayPalSDK = () => {
       if (typeof window !== 'undefined' && window.paypal && typeof window.paypal.Buttons === 'function') {
         setIsPayPalSDKReady(true);
+        console.log("PayPal SDK está listo.");
       } else {
+        console.log("PayPal SDK aún no está listo, reintentando...");
         setTimeout(checkPayPalSDK, 100);
       }
     };
@@ -60,19 +72,21 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
     const BCPC = paypalButtonsContainerRef.current;
 
     if (!session) {
+      console.log("PayPalButtons: No hay sesión de usuario, limpiando botones si existen.");
       if (BCPC) BCPC.innerHTML = ''; 
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
-        payPalButtonInstance.close().catch((err: any) => console.error("Error closing PayPal buttons on session loss:", err));
+        payPalButtonInstance.close().catch((err: any) => console.error("Error cerrando botones de PayPal por falta de sesión:", err));
       }
       setPayPalButtonInstance(null);
       return;
     }
 
     if (isPayPalSDKReady && BCPC && !payPalButtonInstance) {
+      console.log("PayPalButtons: SDK listo, contenedor existe, sin instancia de botones. Intentando renderizar...");
       try {
         if (typeof window.paypal?.Buttons !== 'function') {
             toast({ variant: "destructive", title: "Error de SDK de PayPal", description: "Los componentes de botones de PayPal no están disponibles." });
-            console.error("window.paypal.Buttons is not a function or not available.");
+            console.error("window.paypal.Buttons no es una función o no está disponible.");
             return;
         }
 
@@ -84,10 +98,11 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
             label: 'pay',
           },
           createOrder: async () => {
+            console.log("PayPalButtons: createOrder iniciado.");
             if (!session) {
                 toast({ variant: "destructive", title: "Error de Autenticación", description: "Debe iniciar sesión para crear una orden de pago." });
                 onLoginRequired();
-                return Promise.reject(new Error("User not logged in"));
+                return Promise.reject(new Error("User not logged in for createOrder"));
             }
             try {
               toast({ title: "Iniciando Pago", description: "Creando orden de pago segura con PayPal...", variant: "default" });
@@ -100,18 +115,22 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
               if (!response.ok || orderData.error) {
                 const errorMsg = orderData.error || 'Error desconocido del servidor al crear la orden.';
                 toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}` });
+                console.error("PayPalButtons: Error creando orden en backend:", orderData);
                 onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
               toast({ title: "Orden Creada", description: `Redirigiendo a PayPal para completar el pago. OrderID: ${orderData.orderID}`, variant: "default" });
+              console.log("PayPalButtons: Orden creada exitosamente en backend. OrderID:", orderData.orderID);
               return orderData.orderID;
             } catch (error: any) {
               toast({ variant: "destructive", title: "Error de Pago", description: `No se pudo conectar con el servidor de pagos: ${error.message}` });
+              console.error("PayPalButtons: Error en fetch a /api/paypal/create-order:", error);
               onPaymentError(error);
               return Promise.reject(error);
             }
           },
           onApprove: async (data: any, actions: any) => {
+            console.log("PayPalButtons: onApprove iniciado. OrderID:", data.orderID);
             toast({ title: "Pago Aprobado por Usuario", description: "Procesando la confirmación del pago con nuestro servidor...", variant: "default" });
             try {
               const response = await fetch('/api/paypal/capture-order', {
@@ -124,14 +143,15 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
               if (!response.ok || captureData.error) {
                 const errorMsg = captureData.message || captureData.error || "No se pudo capturar el pago en el servidor.";
                 toast({ variant: "destructive", title: "Error al Confirmar Pago", description: errorMsg });
-                console.error("Error capturing order in backend:", captureData);
+                console.error("PayPalButtons: Error capturando orden en backend:", captureData);
                 onPaymentError(new Error(errorMsg));
               } else {
-                 // onPaymentSuccess will handle the toast after profile refresh
+                 console.log("PayPalButtons: Captura de orden en backend exitosa. Detalles:", captureData);
                  await onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id, captureDetails: captureData });
               }
             } catch (error: any) {
               toast({ variant: "destructive", title: "Error Post-Aprobación", description: `Hubo un problema al finalizar la activación Premium: ${error.message}` });
+              console.error("PayPalButtons: Error en fetch a /api/paypal/capture-order:", error);
               onPaymentError(error);
             }
           },
@@ -141,46 +161,54 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
                 userMessage = "Ventana de pago cerrada por el usuario antes de completar.";
             } else if (err && err.message && typeof err.message === 'string') {
                  userMessage = err.message.substring(0, 250); 
+            } else if (err && typeof err === 'string' && err.includes("Expected an order id to be passed")) {
+                userMessage = "No se pudo obtener un ID de orden de PayPal. Verifique su conexión o intente de nuevo.";
             }
             toast({ variant: "destructive", title: "Error de PayPal", description: userMessage });
-            console.error("PayPal Buttons onError:", err);
+            console.error("PayPalButtons: onError:", err);
             onPaymentError(err);
           },
           onCancel: (data: any) => {
             toast({ title: "Pago Cancelado", description: "El proceso de pago fue cancelado por el usuario.", variant: "default" });
+            console.log("PayPalButtons: Pago cancelado por el usuario. Data:", data);
             onPaymentCancel();
           },
         });
         
         if (BCPC && document.body.contains(BCPC)) {
-             buttonsInstance.render(BCPC)
+          // paypalButtonsContainerRef.current.innerHTML = ''; // Removed based on previous error. PayPal SDK should manage this.
+          buttonsInstance.render(BCPC)
             .then(() => {
                 setPayPalButtonInstance(buttonsInstance);
-                console.log("PayPal Buttons rendered successfully.");
+                console.log("PayPal Buttons renderizados exitosamente.");
             })
             .catch((renderError: any) => {
               const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
               toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
               console.error("PayPal SDK .render() error:", renderError);
             });
+        } else {
+            console.warn("PayPalButtons: Contenedor BCPC no encontrado en el DOM al intentar renderizar.");
         }
       } catch (error) {
         const initError = error as Error;
         toast({ variant: "destructive", title: "Error Crítico de SDK de PayPal", description: `No se pudo inicializar la interfaz de pago de PayPal: ${initError.message}` });
-        console.error("Error initializing PayPal Buttons:", error);
+        console.error("Error inicializando PayPal Buttons:", error);
       }
     }
 
     return () => {
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         if (paypalButtonsContainerRef.current && document.body.contains(paypalButtonsContainerRef.current)) {
+            console.log("PayPalButtons: Limpiando instancia de botones de PayPal...");
             payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
+        } else {
+            console.log("PayPalButtons: Contenedor no encontrado en cleanup, no se llama a close().");
         }
         setPayPalButtonInstance(null); 
       }
     };
-  // Ensure dependency array is stable or functions are memoized if passed from parent
-  // For this example, assuming onPayment* props are stable.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPayPalSDKReady, session, payPalButtonInstance, toast, onLoginRequired, onPaymentSuccess, onPaymentError, onPaymentCancel]);
 
 
@@ -200,7 +228,7 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
     );
   }
 
-  return <div ref={paypalButtonsContainerRef} className="mt-4 paypal-buttons-container min-h-[100px]"></div>;
+  return <div ref={paypalButtonsContainerRef} id={`paypal-buttons-container-${Date.now()}`} className="mt-4 paypal-buttons-container min-h-[100px]"></div>;
 };
 
 
@@ -413,27 +441,31 @@ export default function HomePage() {
     }
   };
 
-  const handlePayPalPaymentSuccess = async (details: any) => {
-    // refreshUserProfile is now async, so we await it.
+  const handlePayPalPaymentSuccess = useCallback(async (details: any) => {
+    console.log("HomePage: PayPal onPaymentSuccess, detalles:", details);
+    toast({ title: "Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Actualizando estado de suscripción...`, variant: "default", duration: 4000 });
     await refreshUserProfile(); 
-    // The toast message is more accurate as it's shown after profile refresh attempt.
-    toast({ title: "¡Pago Procesado!", description: `Orden ${details.orderID} confirmada. Su estado de suscripción ha sido actualizado.`, variant: "default", duration: 7000 });
-  };
+    // Toast de "Suscripción Activada" se mostrará por el cambio de estado en AuthContext -> isPremium
+  },[refreshUserProfile, toast]);
 
-  const handlePayPalPaymentError = (error: any) => {
+  const handlePayPalPaymentError = useCallback((error: any) => {
     toast({ variant: "destructive", title: "Error de Pago", description: "Hubo un problema al procesar su pago con PayPal." });
-  };
-  const handlePayPalPaymentCancel = () => {
+    console.error("HomePage: PayPal onPaymentError:", error);
+  }, [toast]);
+
+  const handlePayPalPaymentCancel = useCallback(() => {
       toast({ title: "Pago Cancelado", description: "Ha cancelado el proceso de pago.", variant: "default" });
-  };
-   const handleLoginForPayPal = () => {
+      console.log("HomePage: PayPal onPaymentCancel");
+  }, [toast]);
+
+   const handleLoginForPayPal = useCallback(() => {
     router.push('/login?redirect=/'); 
-  };
+  }, [router]);
 
   const FeatureCard = ({ title, description, icon: Icon }: { title: string, description: string, icon: React.ElementType }) => (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 bg-card border-border">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center text-lg">
+        <CardTitle className="flex items-center text-lg text-foreground">
           <Icon className="h-6 w-6 mr-3 text-primary" />
           {title}
         </CardTitle>
@@ -464,7 +496,7 @@ export default function HomePage() {
             />
         ) : (
           <>
-            <p className="text-sm text-green-600 font-semibold flex items-center"><ShieldCheck className="mr-2 h-4 w-4"/>¡Función Premium Activada!</p>
+            <div className="text-sm text-green-600 dark:text-green-500 font-semibold flex items-center mb-2"><ShieldCheck className="mr-2 h-4 w-4"/>¡Función Premium Activada!</div>
             {children}
           </>
         )}
@@ -488,25 +520,27 @@ export default function HomePage() {
         <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
          
+          {/* Hero Section */}
           <section className="text-center py-12 md:py-16 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl shadow-lg border border-border mb-12 md:mb-16">
-              <div className="max-w-4xl mx-auto px-4">
-                  <ShieldCheck className="h-20 w-20 text-primary mx-auto mb-6" />
-                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground tracking-tight">
-                  Centro de Análisis de Seguridad Integral
-                  </h2>
-                  <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-                  Identifique, analice y remedie vulnerabilidades en sus aplicaciones web, servidores (incluyendo de juegos), bases de datos, código, cloud y más, con el poder de la Inteligencia Artificial.
-                  </p>
-                  <Button 
-                  size="lg" 
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md px-10 py-6 text-lg rounded-lg font-semibold" 
-                  onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}
-                  >
-                      <Search className="mr-2 h-5 w-5" /> Iniciar Análisis Ahora
-                  </Button>
-              </div>
+              <Card className="max-w-4xl mx-auto p-6 md:p-10 bg-transparent border-0">
+                <CardHeader className="p-0 mb-6">
+                  <ShieldCheck className="h-16 w-16 md:h-20 md:w-20 text-primary mx-auto mb-4" />
+                  <CardTitle className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+                    Centro de Análisis de Seguridad Integral
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <p className="text-md sm:text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+                    Identifique, analice y remedie vulnerabilidades en sus aplicaciones web, servidores (incluyendo de juegos), bases de datos, código, cloud y más, con el poder de la Inteligencia Artificial.
+                    </p>
+                    <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md px-8 py-6 text-base md:text-lg rounded-lg font-semibold" onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                        <Search className="mr-2" /> Iniciar Análisis Ahora
+                    </Button>
+                </CardContent>
+              </Card>
           </section>
 
+          {/* Services Overview Section */}
           <section id="servicios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Nuestras Capacidades</Badge>
@@ -531,6 +565,7 @@ export default function HomePage() {
             </div>
           </section>
           
+          {/* Why Choose Us Section */}
           <section id="porque-nosotros" className="py-12 md:py-16 bg-secondary/30 rounded-xl shadow-inner border border-border">
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
@@ -572,10 +607,11 @@ export default function HomePage() {
 
           <Separator className="my-8 md:my-12" />
 
+          {/* Testimonials Section Placeholder */}
           <section id="testimonios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Confianza Comprobada</Badge>
-                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Lo Que Dicen Nuestros Clientes</h3>
+                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Lo Que Dicen Nuestros Clientes (Ejemplos)</h3>
             </div>
             <div className="grid md:grid-cols-2 gap-8">
               <Card className="bg-card border-border shadow-sm p-6">
@@ -635,14 +671,14 @@ export default function HomePage() {
               </PremiumFeatureCard>
 
               {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
-                <Card className="shadow-lg mt-8">
+                 <Card className="shadow-lg mt-8">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Download className="h-6 w-6 text-primary" />
                       Descargar Resultados
                     </CardTitle>
                     <CardDescription>
-                      {isPremium ? "Descargue el paquete completo (ZIP) o solo los hallazgos (JSON)." : "Descargue los hallazgos en JSON. Suscríbase a Premium para el paquete ZIP completo."}
+                      {!!session && isPremium ? "Descargue el paquete completo (ZIP) o solo los hallazgos (JSON)." : "Descargue los hallazgos en JSON. Inicie sesión y suscríbase a Premium para el paquete ZIP completo."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col sm:flex-row justify-center items-center gap-4">
@@ -655,8 +691,8 @@ export default function HomePage() {
                     ) : (!session || !isPremium) && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
                          <Tooltip> 
                            <TooltipTrigger asChild> 
-                             <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed"> 
-                               <span> <LockIcon className="mr-2 h-5 w-5 inline-block" /> Descargar Paquete (ZIP) </span>
+                             <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}> 
+                               <span><LockIcon className="mr-2 h-5 w-5 inline-block" /> Descargar Paquete (ZIP)</span>
                              </Button> 
                            </TooltipTrigger> 
                            <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent> 
@@ -679,31 +715,51 @@ export default function HomePage() {
 
           {!isLoadingAnalysis && !analysisResult && (
              <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary bg-card">
-              <CardHeader> <CardTitle className="flex items-center gap-3 text-xl"> <ShieldCheck className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad </CardTitle> <CardDescription className="text-muted-foreground"> Ingrese los detalles en el formulario superior para iniciar un análisis de seguridad asistido por IA. </CardDescription> </CardHeader>
-              <CardContent className="space-y-4">
-                  <p className="text-muted-foreground"> Nuestra plataforma analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST simulado), configuraciones Cloud, contenedores, dependencias y redes. </p>
-                  <div className="mt-6 pt-6 border-t border-border">
-                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-3"><ShoppingCart className="h-6 w-6 text-accent" /> Suscríbase para Acceso Premium</h3>
-                       <p className="text-sm text-muted-foreground mb-4"> Desbloquee informes técnicos detallados, escenarios de ataque, playbooks de remediación y descargas ZIP completas. </p>
-                      <div className="flex flex-col items-center">
-                          {!session ? (
-                              <Button onClick={() => router.push('/login?redirect=/')} className="w-full max-w-xs" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
-                          ) : !isPremium ? (
-                              <PayPalSmartPaymentButtons
-                                  onPaymentSuccess={handlePayPalPaymentSuccess}
-                                  onPaymentError={handlePayPalPaymentError}
-                                  onPaymentCancel={handlePayPalPaymentCancel}
-                                  onLoginRequired={handleLoginForPayPal}
-                              />
-                          ) : (
-                               <p className="text-center text-green-600 font-semibold mt-3 flex items-center gap-2"><ShieldCheck className="h-5 w-5"/> ¡Suscripción Premium Activa!</p>
-                          )}
-                      </div>
-                       <p className="text-xs text-muted-foreground mt-3 text-center">
-                         Flujo de pago funcional con PayPal Sandbox. La activación Premium requiere que el endpoint de captura en backend actualice correctamente el estado del usuario en la base de datos Supabase.
-                       </p>
-                  </div>
-              </CardContent>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3 text-xl text-foreground">
+                    <ShieldEllipsis className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                    Ingrese los detalles en el formulario superior para iniciar un análisis de seguridad asistido por IA.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-muted-foreground">
+                    Nuestra plataforma analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST simulado), configuraciones Cloud, contenedores, dependencias y redes.
+                    </p>
+                    { !session || !isPremium ? (
+                        <div className="mt-6 pt-6 border-t border-border">
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-3">
+                            <Sparkles className="h-6 w-6 text-accent" /> ¡Desbloquee el Poder Completo de la Plataforma!
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                           Conviértase en Premium para acceder a informes técnicos detallados, escenarios de ataque ilustrativos, playbooks de remediación personalizados y la descarga completa de resultados en formato ZIP.
+                        </p>
+                        <div className="flex flex-col items-center">
+                            {!session ? (
+                                <Button onClick={() => router.push('/login?redirect=/')} className="w-full max-w-xs bg-accent hover:bg-accent/90 text-accent-foreground" size="lg">
+                                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse
+                                </Button>
+                            ) : (
+                                <PayPalSmartPaymentButtons
+                                    onPaymentSuccess={handlePayPalPaymentSuccess}
+                                    onPaymentError={handlePayPalPaymentError}
+                                    onPaymentCancel={handlePayPalPaymentCancel}
+                                    onLoginRequired={handleLoginForPayPal}
+                                />
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-3 text-center">
+                            Flujo de pago funcional con PayPal Sandbox. La activación Premium requiere que el endpoint de captura en backend actualice correctamente el estado del usuario en la base de datos Supabase.
+                        </p>
+                        </div>
+                    ) : (
+                        <div className="mt-6 pt-6 border-t border-border text-center">
+                             <p className="text-lg text-green-600 dark:text-green-500 font-semibold flex items-center justify-center gap-2"><ShieldCheck className="h-6 w-6"/> ¡Suscripción Premium Activa!</p>
+                             <p className="text-sm text-muted-foreground mt-2">Disfrute de todas las funcionalidades avanzadas.</p>
+                        </div>
+                    )}
+                </CardContent>
              </Card>
           )}
         </main>
