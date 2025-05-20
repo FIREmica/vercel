@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Lightbulb, Target, Menu, UserCircle as UserCircleIcon, Building, Search, FileText, ChevronDown } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -38,16 +38,16 @@ declare global {
   }
 }
 
-const PayPalSmartPaymentButtons = ({ 
-  onPaymentSuccess, 
-  onPaymentError, 
-  onPaymentCancel, 
-  onLoginRequired 
-}: { 
-  onPaymentSuccess: (details: any) => Promise<void>, 
-  onPaymentError: (err: any) => void, 
-  onPaymentCancel: () => void, 
-  onLoginRequired: () => void 
+const PayPalSmartPaymentButtons = ({
+  onPaymentSuccess,
+  onPaymentError,
+  onPaymentCancel,
+  onLoginRequired
+}: {
+  onPaymentSuccess: (details: any) => Promise<void>,
+  onPaymentError: (err: any) => void,
+  onPaymentCancel: () => void,
+  onLoginRequired: () => void
 }) => {
   const paypalButtonsContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -73,7 +73,7 @@ const PayPalSmartPaymentButtons = ({
 
     if (!session) {
       console.log("PayPalButtons: No hay sesión de usuario, limpiando botones si existen.");
-      if (BCPC) BCPC.innerHTML = ''; 
+      if (BCPC) BCPC.innerHTML = '';
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error cerrando botones de PayPal por falta de sesión:", err));
       }
@@ -109,22 +109,35 @@ const PayPalSmartPaymentButtons = ({
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), 
+                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }),
               });
-              const orderData = await response.json();
-              if (!response.ok || orderData.error) {
-                const errorMsg = orderData.error || 'Error desconocido del servidor al crear la orden.';
+
+              let orderData;
+              try {
+                orderData = await response.json();
+              } catch (jsonError: any) {
+                console.error("PayPalButtons: Error al parsear la respuesta JSON de /api/paypal/create-order:", jsonError);
+                const errorText = await response.text().catch(() => "No se pudo leer el cuerpo de la respuesta.");
+                const description = `Respuesta inesperada del servidor (Estado: ${response.status}). Detalle: ${errorText.substring(0,150)}`;
+                toast({ variant: "destructive", title: "Error de Creación de Orden", description });
+                onPaymentError(new Error(description));
+                return Promise.reject(new Error(description));
+              }
+
+              if (!response.ok || !orderData || orderData.error) {
+                const errorMsg = orderData?.error || (response.ok ? 'Respuesta vacía o malformada del servidor.' : `Error del servidor: ${response.statusText}`);
                 toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}` });
-                console.error("PayPalButtons: Error creando orden en backend:", orderData);
+                console.error("PayPalButtons: Error creando orden en backend:", orderData || `Estado: ${response.status}, Texto: ${response.statusText}`);
                 onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
               toast({ title: "Orden Creada", description: `Redirigiendo a PayPal para completar el pago. OrderID: ${orderData.orderID}`, variant: "default" });
               console.log("PayPalButtons: Orden creada exitosamente en backend. OrderID:", orderData.orderID);
               return orderData.orderID;
-            } catch (error: any) {
-              toast({ variant: "destructive", title: "Error de Pago", description: `No se pudo conectar con el servidor de pagos: ${error.message}` });
-              console.error("PayPalButtons: Error en fetch a /api/paypal/create-order:", error);
+            } catch (error: any) { // Catches fetch network errors or rejections from above
+              const description = error.message || "No se pudo conectar con el servidor de pagos.";
+              toast({ variant: "destructive", title: "Error de Pago", description });
+              console.error("PayPalButtons: Error en fetch a /api/paypal/create-order o promesa rechazada:", error);
               onPaymentError(error);
               return Promise.reject(error);
             }
@@ -160,7 +173,7 @@ const PayPalSmartPaymentButtons = ({
              if (err && typeof err.message === 'string' && err.message.includes('Window closed')) {
                 userMessage = "Ventana de pago cerrada por el usuario antes de completar.";
             } else if (err && err.message && typeof err.message === 'string') {
-                 userMessage = err.message.substring(0, 250); 
+                 userMessage = err.message.substring(0, 250);
             } else if (err && typeof err === 'string' && err.includes("Expected an order id to be passed")) {
                 userMessage = "No se pudo obtener un ID de orden de PayPal. Verifique su conexión o intente de nuevo.";
             }
@@ -174,9 +187,8 @@ const PayPalSmartPaymentButtons = ({
             onPaymentCancel();
           },
         });
-        
+
         if (BCPC && document.body.contains(BCPC)) {
-          // paypalButtonsContainerRef.current.innerHTML = ''; // Removed based on previous error. PayPal SDK should manage this.
           buttonsInstance.render(BCPC)
             .then(() => {
                 setPayPalButtonInstance(buttonsInstance);
@@ -205,11 +217,11 @@ const PayPalSmartPaymentButtons = ({
         } else {
             console.log("PayPalButtons: Contenedor no encontrado en cleanup, no se llama a close().");
         }
-        setPayPalButtonInstance(null); 
+        setPayPalButtonInstance(null);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPayPalSDKReady, session, payPalButtonInstance, toast, onLoginRequired, onPaymentSuccess, onPaymentError, onPaymentCancel]);
+  }, [isPayPalSDKReady, session, payPalButtonInstance]); // Removed toast, onLoginRequired, etc. as they should be stable if memoized by parent
 
 
   if (!isPayPalSDKReady) {
@@ -391,7 +403,7 @@ export default function HomePage() {
         return;
       }
 
-      const result = await performAnalysisAction(params, !!session && isPremium); 
+      const result = await performAnalysisAction(params, !!session && isPremium);
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) {
@@ -404,7 +416,7 @@ export default function HomePage() {
           if (result.allFindings && result.allFindings.length > 0) {
              await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
-          if (!!session && isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) { 
+          if (!!session && isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
             await generateZipFile(result, currentTargetDesc);
           }
           toast({
@@ -443,9 +455,8 @@ export default function HomePage() {
 
   const handlePayPalPaymentSuccess = useCallback(async (details: any) => {
     console.log("HomePage: PayPal onPaymentSuccess, detalles:", details);
-    toast({ title: "Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Actualizando estado de suscripción...`, variant: "default", duration: 4000 });
-    await refreshUserProfile(); 
-    // Toast de "Suscripción Activada" se mostrará por el cambio de estado en AuthContext -> isPremium
+    toast({ title: "¡Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Actualizando estado de suscripción...`, variant: "default", duration: 4000 });
+    await refreshUserProfile();
   },[refreshUserProfile, toast]);
 
   const handlePayPalPaymentError = useCallback((error: any) => {
@@ -459,7 +470,7 @@ export default function HomePage() {
   }, [toast]);
 
    const handleLoginForPayPal = useCallback(() => {
-    router.push('/login?redirect=/'); 
+    router.push('/login?redirect=/');
   }, [router]);
 
   const FeatureCard = ({ title, description, icon: Icon }: { title: string, description: string, icon: React.ElementType }) => (
@@ -519,10 +530,10 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col bg-background">
         <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
-         
+
           {/* Hero Section */}
           <section className="text-center py-12 md:py-16 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl shadow-lg border border-border mb-12 md:mb-16">
-              <Card className="max-w-4xl mx-auto p-6 md:p-10 bg-transparent border-0">
+              <Card className="max-w-4xl mx-auto p-6 md:p-10 bg-transparent border-0 shadow-none">
                 <CardHeader className="p-0 mb-6">
                   <ShieldCheck className="h-16 w-16 md:h-20 md:w-20 text-primary mx-auto mb-4" />
                   <CardTitle className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground tracking-tight">
@@ -564,7 +575,7 @@ export default function HomePage() {
               ))}
             </div>
           </section>
-          
+
           {/* Why Choose Us Section */}
           <section id="porque-nosotros" className="py-12 md:py-16 bg-secondary/30 rounded-xl shadow-inner border border-border">
             <div className="container mx-auto px-4">
@@ -636,7 +647,7 @@ export default function HomePage() {
               </Card>
             </div>
           </section>
-          
+
           <Separator className="my-8 md:my-12" />
 
           {isLoadingAnalysis && (
@@ -650,22 +661,22 @@ export default function HomePage() {
               <AnalysisSummaryCard result={analysisResult} />
               <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={!!session && isPremium} />
 
-              <PremiumFeatureCard 
-                title="Escenarios de Ataque Ilustrativos (Premium)" 
-                description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales." 
+              <PremiumFeatureCard
+                title="Escenarios de Ataque Ilustrativos (Premium)"
+                description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
                 icon={Zap}
               >
                 {!!session && isPremium && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
                    <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} />
                 )}
               </PremiumFeatureCard>
-              
-              <PremiumFeatureCard 
-                title="Playbooks de Remediación Sugeridos (Premium)" 
-                description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas." 
+
+              <PremiumFeatureCard
+                title="Playbooks de Remediación Sugeridos (Premium)"
+                description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
                 icon={FileLock2}
               >
-                 {!!session && isPremium && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && ( 
+                 {!!session && isPremium && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
                    <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
                  )}
               </PremiumFeatureCard>
@@ -682,21 +693,23 @@ export default function HomePage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                    {!!session && isPremium && zipUrl ? ( 
-                      <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> 
-                        <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> 
-                          <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) 
-                        </a> 
+                    {!!session && isPremium && zipUrl ? (
+                      <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
+                        <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
+                          <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)
+                        </a>
                       </Button>
                     ) : (!session || !isPremium) && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
-                         <Tooltip> 
-                           <TooltipTrigger asChild> 
-                             <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}> 
-                               <span><LockIcon className="mr-2 h-5 w-5 inline-block" /> Descargar Paquete (ZIP)</span>
-                             </Button> 
-                           </TooltipTrigger> 
-                           <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent> 
+                         <TooltipProvider>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}>
+                               <span><LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)</span>
+                             </Button>
+                           </TooltipTrigger>
+                           <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent>
                          </Tooltip>
+                         </TooltipProvider>
                     )}
                      {jsonExportUrl && (
                        <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
