@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search, Lightbulb, Target } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search, Lightbulb, Target, Menu } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
@@ -153,9 +153,8 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
           },
         });
         
-        if (paypalButtonsContainerRef.current && document.body.contains(paypalButtonsContainerRef.current)) {
-             // paypalButtonsContainerRef.current.innerHTML = ''; // Removed this line
-             buttonsInstance.render(paypalButtonsContainerRef.current)
+        if (BCPC && document.body.contains(BCPC)) {
+             buttonsInstance.render(BCPC)
             .then(() => {
                 setPayPalButtonInstance(buttonsInstance);
                 console.log("PayPal Buttons rendered successfully.");
@@ -175,15 +174,12 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
 
     return () => {
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
-        // Check if container still exists before trying to close,
-        // as the component might be unmounting.
         if (paypalButtonsContainerRef.current && document.body.contains(paypalButtonsContainerRef.current)) {
             payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
         }
-        setPayPalButtonInstance(null); // Clear the instance
+        setPayPalButtonInstance(null); 
       }
     };
-  // Reduced dependency array if some callbacks don't change often
   }, [isPayPalSDKReady, session, payPalButtonInstance, toast, onLoginRequired, refreshUserProfile, onPaymentSuccess, onPaymentError, onPaymentCancel]);
 
 
@@ -485,9 +481,9 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col bg-background">
         <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
-
-          {/* Hero Section */}
-          <section className="text-center py-12 md:py-16 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl shadow-lg border border-border">
+         
+           {/* Hero Section */}
+          <section className="text-center py-12 md:py-16 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl shadow-lg border border-border mb-12 md:mb-16">
             <div className="max-w-4xl mx-auto px-4">
                 <ShieldCheck className="h-20 w-20 text-primary mx-auto mb-6" />
                 <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground tracking-tight">
@@ -501,13 +497,14 @@ export default function HomePage() {
                 className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md px-10 py-6 text-lg rounded-lg font-semibold" 
                 onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}
                 >
-                <Search className="mr-2 h-5 w-5" /> Iniciar Análisis Ahora
+                    <Search className="mr-2 h-5 w-5" /> Iniciar Análisis Ahora
                 </Button>
             </div>
           </section>
 
+
           {/* Services Section */}
-          <section id="servicios" className="py-16 md:py-20">
+          <section id="servicios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Nuestras Capacidades</Badge>
                 <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Análisis de Seguridad Multidimensional</h3>
@@ -532,7 +529,7 @@ export default function HomePage() {
           </section>
           
           {/* Why Choose Us Section */}
-          <section className="py-16 md:py-20 bg-secondary/30 rounded-xl shadow-inner border border-border">
+          <section id="porque-nosotros" className="py-12 md:py-16 bg-secondary/30 rounded-xl shadow-inner border border-border">
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
                   <Badge variant="outline" className="text-sm py-1 px-3 border-accent text-accent mb-2">Ventajas Clave</Badge>
@@ -574,7 +571,7 @@ export default function HomePage() {
           <Separator className="my-8 md:my-12" />
 
           {/* Testimonials Placeholder Section */}
-          <section className="py-16 md:py-20">
+          <section id="testimonios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Confianza Comprobada</Badge>
                 <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Lo Que Dicen Nuestros Clientes</h3>
@@ -634,7 +631,16 @@ export default function HomePage() {
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
                     {!!session && isPremium && zipUrl ? ( <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"> <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}> <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP) </a> </Button>
                     ) : (!session || !isPremium) && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
-                         <Tooltip> <TooltipTrigger asChild> <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}> <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)</Button> </TooltipTrigger> <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent> </Tooltip>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}>
+                               <span className="inline-flex items-center gap-2">
+                                 <LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)
+                               </span>
+                             </Button>
+                           </TooltipTrigger>
+                           <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent>
+                         </Tooltip>
                     )}
                      {jsonExportUrl && ( <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"> <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}> <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON) </a> </Button> )}
                 </div>
@@ -701,3 +707,4 @@ export default function HomePage() {
   );
 }
 
+    
