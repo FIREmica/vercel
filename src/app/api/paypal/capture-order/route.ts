@@ -1,4 +1,3 @@
-
 // /src/app/api/paypal/capture-order/route.ts
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
@@ -13,7 +12,7 @@ function getPayPalClient() {
   const baseUrl = process.env.PAYPAL_API_BASE_URL || 'https://api-m.sandbox.paypal.com';
 
   if (!clientId || !clientSecret) {
-    console.error('PayPal Client ID o Client Secret no están configurados en las variables de entorno.');
+    console.error('Error en PayPal Client: PAYPAL_CLIENT_ID o PAYPAL_CLIENT_SECRET no están configurados.');
     throw new Error('Configuración de PayPal incompleta en el servidor. PAYPAL_CLIENT_ID o PAYPAL_CLIENT_SECRET faltan.');
   }
 
@@ -31,9 +30,10 @@ export async function POST(request: Request) {
 
   // For updating user_profiles with service_role privileges
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('Error en capture-order: Variables de entorno de Supabase para cliente admin no configuradas.');
+    console.error('Error en capture-order: Variables de entorno de Supabase para cliente admin no configuradas (URL o SERVICE_ROLE_KEY).');
     return NextResponse.json({ error: 'Configuración del servidor incompleta para operaciones de base de datos (admin).' }, { status: 500 });
   }
+  // Initialize Supabase admin client for database updates
   const supabaseAdminClient = createAdminSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -84,23 +84,23 @@ export async function POST(request: Request) {
     const { data: updateData, error: updateError } = await supabaseAdminClient
       .from('user_profiles')
       .update({ 
-        subscription_status: 'active_premium', // o el estado que hayas definido para premium
+        subscription_status: 'active_premium',
         current_period_end: subscriptionEndDate.toISOString(),
-        paypal_order_id: paymentDetails.id, // Guardamos el ID de la orden de PayPal
+        paypal_order_id: paymentDetails.id,
         updated_at: new Date().toISOString()
       })
-      .eq('id', user.id) // Asegúrate de que la columna 'id' en user_profiles es el auth.users.id
-      .select(); // Opcional: .select() para obtener los datos actualizados
+      .eq('id', user.id)
+      .select(); 
 
     if (updateError) {
       console.error(`Error al actualizar el perfil del usuario ${user.id} en Supabase tras el pago:`, updateError);
-      // Considerar cómo manejar este error crítico. 
       // El pago en PayPal ya fue capturado. Se debería notificar al administrador
       // y posiblemente ofrecer al usuario una forma de contactar soporte.
       return NextResponse.json({ 
         message: 'Pago capturado en PayPal, pero hubo un error al actualizar su suscripción en nuestra base de datos. Por favor, contacte a soporte con su ID de orden de PayPal.',
         error: `Error actualizando perfil de usuario en base de datos: ${updateError.message}`,
         paypalOrderId: paymentDetails.id,
+        paypalStatus: paymentDetails.status,
       }, { status: 500 }); 
     }
     
@@ -117,10 +117,10 @@ export async function POST(request: Request) {
     let errorMessage = 'Error interno del servidor al capturar la orden de PayPal.';
     if (error.message && error.message.includes('Configuración de PayPal incompleta')) {
       errorMessage = error.message;
-    } else if (error.message && error.message.includes('UNPROCESSABLE_ENTITY') && error.details && error.details[0]?.issue === 'ORDER_ALREADY_CAPTURED') {
+    } else if (error.message && (error.message.includes('UNPROCESSABLE_ENTITY') || (error.data && (error.data as any).details?.[0]?.issue === 'ORDER_ALREADY_CAPTURED'))) {
       errorMessage = 'Esta orden de PayPal ya ha sido capturada previamente.';
       // Podrías querer verificar el estado de la suscripción en la DB aquí y responder acorde
-      return NextResponse.json({ message: errorMessage, orderID: (request.json() as any).orderID }, { status: 200 }); // O 400 si se considera un error del cliente
+      return NextResponse.json({ message: errorMessage, orderID: (await request.json().catch(() => ({ orderID: 'unknown' }))).orderID  }, { status: 200 }); // O 400 si se considera un error del cliente
     } else if (error.statusCode && error.message && typeof error.message === 'string') { 
       errorMessage = `Error de PayPal (${error.statusCode}): ${error.message}`;
       const paypalErrorData = error.data || (error.original && error.original.data); 
@@ -137,4 +137,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
-
