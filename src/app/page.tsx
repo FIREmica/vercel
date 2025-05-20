@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search, Lightbulb, Target, Menu } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Search, Lightbulb, Target, Menu, UserCircle as UserCircleIcon } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
@@ -154,6 +154,8 @@ const PayPalSmartPaymentButtons = ({ onPaymentSuccess, onPaymentError, onPayment
         });
         
         if (BCPC && document.body.contains(BCPC)) {
+             // Ensure container is empty before rendering new buttons
+             // paypalButtonsContainerRef.current.innerHTML = ''; // Removed as per previous discussion to let SDK manage
              buttonsInstance.render(BCPC)
             .then(() => {
                 setPayPalButtonInstance(buttonsInstance);
@@ -484,22 +486,22 @@ export default function HomePage() {
          
            {/* Hero Section */}
           <section className="text-center py-12 md:py-16 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl shadow-lg border border-border mb-12 md:mb-16">
-            <div className="max-w-4xl mx-auto px-4">
-                <ShieldCheck className="h-20 w-20 text-primary mx-auto mb-6" />
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground tracking-tight">
-                Centro de Análisis de Seguridad Integral
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-                Identifique, analice y remedie vulnerabilidades en sus aplicaciones web, servidores (incluyendo de juegos), bases de datos, código, cloud y más, con el poder de la Inteligencia Artificial.
-                </p>
-                <Button 
-                size="lg" 
-                className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md px-10 py-6 text-lg rounded-lg font-semibold" 
-                onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                    <Search className="mr-2 h-5 w-5" /> Iniciar Análisis Ahora
-                </Button>
-            </div>
+              <div className="max-w-4xl mx-auto px-4">
+                  <ShieldCheck className="h-20 w-20 text-primary mx-auto mb-6" />
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground tracking-tight">
+                  Centro de Análisis de Seguridad Integral
+                  </h2>
+                  <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+                  Identifique, analice y remedie vulnerabilidades en sus aplicaciones web, servidores (incluyendo de juegos), bases de datos, código, cloud y más, con el poder de la Inteligencia Artificial.
+                  </p>
+                  <Button 
+                  size="lg" 
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md px-10 py-6 text-lg rounded-lg font-semibold" 
+                  onClick={() => document.getElementById('analysis-form-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  >
+                      <Search className="mr-2 h-5 w-5" /> Iniciar Análisis Ahora
+                  </Button>
+              </div>
           </section>
 
 
@@ -642,7 +644,15 @@ export default function HomePage() {
                            <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent>
                          </Tooltip>
                     )}
-                     {jsonExportUrl && ( <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"> <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}> <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON) </a> </Button> )}
+                     {jsonExportUrl && (
+                       <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                         <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}>
+                           <span className="inline-flex items-center">
+                             <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON)
+                           </span>
+                         </a>
+                       </Button>
+                     )}
                 </div>
                  )}
                  {!!session && isPremium && zipUrl && ( <p className="text-xs text-muted-foreground mt-2 text-center"> El ZIP contiene informe, hallazgos, y (si generados) vectores de ataque y playbooks. El JSON contiene todos los hallazgos. </p> )}
@@ -655,12 +665,12 @@ export default function HomePage() {
               <CardHeader> <CardTitle className="flex items-center gap-3 text-xl"> <ShieldCheck className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad </CardTitle> <CardDescription className="text-muted-foreground"> Ingrese los detalles en el formulario superior para iniciar un análisis de seguridad asistido por IA. </CardDescription> </CardHeader>
               <CardContent className="space-y-4">
                   <p className="text-muted-foreground"> Nuestra plataforma analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST simulado), configuraciones Cloud, contenedores, dependencias y redes. </p>
-                  <div className="mt-6 pt-6 border-t border-border flex flex-col items-center gap-4">
-                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6 text-accent" /> Suscríbase para Acceso Premium</h3>
-                       <p className="text-sm text-center text-muted-foreground max-w-md"> Desbloquee informes técnicos detallados, escenarios de ataque, playbooks de remediación y descargas ZIP completas. </p>
-                      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                  <div className="mt-6 pt-6 border-t border-border">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-3"><ShoppingCart className="h-6 w-6 text-accent" /> Suscríbase para Acceso Premium</h3>
+                       <p className="text-sm text-muted-foreground mb-4"> Desbloquee informes técnicos detallados, escenarios de ataque, playbooks de remediación y descargas ZIP completas. </p>
+                      <div className="flex flex-col items-center">
                           {!session ? (
-                              <Button onClick={() => router.push('/login?redirect=/')} className="w-full" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
+                              <Button onClick={() => router.push('/login?redirect=/')} className="w-full max-w-xs" size="lg"> <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse </Button>
                           ) : !isPremium ? (
                               <PayPalSmartPaymentButtons
                                   onPaymentSuccess={handlePayPalPaymentSuccess}
