@@ -76,8 +76,11 @@ export async function POST(request: Request) {
     const paymentDetails = captureResponse.result;
     console.log(`Orden PayPal ${paymentDetails.id} capturada exitosamente en PayPal para usuario ${user.id}.`);
 
-    // 4. Actualizar la base de datos Supabase ('user_profiles') con el cliente admin
+    // 4. Actualizar la base de datos Supabase ('user_profiles')
+    // Calculate the end date for the subscription period (e.g., 30 days from now)
     const subscriptionEndDate = new Date();
+
+
     subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30); // Suscripción de 30 días
 
     console.log(`Actualizando perfil de usuario ${user.id} en Supabase a premium...`);
