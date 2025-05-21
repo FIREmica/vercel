@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -94,8 +95,10 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      // options: { // No options needed for basic signup, captcha handled server-side by Supabase if enabled
-      //   // emailRedirectTo: `${window.location.origin}/auth/callback`, 
+      // options: { // Ejemplo de cómo pasar datos adicionales que el trigger podría usar
+      //   data: { 
+      //     full_name: 'Nombre Ejemplo', // Podrías tener un campo para esto en el formulario
+      //   }
       // }
     });
 
@@ -118,9 +121,9 @@ export default function SignupPage() {
         variant: "default",
         duration: 3000,
       });
-      console.log("INFO: Registro y sesión exitosos para:", data.user.email);
-      console.log("INFO: El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id);
-      await refreshUserProfile();
+      console.log("INFO (SignupPage): Registro y sesión exitosos para:", data.user.email);
+      console.log("INFO (SignupPage): El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, "con estado 'free'.");
+      await refreshUserProfile(); // Llama para asegurar que AuthContext intente cargar el perfil
       router.push('/'); 
     } else if (data.user) {
          // User is created but may require email confirmation or other steps
@@ -130,8 +133,8 @@ export default function SignupPage() {
             variant: "default",
             duration: 7000,
         });
-        console.log("INFO: Registro exitoso (posiblemente requiere confirmación) para:", data.user.email);
-        console.log("INFO: El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id);
+        console.log("INFO (SignupPage): Registro exitoso (posiblemente requiere confirmación) para:", data.user.email);
+        console.log("INFO (SignupPage): El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, "con estado 'free'.");
         router.push('/login'); 
     } else {
         // Unexpected response from Supabase
@@ -140,6 +143,7 @@ export default function SignupPage() {
             title: "Error de Registro Inesperado",
             description: "Ocurrió un problema inesperado durante el registro. Por favor, inténtalo de nuevo.",
         });
+         console.error("ERROR (SignupPage): Respuesta inesperada de Supabase Auth durante el signUp:", data);
     }
     setIsLoading(false);
     /* HCAPTCHA - Temporarily disabled.
@@ -206,20 +210,19 @@ export default function SignupPage() {
               />
             </div>
 
-            {/* HCAPTCHA INTEGRATION - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
-            // See README.md for instructions on how to re-enable and troubleshoot.
-            // <div className="flex justify-center my-4">
-            //  <HCaptcha
-            //    sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
-            //    onVerify={onCaptchaVerify}
-            //    onExpire={onCaptchaExpire}
-            //    onError={onCaptchaError}
-            //    ref={captchaRef} // Ensure captchaRef is defined and typed if uncommenting
-            //  />
-            // </div>
+            {/* hCaptcha - Deshabilitado Temporalmente
+            <div className="flex justify-center my-4">
+             <HCaptcha
+               sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
+               onVerify={onCaptchaVerify}
+               onExpire={onCaptchaExpire}
+               onError={onCaptchaError}
+               ref={captchaRef}
+             />
+            </div>
             */}
 
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* HCAPTCHA - Temporarily disabled. || !captchaToken */}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* || !captchaToken HCAPTCHA */}>
               {isLoading ? "Registrando..." : "Registrarse"}
             </Button>
           </form>
@@ -230,8 +233,8 @@ export default function SignupPage() {
             </Link>
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora registra usuarios con <strong className="text-primary">Supabase Auth</strong>.
-            Un perfil básico se creará automáticamente en nuestra base de datos gracias a un trigger de Supabase.
+            <strong>Nota Importante:</strong> Este formulario registra usuarios con Supabase Auth.
+            Un perfil básico se creará automáticamente en la base de datos (`user_profiles`) gracias a un trigger de Supabase, con estado de suscripción 'free'.
             La funcionalidad de CAPTCHA del frontend está temporalmente deshabilitada. Si experimenta errores de CAPTCHA, asegúrese de que la protección CAPTCHA esté DESACTIVADA en la configuración de su proyecto Supabase (Authentication {"->"} Settings).
           </div>
         </CardContent>

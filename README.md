@@ -56,6 +56,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
 *   **Analíticas (Opcional):** Firebase Analytics
+*   **CAPTCHA (Deshabilitado temporalmente):** hCaptcha (Integración pendiente de resolución de problemas de instalación del paquete `react-hcaptcha`)
 
 ## Instalación y Ejecución Local
 
@@ -123,7 +124,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
 
     # (Opcional) Clave API de Firebase para el cliente
-    NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
+    # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
     
     # (Opcional, si reactivas hCaptcha) Clave de Sitio de hCaptcha para el frontend
     # NEXT_PUBLIC_HCAPTCHA_SITE_KEY=22860de4-8b40-4054-95d8-fac6d9f477ca
@@ -132,8 +133,9 @@ Este proyecto requiere claves API para funcionar correctamente.
     # HCAPTCHA_SECRET_KEY=TU_CLAVE_SECRETA_DE_HCAPTCHA_AQUI
     ```
     **IMPORTANTE:**
-    *   Reemplaza los valores placeholder.
-    *   **No subas el archivo `.env.local` a tu repositorio de Git.**
+    *   Reemplaza los valores placeholder con tus propias claves reales, especialmente `NEXT_PUBLIC_GOOGLE_API_KEY`, y tus credenciales de PayPal Sandbox.
+    *   Las credenciales de Supabase proporcionadas son de ejemplo; usa las de tu propio proyecto Supabase.
+    *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
     *   **Google AI:** [Google AI Studio](https://aistudio.google.com/app/apikey).
@@ -142,8 +144,9 @@ Este proyecto requiere claves API para funcionar correctamente.
         2.  Crea o selecciona tu aplicación REST API. Necesitarás una para Sandbox y otra para Live.
         3.  Obtén el `Client ID` y `Client Secret` para cada entorno.
         4.  En la configuración de tu aplicación en PayPal Developer, configura una URL para Webhooks (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`.
-    *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard).
+    *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard). Necesitarás `URL del Proyecto`, `Clave anónima pública (anon key)` y la `Clave de servicio (service_role key)`.
     *   **Firebase (si usas Analytics):** Configuración de tu proyecto en la [Consola de Firebase](https://console.firebase.google.com/).
+    *   **hCaptcha (si lo reactivas):** Obtén tu "Site Key" y "Secret Key" desde tu [hCaptcha Dashboard](https://dashboard.hcaptcha.com/).
 
 ### Configuración de Base de Datos Supabase (Fundamental)
 
@@ -168,7 +171,7 @@ Este proyecto requiere claves API para funcionar correctamente.
       ```
 
 2.  **Crea la tabla `user_profiles` y el trigger (Fundamental para autenticación y suscripciones):**
-    *   En el **SQL Editor** de Supabase:
+    *   En el **SQL Editor** de Supabase, ejecuta el siguiente script completo:
       ```sql
       -- 1. Create the UserProfile table
       CREATE TABLE public.user_profiles (
@@ -179,7 +182,7 @@ Este proyecto requiere claves API para funcionar correctamente.
         subscription_status TEXT DEFAULT 'free' NOT NULL, -- e.g., 'free', 'active_premium', 'cancelled', 'past_due'
         subscription_plan_id TEXT, -- Can reference another table of plans if you have multiple
         current_period_end TIMESTAMP WITH TIME ZONE,
-        paypal_customer_id TEXT, -- Optional: Store PayPal Payer ID
+        paypal_customer_id TEXT, -- Optional: Store PayPal Payer ID if needed from payment details
         paypal_order_id TEXT, -- Store the last successful PayPal order ID for reference
         created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -220,6 +223,7 @@ Este proyecto requiere claves API para funcionar correctamente.
       -- Note: The SUPABASE_SERVICE_ROLE_KEY used in backend routes bypasses RLS.
 
       -- 4. Create a trigger function to automatically create a user profile
+      --    when a new user signs up in auth.users.
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS TRIGGER
       LANGUAGE plpgsql
@@ -250,30 +254,51 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```bash
     npm run dev
     ```
-    La aplicación debería estar disponible en [http://localhost:9002](http://localhost:9002).
-2.  **Iniciar el servidor de desarrollo de Genkit (opcional):**
+    La aplicación debería estar disponible en [http://localhost:9002](http://localhost:9002) (o el puerto que hayas configurado).
+2.  **Iniciar el servidor de desarrollo de Genkit (opcional, si estás desarrollando flujos de IA):**
     ```bash
     npm run genkit:watch
     ```
+    Genkit UI estará disponible en [http://localhost:4000](http://localhost:4000) por defecto.
 
-### (Opcional) Configuración de hCaptcha
+### Solución de Problemas Comunes
 
-(Se mantiene la sección de hCaptcha como estaba, indicando que está deshabilitada temporalmente).
+*   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
+*   **Error de Pagos de PayPal:** Si los botones de PayPal no aparecen o los pagos fallan:
+    *   Verifica que `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` estén correctamente configurados en `.env.local` con tus credenciales de **Sandbox** de PayPal Developer para tu aplicación REST API.
+    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com`.
+    *   Revisa la consola del navegador y la consola del servidor Next.js para mensajes de error específicos.
+*   **Errores de Autenticación o Base de Datos con Supabase:**
+    *   Verifica que `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` estén correctos en `.env.local`.
+    *   Para operaciones de backend (como actualizar el estado de suscripción en `/api/paypal/capture-order`), asegúrate de que `SUPABASE_SERVICE_ROLE_KEY` esté configurada en `.env.local` y sea correcta.
+    *   **Error en la Creación de Perfiles de Usuario:** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
+        1.  **Verifica la Ejecución del SQL:** Asegúrate de haber ejecutado **todo** el script SQL para `user_profiles` y `handle_new_user` (incluyendo `CREATE FUNCTION` y `CREATE TRIGGER`) en el Editor SQL de Supabase.
+        2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
+        3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
+        4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
+*   **Problemas con hCaptcha (Actualmente Deshabilitado):**
+    *   El componente `react-hcaptcha` ha sido eliminado de las dependencias y su uso comentado en los formularios de login/signup debido a problemas persistentes con `npm install`.
+    *   **Si deseas reactivarlo:**
+        1.  Intenta instalarlo de nuevo: `npm install react-hcaptcha` (o `yarn add react-hcaptcha`). Si falla, investiga el error específico; podría ser un problema con tu caché de npm (`npm cache clean --force`), tu registro de npm, o un problema de red. Consulta `npmjs.com` para la última versión estable.
+        2.  Una vez instalado, descomenta las secciones de hCaptcha en `src/app/login/page.tsx` y `src/app/signup/page.tsx`.
+        3.  Añade `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` a tu `.env.local` con tu clave de sitio de hCaptcha.
+        4.  **Implementa la verificación del backend:** Esto es crucial. Necesitarás añadir lógica a tus endpoints de backend (si los usas para manejar login/signup) o directamente en las Server Actions si usas Supabase Auth para enviar el token CAPTCHA (`h-captcha-response`) a `https://api.hcaptcha.com/siteverify` junto con tu `HCAPTCHA_SECRET_KEY` (configurada como variable de entorno en el servidor). El registro/inicio de sesión solo debe proceder si la verificación es exitosa.
+    *   **Error "captcha verification process failed" de Supabase:** Si ves este error en los `toast` de login/signup incluso con el frontend de hCaptcha deshabilitado, significa que **tienes la protección CAPTCHA activada a nivel de proyecto en Supabase**. Ve a tu proyecto Supabase -> Authentication -> Settings y desactiva la protección CAPTCHA. Guarda los cambios.
 
 ## Implementación de Autenticación Real y Base de Datos (En Progreso con Supabase)
 
-La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthContext.tsx`) gestiona la sesión y carga el perfil del usuario desde `user_profiles` para determinar el estado `isPremium` basado en `subscription_status`.
+La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthContext.tsx`) gestiona la sesión globalmente y carga el perfil del usuario desde la tabla `user_profiles` para determinar el estado `isPremium` basado en el campo `subscription_status`.
 
 **Estado Actual:**
-*   Formularios de Login/Signup interactúan con Supabase Auth.
-*   `AuthContext` maneja sesión y perfil.
-*   Trigger en Supabase crea perfiles básicos.
+*   Los formularios de Login/Signup (`src/app/login/page.tsx`, `src/app/signup/page.tsx`) interactúan con las funciones de autenticación de Supabase (`signInWithPassword`, `signUp`).
+*   El `AuthContext` (`src/context/AuthContext.tsx`) escucha los cambios de estado de autenticación de Supabase y obtiene el perfil del usuario de la tabla `user_profiles`. El estado `isPremium` se deriva de `userProfile.subscription_status`.
+*   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'`) cuando un nuevo usuario se registra en `auth.users`.
 
 ## Implementación de Pagos con PayPal (API REST - Sandbox)
 
-*   **Creación de Órdenes:** El frontend llama a `/api/paypal/create-order` (backend). El backend usa las credenciales API de PayPal (desde `.env.local`) para crear una orden y devuelve el `orderID`.
-*   **Procesamiento de Pago Frontend:** El SDK de JS de PayPal usa el `orderID` para mostrar los botones de pago.
-*   **Captura de Órdenes:** Tras la aprobación del usuario, el frontend llama a `/api/paypal/capture-order` (backend) con el `orderID`.
+*   **Creación de Órdenes:** El frontend (`src/app/page.tsx`) llama a `/api/paypal/create-order` (backend). El backend usa las credenciales API de PayPal (desde `.env.local`) para crear una orden en PayPal y devuelve el `orderID`.
+*   **Procesamiento de Pago Frontend:** El SDK de JS de PayPal (cargado en `src/app/layout.tsx`) usa el `orderID` para mostrar los botones de pago de PayPal.
+*   **Captura de Órdenes:** Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order` (backend) con el `orderID`.
 *   **Actualización de Base de Datos:** El endpoint `/api/paypal/capture-order` (backend):
     1.  Verifica al usuario autenticado (Supabase).
     2.  Captura el pago con PayPal usando las credenciales API.
@@ -281,18 +306,17 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
         *   `subscription_status` a `'active_premium'`.
         *   `current_period_end` (ej. 30 días desde ahora).
         *   `paypal_order_id`.
-*   **Refresco de Estado en Frontend:** `AuthContext` llama a `refreshUserProfile()` para cargar el nuevo estado de suscripción.
+*   **Refresco de Estado en Frontend:** `AuthContext` llama a `refreshUserProfile()` después de una captura de pago exitosa para cargar el nuevo estado de suscripción desde la base de datos, lo que actualiza el acceso a las funciones premium en la UI.
 
 ## Pasos Críticos para una Facturación Real y Funcionalidad Completa
 
-1.  **Backend de Captura de Pagos (PayPal):** ¡Hecho en su mayor parte! Asegúrate de que la lógica en `/api/paypal/capture-order` sea robusta y maneje todos los casos de error.
+1.  **Backend de Captura de Pagos (PayPal) y Actualización de DB:** ¡Hecho! La lógica en `/api/paypal/capture-order` captura el pago y actualiza la tabla `user_profiles` en Supabase. Asegúrate de que esta lógica sea robusta y maneje todos los casos de error.
 2.  **Credenciales LIVE de PayPal:** Para procesar pagos reales, cambia las variables de entorno `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` y `PAYPAL_API_BASE_URL` a tus credenciales y URL de producción de PayPal. Lo mismo para `NEXT_PUBLIC_PAYPAL_CLIENT_ID`.
 3.  **Implementación de Webhooks de PayPal (¡CRÍTICO PARA PRODUCCIÓN!):**
     *   **Necesidad:** Para manejar confirmaciones de pago asíncronas y eventos del ciclo de vida de la suscripción (renovaciones, cancelaciones, etc.) de forma fiable. Esto asegura que tu base de datos se mantenga sincronizada incluso si el flujo del cliente se interrumpe.
-    *   **Endpoint:** Crea y configura un endpoint de webhook en tu aplicación (ej. `/api/paypal/webhook`) y regístralo en tu aplicación de PayPal Developer.
+    *   **Endpoint:** Crea y configura un endpoint de webhook en tu aplicación (ej. `/api/paypal/webhook`) y regístralo en tu aplicación de PayPal Developer. El archivo `/src/app/api/paypal/webhook/route.ts` contiene un placeholder detallado.
     *   **Verificación:** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad.
     *   **Procesamiento:** Procesa los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`) y actualiza la tabla `user_profiles` en Supabase.
-    *   El archivo `/src/app/api/paypal/webhook/route.ts` contiene un placeholder detallado.
 4.  **Lógica de Suscripción Completa:**
     *   Asegurar que `AuthContext` y toda la lógica que dependa de `isPremium` refleje correctamente el estado de `user_profiles.subscription_status`.
     *   Proteger robustamente las funciones premium.
@@ -309,7 +333,21 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 6.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte.
 
 ## Roadmap (Posibles Mejoras Futuras)
-(Se mantiene similar)
+*   **Integración Profunda con Herramientas de Seguridad:** Permitir importación/exportación con Nessus, Burp Suite.
+*   **Motor de Reglas Personalizadas:** Permitir a las empresas definir sus propias reglas de detección.
+*   **Políticas de Seguridad Corporativas:** Validar contra políticas definidas por la empresa.
+*   **Integración con SIEM/SOAR:** Enviar alertas y hallazgos a Splunk, QRadar, Sentinel.
+*   **Integración con CI/CD:** Automatizar análisis en pipelines de desarrollo.
+*   **Análisis de Seguridad de APIs Dedicado.**
+*   **Paneles de Control (Dashboards) Avanzados:** Con métricas, tendencias y visualizaciones interactivas.
+*   **Informes en PDF Personalizables.**
+*   **Interfaz de Línea de Comandos (CLI).**
+*   **Mejoras en Análisis de Servidores de Juegos:** Detección de trampas, análisis de protocolos de juego, análisis de scripts/mods.
+*   **Soporte Multilingüe Adicional.**
+*   **Gestión de Equipos/Organizaciones:** Cuentas maestras con múltiples usuarios.
+*   **Historial de Análisis Detallado por Usuario:** Guardar y comparar análisis en la base de datos.
+*   **Pruebas Unitarias y de Integración.**
+*   **Documentación Técnica Detallada para Desarrolladores (`/docs` o Wiki).**
 
 ## 🪪 Licencia
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
