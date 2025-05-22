@@ -265,7 +265,7 @@ Este proyecto requiere claves API para funcionar correctamente.
 
 *   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
 *   **Error de Pagos de PayPal:** Si los botones de PayPal no aparecen o los pagos fallan:
-    *   Verifica que `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` estén correctamente configurados en `.env.local` con tus credenciales de **Sandbox** de PayPal Developer para tu aplicación REST API.
+    *   Verifica que `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` estén correctamente configurados en `.env.local` con tus credenciales de **Sandbox** de PayPal Developer para tu aplicación REST API. (Idealmente `PAYPAL_CLIENT_ID` y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` son el mismo valor).
     *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com`.
     *   Revisa la consola del navegador y la consola del servidor Next.js para mensajes de error específicos.
 *   **Errores de Autenticación o Base de Datos con Supabase:**
@@ -314,9 +314,9 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 2.  **Credenciales LIVE de PayPal:** Para procesar pagos reales, cambia las variables de entorno `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` y `PAYPAL_API_BASE_URL` a tus credenciales y URL de producción de PayPal. Lo mismo para `NEXT_PUBLIC_PAYPAL_CLIENT_ID`.
 3.  **Implementación de Webhooks de PayPal (¡CRÍTICO PARA PRODUCCIÓN!):**
     *   **Necesidad:** Para manejar confirmaciones de pago asíncronas y eventos del ciclo de vida de la suscripción (renovaciones, cancelaciones, etc.) de forma fiable. Esto asegura que tu base de datos se mantenga sincronizada incluso si el flujo del cliente se interrumpe.
-    *   **Endpoint:** Crea y configura un endpoint de webhook en tu aplicación (ej. `/api/paypal/webhook`) y regístralo en tu aplicación de PayPal Developer. El archivo `/src/app/api/paypal/webhook/route.ts` contiene un placeholder detallado.
-    *   **Verificación:** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad.
-    *   **Procesamiento:** Procesa los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`) y actualiza la tabla `user_profiles` en Supabase.
+    *   **Endpoint:** Crea y configura un endpoint de webhook en tu aplicación (ej. `/api/paypal/webhook`) y regístralo en tu aplicación de PayPal Developer. El archivo `/src/app/api/paypal/webhook/route.ts` contiene un placeholder detallado para la lógica de verificación de firma y procesamiento de eventos.
+    *   **Verificación de Firma:** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad. La lógica para esto es compleja y debe implementarse cuidadosamente.
+    *   **Procesamiento de Eventos:** Procesa los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`, `BILLING.SUBSCRIPTION.CANCELLED`, etc.) y actualiza la tabla `user_profiles` en Supabase.
 4.  **Lógica de Suscripción Completa:**
     *   Asegurar que `AuthContext` y toda la lógica que dependa de `isPremium` refleje correctamente el estado de `user_profiles.subscription_status`.
     *   Proteger robustamente las funciones premium.
@@ -353,3 +353,4 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
