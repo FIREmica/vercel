@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -12,17 +11,14 @@ import { Loader2, AlertTriangle, FileText, History, Eye, BarChart3, ShieldCheck,
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-// import { createClient } from '@/lib/supabase/client'; // Client-side client
+import { createClient } from '@/lib/supabase/client'; // Client-side client
+import type { AnalysisRecord as AnalysisRecordType } from '@/types/ai-schemas';
 
-// For now, AnalysisRecord type will be simple. We'll refine if needed.
-interface AnalysisRecordDisplay {
-  id: string;
-  created_at: string;
-  analysis_type: string;
-  target_description: string;
-  overall_risk_assessment?: string;
-  vulnerable_findings_count?: number;
-  // We might add a way to view the full report later
+
+interface AnalysisRecordDisplay extends Omit<AnalysisRecordType, 'full_report_data' | 'user_id' | 'report_summary'> {
+  id: string; // Ensure id is always string for key
+  created_at: string; // Keep as string from DB
+  // full_report_data can be large, so we might omit it for summary display
 }
 
 export default function DashboardPage() {
@@ -35,50 +31,42 @@ export default function DashboardPage() {
     const fetchAnalysisRecords = async () => {
       if (!user || !session) {
         setIsLoadingRecords(false);
-        // setErrorRecords("Debes iniciar sesión para ver tu historial de análisis.");
+        // setErrorRecords("Debes iniciar sesión para ver tu historial de análisis."); // Can be uncommented if preferred
         return;
       }
 
       setIsLoadingRecords(true);
       setErrorRecords(null);
       
-      // TODO: Implement actual fetching of analysis records from Supabase
-      // For now, we'll use mock data or an empty array.
-      // Example of how you might fetch data (you'd need a Supabase client instance):
-      // const supabase = createClient(); // This would be your client-side Supabase instance
-      // const { data, error } = await supabase
-      //   .from('analysis_records')
-      //   .select('id, created_at, analysis_type, target_description, overall_risk_assessment, vulnerable_findings_count')
-      //   .eq('user_id', user.id)
-      //   .order('created_at', { ascending: false });
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('analysis_records')
+        .select('id, created_at, analysis_type, target_description, overall_risk_assessment, vulnerable_findings_count')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-      // if (error) {
-      //   console.error("Error fetching analysis records:", error);
-      //   setErrorRecords(`Error al cargar el historial: ${error.message}`);
-      //   setAnalysisRecords([]);
-      // } else {
-      //   setAnalysisRecords(data || []);
-      // }
-      
-      // Using placeholder data for now
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-      // setAnalysisRecords([
-      //   { id: '1', created_at: new Date().toISOString(), analysis_type: 'URL', target_description: 'http://ejemplo.com', overall_risk_assessment: 'Medium', vulnerable_findings_count: 3 },
-      //   { id: '2', created_at: new Date(Date.now() - 86400000).toISOString(), analysis_type: 'Server', target_description: 'Servidor de Producción Web', overall_risk_assessment: 'High', vulnerable_findings_count: 7 },
-      // ]);
-      setAnalysisRecords([]); // Start with empty until real data fetching is implemented
-      setErrorRecords("Funcionalidad de historial de análisis en desarrollo. Pronto podrás ver tus análisis guardados aquí.");
-
-
+      if (error) {
+        console.error("Error al obtener registros de análisis:", error);
+        setErrorRecords(`Error al cargar el historial: ${error.message}`);
+        setAnalysisRecords([]);
+      } else {
+        setAnalysisRecords(data as AnalysisRecordDisplay[] || []);
+        if (data && data.length === 0) {
+            setErrorRecords("No tienes análisis guardados todavía. ¡Realiza tu primer análisis!");
+        }
+      }
       setIsLoadingRecords(false);
     };
 
-    if (!authIsLoading) {
+    if (!authIsLoading && session) { // Ensure session is also checked
       fetchAnalysisRecords();
+    } else if (!authIsLoading && !session) {
+        setIsLoadingRecords(false);
+        setErrorRecords("Debes iniciar sesión para ver tu historial de análisis.");
     }
   }, [user, authIsLoading, session]);
 
-  if (authIsLoading || isLoadingRecords) {
+  if (authIsLoading) { // Only show global auth loading if auth is truly loading
     return (
       <div className="min-h-screen flex flex-col">
         <AppHeader />
@@ -162,22 +150,28 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-2xl text-primary">Historial de Análisis</CardTitle>
             <CardDescription>
-              Aquí se mostrarán los análisis que has realizado. La funcionalidad completa de guardado y listado está en desarrollo.
+              Aquí se muestran los análisis que has realizado.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {errorRecords && (
+            {isLoadingRecords && (
+                 <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-3 text-muted-foreground">Cargando historial...</p>
+                </div>
+            )}
+            {!isLoadingRecords && errorRecords && (
               <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
                 <div className="flex">
                   <div className="py-1"><AlertTriangle className="h-6 w-6 text-yellow-500 mr-3" /></div>
                   <div>
-                    <p className="font-bold">Nota de Desarrollo</p>
+                    <p className="font-bold">Notificación</p>
                     <p className="text-sm">{errorRecords}</p>
                   </div>
                 </div>
               </div>
             )}
-            {analysisRecords.length > 0 ? (
+            {!isLoadingRecords && !errorRecords && analysisRecords.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -185,7 +179,7 @@ export default function DashboardPage() {
                     <TableHead>Tipo de Análisis</TableHead>
                     <TableHead>Objetivo</TableHead>
                     <TableHead>Riesgo General</TableHead>
-                    <TableHead>Hallazgos Vulnerables</TableHead>
+                    <TableHead className="text-center">Hallazgos Vulnerables</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -193,7 +187,7 @@ export default function DashboardPage() {
                   {analysisRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>{format(new Date(record.created_at), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
-                      <TableCell><Badge variant="secondary">{record.analysis_type}</Badge></TableCell>
+                      <TableCell><Badge variant="secondary">{record.analysis_type || 'N/A'}</Badge></TableCell>
                       <TableCell className="truncate max-w-xs">{record.target_description}</TableCell>
                       <TableCell>
                         {record.overall_risk_assessment ? (
@@ -206,7 +200,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {record.vulnerable_findings_count !== undefined ? (
-                            <Badge variant={record.vulnerable_findings_count > 0 ? "destructive" : "default"} 
+                            <Badge variant={record.vulnerable_findings_count > 0 ? "destructive" : "default"}
                                    className={record.vulnerable_findings_count > 0 ? "" : "bg-green-600/80 border-green-700 text-primary-foreground"}>
                                 {record.vulnerable_findings_count}
                             </Badge>
@@ -225,7 +219,7 @@ export default function DashboardPage() {
                 </TableBody>
               </Table>
             ) : (
-              !errorRecords && <p className="text-muted-foreground">No tienes análisis guardados todavía.</p>
+              !isLoadingRecords && !errorRecords && analysisRecords.length === 0 && <p className="text-muted-foreground">Aún no tienes análisis guardados.</p>
             )}
           </CardContent>
         </Card>

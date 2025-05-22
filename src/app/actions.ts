@@ -1,4 +1,3 @@
-
 "use server";
 
 import { analyzeUrlVulnerabilities } from "@/ai/flows/analyze-url-vulnerabilities";
@@ -30,8 +29,8 @@ import type {
   RemediationPlaybook,
   AttackVector
 } from "@/types";
-import type { 
-  GeneralQueryInput, 
+import type {
+  GeneralQueryInput,
   GenerateSecurityReportInput,
   AnalyzeUrlVulnerabilitiesInput,
   ServerConfigInput,
@@ -44,10 +43,11 @@ import type {
   NetworkSecurityAnalysisInput,
   RemediationPlaybookInput,
   GenerateAttackVectorsOutput,
-  AnalysisRecord, // Import AnalysisRecord type
+  AnalysisRecord,
 } from "@/types/ai-schemas";
 
-// import { createClient } from '@/lib/supabase/server'; // For server-side Supabase in Server Actions
+import { createClient } from '@/lib/supabase/server'; // For server-side Supabase in Server Actions
+import { cookies } from 'next/headers';
 
 interface PerformAnalysisParams {
   url?: string;
@@ -71,8 +71,8 @@ interface PerformAnalysisParams {
 }
 
 export async function performAnalysisAction(params: PerformAnalysisParams, isPremium: boolean): Promise<AnalysisResult> {
-  const { 
-    url, serverDescription, databaseDescription, 
+  const {
+    url, serverDescription, databaseDescription,
     codeSnippet, sastLanguage, dastTargetUrl,
     cloudProvider, cloudConfigDescription, cloudRegion,
     containerImageName, dockerfileContent, kubernetesManifestContent, containerAdditionalContext,
@@ -81,9 +81,9 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   } = params;
 
   if (!url && !serverDescription && !databaseDescription && !codeSnippet && !dastTargetUrl && !cloudConfigDescription && (!containerImageName && !dockerfileContent && !kubernetesManifestContent) && !dependencyFileContent && !networkDescription && !networkScanResults && !networkFirewallRules) {
-    return { 
+    return {
       urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null,
-      sastAnalysis: null, dastAnalysis: null, 
+      sastAnalysis: null, dastAnalysis: null,
       cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
       reportText: null, attackVectors: null, remediationPlaybooks: null,
       error: "Al menos uno de los objetivos de análisis debe ser proporcionado." ,
@@ -103,9 +103,9 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   let containerAnalysisResult: ContainerAnalysisOutput | null = null;
   let dependencyAnalysisResult: DependencyAnalysisOutput | null = null;
   let networkAnalysisResult: NetworkSecurityAnalysisOutput | null = null;
-  
+
   let allFindings: VulnerabilityFinding[] = [];
-  let analysisPerformedTypes: Array<AnalysisRecord['analysis_type']> = [];
+  const analysisPerformedTypes: string[] = [];
 
 
   try {
@@ -148,7 +148,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
 
     if (dastTargetUrl) {
       try {
-        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" }; 
+        const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" };
         dastAnalysisResult = await analyzeDastSecurity(dastInput);
         if (dastAnalysisResult?.findings) allFindings.push(...dastAnalysisResult.findings);
         if (dastAnalysisResult) analysisPerformedTypes.push("DAST");
@@ -172,7 +172,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         if (dockerfileContent) containerInput.dockerfileContent = dockerfileContent;
         if (kubernetesManifestContent) containerInput.kubernetesManifestContent = kubernetesManifestContent;
         if (containerAdditionalContext) containerInput.additionalContext = containerAdditionalContext;
-        
+
         if(Object.keys(containerInput).length > 0 && (containerInput.imageName || containerInput.dockerfileContent || containerInput.kubernetesManifestContent)) {
             containerAnalysisResult = await analyzeContainerSecurity(containerInput);
             if (containerAnalysisResult?.findings) allFindings.push(...containerAnalysisResult.findings);
@@ -207,10 +207,10 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
 
 
     if (errorOccurred && allFindings.length === 0) {
-       return { 
-         urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
+       return {
+         urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null,
          cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
-         reportText: null, attackVectors: null, remediationPlaybooks: null, 
+         reportText: null, attackVectors: null, remediationPlaybooks: null,
          error: `Todos los análisis fallaron o no produjeron hallazgos. Errores: ${collectedErrorMessages}`,
          allFindings: []
        };
@@ -219,15 +219,14 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
     let targetDescParts = [];
     if (url) targetDescParts.push(`URL (${url})`);
     if (serverDescription) targetDescParts.push('Servidor General/Juegos');
-    // Removed gameServerDescription from here as it's merged into serverDescription
     if (databaseDescription) targetDescParts.push('Base de Datos');
     if (codeSnippet) targetDescParts.push(`Fragmento de Código (${sastLanguage || 'SAST'})`);
     if (dastTargetUrl) targetDescParts.push(`Aplicación URL DAST (${dastTargetUrl})`);
     if (cloudProvider && cloudConfigDescription) targetDescParts.push(`Configuración Cloud (${cloudProvider}${cloudRegion ? `/${cloudRegion}` : ''})`);
     if (containerImageName || dockerfileContent || kubernetesManifestContent) targetDescParts.push('Contenedor/K8s');
     if (dependencyFileContent && dependencyFileType) targetDescParts.push(`Dependencias (${dependencyFileType})`);
-    if (networkDescription || networkScanResults || networkFirewallRules) targetDescParts.push('Configuración de Red');
-    
+    if (networkDescription || networkScanResults || networkFirewallRules) targetDescParts.push('Red');
+
     const finalTargetDescription = targetDescParts.join(', ').replace(/, $/, '') || "Análisis general";
 
     const reportInput: GenerateSecurityReportInput = {
@@ -243,17 +242,17 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         networkAnalysis: networkAnalysisResult ?? undefined,
         overallVulnerableFindings: allFindings.filter(f => f.isVulnerable)
     };
-    
+
     let reportResultText: string | null = "La generación del informe falló o no hay resultados de análisis para informar.";
     try {
         const reportOutput = await generateSecurityReport(reportInput);
         reportResultText = reportOutput.report;
     } catch (e: any) {
         collectedErrorMessages += `Informe: ${e.message}. `;
-        errorOccurred = true; 
+        errorOccurred = true;
     }
 
-    let attackVectorsResult: AttackVector[] | null = null; 
+    let attackVectorsResult: AttackVector[] | null = null;
     let remediationPlaybooksResult: RemediationPlaybook[] = [];
     const vulnerableFindingsForPremium = allFindings.filter(v => v.isVulnerable);
 
@@ -263,7 +262,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       } catch (e: any) {
         collectedErrorMessages += `Vectores de Ataque: ${e.message}. `;
       }
-      
+
       try {
         for (const finding of vulnerableFindingsForPremium) {
           const playbookInput: RemediationPlaybookInput = { vulnerabilityFinding: finding };
@@ -275,41 +274,45 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       }
     }
 
-    // CONCEPTUAL: Save Analysis Record to Supabase
-    // This part would require user authentication to be fully implemented to get a userId.
-    // const supabase = createClient(); // Needs to be server-side client from @supabase/ssr or similar
-    // const { data: { user } } = await supabase.auth.getUser();
-    // if (user) {
-    //   const analysisRecordData: Omit<AnalysisRecord, 'id' | 'created_at'> = {
-    //     user_id: user.id,
-    //     analysis_type: analysisPerformedTypes.length > 0 ? analysisPerformedTypes.join(', ') as AnalysisRecord['analysis_type'] : 'Unknown', // This needs adjustment if analysis_type is enum
-    //     target_description: finalTargetDescription,
-    //     overall_risk_assessment: reportInput.overallVulnerableFindings.length > 0 ? (allFindings.some(f => f.severity === 'Critical' || f.severity === 'High') ? 'High' : 'Medium') : 'Low', // Simplified risk
-    //     vulnerable_findings_count: reportInput.overallVulnerableFindings.length,
-    //     report_summary: reportResultText?.substring(0, 500), // Short summary
-    //     full_report_data: { // Storing all findings and the full report text
-    //        allFindings: allFindings,
-    //        reportText: reportResultText,
-    //        // You might also want to store the inputs 'params' here
-    //     }
-    //   };
-    //   try {
-    //     // const { error: dbError } = await supabase.from('analysis_records').insert([analysisRecordData]);
-    //     // if (dbError) {
-    //     //   console.error("Error saving analysis record to Supabase:", dbError);
-    //     //   collectedErrorMessages += ` Guardar Registro Análisis: ${dbError.message}. `;
-    //     // } else {
-    //     //   console.log("Analysis record saved to Supabase.");
-    //     // }
-    //     console.log("CONCEPTUAL: Analysis record data prepared for Supabase:", analysisRecordData);
-    //   } catch (dbCatchError: any) {
-    //       console.error("Exception saving analysis record:", dbCatchError);
-    //       collectedErrorMessages += ` Excepción Guardar Registro: ${dbCatchError.message}. `;
-    //   }
-    // } else {
-    //   console.log("No authenticated user found, skipping save of analysis record.");
-    // }
-    // END CONCEPTUAL
+    // Save Analysis Record to Supabase
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user && (urlAnalysisResult || serverAnalysisResult || databaseAnalysisResult || sastAnalysisResult || dastAnalysisResult || cloudAnalysisResult || containerAnalysisResult || dependencyAnalysisResult || networkAnalysisResult)) {
+      const overallRisk = reportInput.overallVulnerableFindings.length > 0
+        ? (allFindings.some(f => f.severity === 'Critical' || f.severity === 'High') ? 'High' : (allFindings.some(f => f.severity === 'Medium') ? 'Medium' : 'Low'))
+        : (allFindings.some(f => f.severity === 'Informational') ? 'Informational' : 'Low');
+
+      const analysisRecordData: Omit<AnalysisRecord, 'id' | 'created_at'> = {
+        user_id: user.id,
+        analysis_type: analysisPerformedTypes.length > 0 ? analysisPerformedTypes[0] as AnalysisRecord['analysis_type'] : 'URL', // Simplified: takes the first type, adjust if multi-type record needed
+        target_description: finalTargetDescription.substring(0, 250), // Truncate if too long
+        overall_risk_assessment: overallRisk as AnalysisRecord['overall_risk_assessment'],
+        vulnerable_findings_count: reportInput.overallVulnerableFindings.length,
+        report_summary: reportResultText?.substring(0, 500), // Short summary
+        full_report_data: {
+           allFindings: allFindings, // Storing all findings
+           reportText: reportResultText, // Storing the full report text
+           // Consider storing the input params for reproducibility
+           // analysisInputs: params
+        }
+      };
+      try {
+        const { error: dbError } = await supabase.from('analysis_records').insert([analysisRecordData]);
+        if (dbError) {
+          console.error("Error guardando registro de análisis en Supabase:", dbError);
+          collectedErrorMessages += ` Guardar Registro Análisis: ${dbError.message}. `;
+        } else {
+          console.log("Registro de análisis guardado en Supabase.");
+        }
+      } catch (dbCatchError: any) {
+          console.error("Excepción guardando registro de análisis:", dbCatchError);
+          collectedErrorMessages += ` Excepción Guardar Registro: ${dbCatchError.message}. `;
+      }
+    } else if (!user) {
+      console.log("Usuario no autenticado, omitiendo guardado de registro de análisis.");
+    }
 
 
     return {
@@ -329,14 +332,14 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         error: errorOccurred ? `Uno o más pasos del análisis fallaron. Se pueden mostrar resultados parciales. Errores: ${collectedErrorMessages}` : (collectedErrorMessages ? `Ocurrieron problemas menores: ${collectedErrorMessages}`: null)
     };
 
-  } catch (error: any) { 
+  } catch (error: any) {
     console.error("Error crítico en performAnalysisAction:", error);
     let errorMessage = "Ocurrió un error crítico inesperado durante el proceso de análisis. El modelo de IA podría no estar disponible o la entrada podría ser inválida.";
-    
+
     const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
     const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
-    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE" || apiKeyEnv === "tu_clave_api_google_aqui_valida") {
+    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_google_aqui_valida" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
         errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no está configurada correctamente o es el valor predeterminado. Por favor, revise su archivo .env.local y las instrucciones del README.md.`;
     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
         errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) proporcionada para el servicio de Inteligencia Artificial no es válida. Por favor, verifique la clave en Google AI Studio y asegúrese de que esté correctamente configurada en su archivo .env.local.`;
@@ -349,10 +352,10 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
     } else {
         errorMessage = `El análisis falló catastróficamente: ${error.message}`;
     }
-    return { 
-      urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
+    return {
+      urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null,
       cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
-      reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: [] 
+      reportText: null, attackVectors: null, remediationPlaybooks: null, error: errorMessage, allFindings: []
     };
   }
 }
@@ -364,11 +367,11 @@ export async function askGeneralAssistantAction(input: GeneralQueryInput): Promi
   } catch (error: any) {
     console.error("Error interacting with General Assistant:", error);
     let errorMessage = "Lo siento, no pude procesar tu pregunta en este momento. Por favor, intenta de nuevo más tarde.";
-    
+
     const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
     const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
-    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE" || apiKeyEnv === "tu_clave_api_google_aqui_valida") {
+    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_google_aqui_valida" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
         errorMessage = `Error de Configuración del Asistente: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no está configurada o es el valor predeterminado. Por favor, contacte al administrador de la plataforma.`;
     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
         errorMessage = `Error de Configuración del Asistente: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.`;
