@@ -20,15 +20,12 @@ function getPayPalClient() {
     : new paypal.core.LiveEnvironment(clientId, clientSecret);
   
   const client = new paypal.core.PayPalHttpClient(environment);
-  // Modificar el user-agent para pruebas de Sandbox si es necesario, o para identificar tu app
-  // client.setUserAgent("NombreDeTuApp/1.0 (IntegracionNextJS)"); 
   return client;
 }
 
 export async function POST(request: Request) {
   try {
     const paypalClient = getPayPalClient();
-    // Asegúrate de que el frontend envía estos datos, o usa valores fijos para la simulación
     const { orderAmount = '10.00', currencyCode = 'USD', description = 'Suscripción Premium - Centro de Análisis de Seguridad Integral' } = await request.json().catch(() => ({}));
 
 
@@ -39,7 +36,7 @@ export async function POST(request: Request) {
     const paypalRequest = new paypal.orders.OrdersCreateRequest();
     paypalRequest.prefer('return=representation');
     paypalRequest.requestBody({
-      intent: 'CAPTURE', // Or 'AUTHORIZE'
+      intent: 'CAPTURE',
       purchase_units: [
         {
           amount: {
@@ -51,10 +48,8 @@ export async function POST(request: Request) {
       ],
       application_context: {
         brand_name: 'Centro de Análisis de Seguridad Integral',
-        shipping_preference: 'NO_SHIPPING', // Para bienes digitales
-        user_action: 'PAY_NOW', // o 'CONTINUE' si es un flujo de autorización
-        // return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-success`, // URL a donde redirigir tras pago exitoso (opcional si manejas todo con JS SDK)
-        // cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-cancel`, // URL si el usuario cancela (opcional)
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'PAY_NOW',
       },
     });
 
@@ -64,7 +59,10 @@ export async function POST(request: Request) {
 
     if (response.statusCode !== 201 || !response.result || !response.result.id) {
       console.error('Error al crear orden PayPal, respuesta inesperada:', response);
-      return NextResponse.json({ error: `No se pudo crear la orden de PayPal. Estado: ${response.statusCode}` }, { status: response.statusCode || 500 });
+      return NextResponse.json({ 
+        error: `No se pudo crear la orden de PayPal. Estado: ${response.statusCode}`,
+        details: response.result ? JSON.stringify(response.result) : "Sin detalles adicionales del resultado."
+      }, { status: response.statusCode || 500 });
     }
     
     console.log("Orden PayPal creada exitosamente. Order ID:", response.result.id);
@@ -78,19 +76,22 @@ export async function POST(request: Request) {
         errorMessage = error.message;
     } else if (error.message && (error.message.includes('Invalid Credentials') || error.message.includes('Authentication failed'))) {
         errorMessage = 'Credenciales de PayPal API inválidas. Verifique PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET.';
-    } else if (error.statusCode && error.message) { // PayPal SDK errors
+    } else if (error.statusCode && error.message && typeof error.message === 'string') { 
         errorMessage = `Error de PayPal (${error.statusCode}): ${error.message}`;
-        if (error.data && error.data.details) {
-            errorMessage += ` Detalles: ${JSON.stringify(error.data.details)}`;
-        } else if (error.data && error.data.message) {
-            errorMessage += ` Mensaje de PayPal: ${error.data.message}`;
-        }
-    } else if (error.isAxiosError && error.response) { // Errors from raw HTTP requests if SDK uses Axios internally
-        errorMessage = `Error de red con PayPal (${error.response.status}): ${error.response.data ? JSON.stringify(error.response.data) : error.message}`;
     } else if (error.message) {
         errorMessage = error.message;
     }
 
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    // Ensure errorMessage is always a non-empty string
+    if (!errorMessage || typeof errorMessage !== 'string' || errorMessage.trim() === "") {
+        errorMessage = "Ocurrió un error desconocido al intentar crear la orden de pago.";
+    }
+    
+    const errorDetails = error.data ? JSON.stringify(error.data) : (error.message ? error.message : String(error));
+
+    return NextResponse.json({ 
+        error: errorMessage,
+        details: errorDetails
+    }, { status: 500 });
   }
 }
