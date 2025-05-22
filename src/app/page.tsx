@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Lightbulb, Target, Menu, UserCircle as UserCircleIcon, Building, Search, FileText, ChevronDown } from "lucide-react";
+import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Lightbulb, Target, Menu, UserCircle as UserCircleIcon, Building, Search } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ChatAssistant } from "@/components/chat-assistant";
@@ -114,20 +114,36 @@ const PayPalSmartPaymentButtons = ({
 
               let orderData;
               try {
+                if (!response.ok) {
+                  // If response is not OK, try to get text first for better error message
+                  const errorText = await response.text().catch(() => "Respuesta de error no legible del servidor.");
+                  console.error("PayPalButtons: Error en backend al crear orden. Status:", response.status, "Respuesta:", errorText);
+                  const description = `Error del servidor (${response.status}): ${errorText.substring(0, 200)}. Revise los logs del servidor para más detalles.`;
+                  toast({ variant: "destructive", title: "Error de Creación de Orden", description });
+                  onPaymentError(new Error(description));
+                  return Promise.reject(new Error(description));
+                }
                 orderData = await response.json();
               } catch (jsonError: any) {
                 console.error("PayPalButtons: Error al parsear la respuesta JSON de /api/paypal/create-order:", jsonError);
-                const errorText = await response.text().catch(() => "No se pudo leer el cuerpo de la respuesta.");
-                const description = `Respuesta inesperada del servidor (Estado: ${response.status}). Detalle: ${errorText.substring(0,150)}`;
-                toast({ variant: "destructive", title: "Error de Creación de Orden", description });
+                const errorText = await response.text().catch(() => "No se pudo leer el cuerpo de la respuesta, y no era JSON válido.");
+                const description = `Respuesta inesperada o no JSON del servidor (Estado: ${response.status}). Detalle: ${errorText.substring(0,200)}. Revise los logs del servidor.`;
+                toast({ variant: "destructive", title: "Error de Comunicación con Servidor", description });
                 onPaymentError(new Error(description));
                 return Promise.reject(new Error(description));
               }
 
-              if (!response.ok || !orderData || orderData.error) {
-                const errorMsg = orderData?.error || (response.ok ? 'Respuesta vacía o malformada del servidor.' : `Error del servidor: ${response.statusText}`);
-                toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}` });
-                console.error("PayPalButtons: Error creando orden en backend:", orderData || `Estado: ${response.status}, Texto: ${response.statusText}`);
+              if (orderData.error) { // Assuming backend sends { error: "message" } for handled errors
+                const errorMsg = orderData.error || 'Error desconocido del servidor al crear la orden.';
+                toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}. Revise los logs del servidor.` });
+                console.error("PayPalButtons: Error creando orden en backend (JSON):", orderData);
+                onPaymentError(new Error(errorMsg));
+                return Promise.reject(new Error(errorMsg));
+              }
+              if (!orderData.orderID) {
+                const errorMsg = 'Respuesta del servidor no contiene orderID. Revise los logs del servidor.';
+                toast({ variant: "destructive", title: "Error de Respuesta del Servidor", description: errorMsg });
+                console.error("PayPalButtons: Respuesta de /api/paypal/create-order sin orderID:", orderData);
                 onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
@@ -221,7 +237,7 @@ const PayPalSmartPaymentButtons = ({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPayPalSDKReady, session, payPalButtonInstance]); // Removed toast, onLoginRequired, etc. as they should be stable if memoized by parent
+  }, [isPayPalSDKReady, session]); // Removed onPaymentError etc. use useCallback on parent
 
 
   if (!isPayPalSDKReady) {
@@ -432,7 +448,7 @@ export default function HomePage() {
       const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
       const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
-      if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
+      if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_google_aqui_valida" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
         errorMessage = `Error de Configuración: La clave API (${apiKeyName}) para el servicio de IA no está configurada. Por favor, revise el archivo .env.local y las instrucciones del README.md.`;
       } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
         errorMessage = `Error de Configuración: La clave API (${apiKeyName}) proporcionada no es válida. Verifique la clave en Google AI Studio y su configuración en .env.local.`;
@@ -455,8 +471,8 @@ export default function HomePage() {
 
   const handlePayPalPaymentSuccess = useCallback(async (details: any) => {
     console.log("HomePage: PayPal onPaymentSuccess, detalles:", details);
-    toast({ title: "¡Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Actualizando estado de suscripción...`, variant: "default", duration: 4000 });
-    await refreshUserProfile();
+    await refreshUserProfile(); // Espera a que el perfil se refresque
+    toast({ title: "¡Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Su acceso Premium ha sido activado.`, variant: "default", duration: 5000 });
   },[refreshUserProfile, toast]);
 
   const handlePayPalPaymentError = useCallback((error: any) => {
@@ -714,7 +730,7 @@ export default function HomePage() {
                      {jsonExportUrl && (
                        <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
                          <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}>
-                           <span className="inline-flex items-center"> <FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON) </span>
+                           <span><FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON)</span>
                          </a>
                        </Button>
                      )}
