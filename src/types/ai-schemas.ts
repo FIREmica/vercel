@@ -258,32 +258,34 @@ export const GeneralQueryOutputSchema = z.object({
 export type GeneralQueryOutput = z.infer<typeof GeneralQueryOutputSchema>;
 
 
-// Application Data Structures (for future database integration)
+// Application Data Structures (for Supabase database integration)
 
 export const UserProfileSchema = z.object({
-  id: z.string().uuid().describe("Identificador único del usuario."),
+  id: z.string().uuid().describe("Identificador único del usuario (debe coincidir con auth.users.id)."),
   email: z.string().email().describe("Correo electrónico del usuario."),
-  name: z.string().optional().describe("Nombre del usuario."),
-  createdAt: z.date().default(() => new Date()).describe("Fecha de creación del perfil."),
-  subscriptionPlan: z.enum(['free', 'premium_monthly', 'premium_yearly']).default('free').describe("Plan de suscripción actual del usuario."),
-  subscriptionStatus: z.enum(['active', 'inactive', 'cancelled', 'past_due', 'trialing']).optional().describe("Estado de la suscripción."),
-  paymentProviderCustomerId: z.string().optional().describe("ID del cliente en la pasarela de pago (ej. Stripe, PayPal)."),
-  currentPeriodEnd: z.date().optional().describe("Fecha de finalización del período de suscripción actual."),
+  full_name: z.string().optional().describe("Nombre completo del usuario."),
+  avatar_url: z.string().url().optional().describe("URL del avatar del usuario."),
+  subscription_status: z.string().default('free').describe("Estado de la suscripción del usuario (ej: 'free', 'active_premium', 'past_due', 'cancelled')."),
+  subscription_plan_id: z.string().optional().describe("Identificador del plan de suscripción (si hay múltiples planes premium)."),
+  current_period_end: z.date().optional().describe("Fecha en que finaliza el período de suscripción actual."),
+  paypal_customer_id: z.string().optional().describe("ID del cliente en PayPal (Payer ID), si es aplicable."),
+  paypal_order_id: z.string().optional().describe("Último ID de orden de PayPal exitoso para referencia."),
+  created_at: z.date().default(() => new Date()).describe("Fecha de creación del perfil."),
+  updated_at: z.date().default(() => new Date()).describe("Fecha de última actualización del perfil."),
 });
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 
 export const AnalysisRecordSchema = z.object({
-  id: z.string().uuid().describe("Identificador único del registro de análisis."),
-  userId: z.string().uuid().describe("ID del usuario que realizó el análisis."),
-  createdAt: z.date().default(() => new Date()).describe("Fecha en que se realizó el análisis."),
-  analysisType: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Cloud", "Container", "Dependency", "Network"]).describe("Tipo de análisis realizado."),
-  targetDescription: z.string().describe("Descripción del objetivo analizado (ej. URL, nombre del servidor)."),
-  overallRiskAssessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).describe("Evaluación de riesgo general del análisis."),
-  vulnerableFindingsCount: z.number().int().min(0).describe("Número de hallazgos vulnerables activos."),
-  fullReportReference: z.string().optional().describe("Referencia al informe completo (ej. ID en un sistema de almacenamiento o el texto si es corto)."),
-  analysisInputDetails: z.any().optional().describe("Detalles de la entrada utilizada para este análisis específico (para reproducibilidad o revisión)."),
-  // Podríamos agregar un array de IDs de VulnerabilityFinding si los hallazgos se almacenan por separado y se relacionan
-  // findings: z.array(z.string().uuid()).optional().describe("IDs de los hallazgos asociados a este análisis."),
+  id: z.string().uuid().default(() => crypto.randomUUID()).describe("Identificador único del registro de análisis."), // crypto.randomUUID() may need adjustment for Zod/server env
+  user_id: z.string().uuid().describe("ID del usuario que realizó el análisis (FK a auth.users.id)."),
+  created_at: z.date().default(() => new Date()).describe("Fecha en que se realizó el análisis."),
+  analysis_type: z.enum(["URL", "Server", "Database", "SAST", "DAST", "Cloud", "Container", "Dependency", "Network"]).describe("Tipo de análisis realizado."),
+  target_description: z.string().describe("Descripción del objetivo analizado (ej. URL, nombre del servidor)."),
+  overall_risk_assessment: z.enum(["Low", "Medium", "High", "Critical", "Informational"]).optional().describe("Evaluación de riesgo general del análisis."),
+  vulnerable_findings_count: z.number().int().min(0).default(0).describe("Número de hallazgos vulnerables activos."),
+  report_summary: z.string().optional().describe("Un breve resumen o puntos clave del informe."),
+  full_report_data: z.any().optional().describe("Objeto JSON completo con todos los hallazgos y el texto del informe."), // Consider a more specific Zod schema if possible
+  // analysisInputDetails: z.any().optional().describe("Detalles de la entrada utilizada para este análisis específico (para reproducibilidad o revisión)."),
 });
 export type AnalysisRecord = z.infer<typeof AnalysisRecordSchema>;
 

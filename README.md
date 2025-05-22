@@ -34,7 +34,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
         *   Un usuario autenticado puede iniciar un flujo de pago.
         *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
         *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
-        *   El endpoint `/api/paypal/capture-order` ahora intenta capturar el pago con PayPal y luego actualiza el `subscription_status` del usuario en la tabla `user_profiles` de Supabase (utilizando la `SUPABASE_SERVICE_ROLE_KEY` para permisos).
+        *   El endpoint `/api/paypal/capture-order` ahora captura el pago con PayPal y luego actualiza el `subscription_status` del usuario en la tabla `user_profiles` de Supabase (utilizando la `SUPABASE_SERVICE_ROLE_KEY` para permisos).
     *   **Funciones Premium Desbloqueadas:** Si `AuthContext` determina (leyendo de `user_profiles` después de una actualización) que el usuario tiene una suscripción activa (`subscription_status = 'active_premium'` o similar), se desbloquean:
         *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
         *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
@@ -204,7 +204,7 @@ Este proyecto requiere claves API para funcionar correctamente.
       USING (auth.uid() = id);
 
       -- Users can update their own non-sensitive profile details (e.g., full_name, avatar_url).
-      -- Subscription-related fields (subscription_status, current_period_end, paypal_order_id)
+      -- Subscription-related fields (subscription_status, current_period_end, paypal_order_id, etc.)
       -- should ONLY be updated by a trusted server-side process (like your /api/paypal/capture-order
       -- or /api/paypal/webhook endpoints using the SUPABASE_SERVICE_ROLE_KEY).
       CREATE POLICY "Users can update their own non-sensitive details."
@@ -214,10 +214,11 @@ Este proyecto requiere claves API para funcionar correctamente.
         auth.uid() = id AND
         NOT (
           NEW.subscription_status IS DISTINCT FROM OLD.subscription_status OR
+          NEW.subscription_plan_id IS DISTINCT FROM OLD.subscription_plan_id OR
           NEW.current_period_end IS DISTINCT FROM OLD.current_period_end OR
-          NEW.paypal_order_id IS DISTINCT FROM OLD.paypal_order_id OR
           NEW.paypal_customer_id IS DISTINCT FROM OLD.paypal_customer_id OR
-          NEW.subscription_plan_id IS DISTINCT FROM OLD.subscription_plan_id
+          NEW.paypal_order_id IS DISTINCT FROM OLD.paypal_order_id
+          -- Add other sensitive fields here if needed
         )
       );
       -- Note: The SUPABASE_SERVICE_ROLE_KEY used in backend routes bypasses RLS.
@@ -246,6 +247,55 @@ Este proyecto requiere claves API para funcionar correctamente.
       CREATE TRIGGER on_auth_user_created
         AFTER INSERT ON auth.users
         FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+      ```
+3.  **Crea la tabla `AnalysisRecord` (Fundamental para historial de análisis):**
+    *   En el **SQL Editor** de Supabase, ejecuta el siguiente script:
+      ```sql
+      -- 1. Create the AnalysisRecord table
+      CREATE TABLE public.analysis_records (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+          analysis_type TEXT NOT NULL, -- e.g., "URL", "Server", "SAST", "DAST", "Cloud", "Container", "Dependency", "Network"
+          target_description TEXT NOT NULL,
+          overall_risk_assessment TEXT, -- e.g., "Low", "Medium", "High", "Critical", "Informational"
+          vulnerable_findings_count INTEGER DEFAULT 0,
+          report_summary TEXT, -- Could store a short summary or key points
+          full_report_data JSONB, -- Store the detailed JSON of all findings and report text
+          -- Consider adding specific input fields if needed for quick filtering, e.g., analyzed_url TEXT
+          CONSTRAINT check_analysis_type CHECK (analysis_type IN ('URL', 'Server', 'Database', 'SAST', 'DAST', 'Cloud', 'Container', 'Dependency', 'Network'))
+      );
+
+      COMMENT ON COLUMN public.analysis_records.analysis_type IS 'Type of security analysis performed.';
+      COMMENT ON COLUMN public.analysis_records.target_description IS 'User-provided description or identifier of the target analyzed.';
+      COMMENT ON COLUMN public.analysis_records.full_report_data IS 'Stores the complete analysis result object, including all findings and the generated report text.';
+
+      -- 2. Enable Row Level Security (RLS)
+      ALTER TABLE public.analysis_records ENABLE ROW LEVEL SECURITY;
+
+      -- 3. Create RLS Policies
+      -- Users can view their own analysis records.
+      CREATE POLICY "Users can view their own analysis records."
+      ON public.analysis_records FOR SELECT
+      USING (auth.uid() = user_id);
+
+      -- Users can insert new analysis records for themselves.
+      CREATE POLICY "Users can insert their own analysis records."
+      ON public.analysis_records FOR INSERT
+      WITH CHECK (auth.uid() = user_id);
+
+      -- Optional: Users can delete their own analysis records.
+      -- CREATE POLICY "Users can delete their own analysis records."
+      -- ON public.analysis_records FOR DELETE
+      -- USING (auth.uid() = user_id);
+
+      -- Optional: Users cannot update analysis records (treat them as immutable once created).
+      -- If updates are needed, a more specific policy would be required.
+      CREATE POLICY "Analysis records are read-only after creation for users."
+      ON public.analysis_records FOR UPDATE
+      USING (false); -- Effectively disallows updates by users via RLS
+      
+      -- Note: The SUPABASE_SERVICE_ROLE_KEY used in backend routes bypasses RLS if needed for admin tasks.
       ```
 
 ### Ejecutando la Aplicación
@@ -279,7 +329,7 @@ Este proyecto requiere claves API para funcionar correctamente.
 *   **Problemas con hCaptcha (Actualmente Deshabilitado):**
     *   El componente `react-hcaptcha` ha sido eliminado de las dependencias y su uso comentado en los formularios de login/signup debido a problemas persistentes con `npm install`.
     *   **Si deseas reactivarlo:**
-        1.  Intenta instalarlo de nuevo: `npm install react-hcaptcha` (o `yarn add react-hcaptcha`). Si falla, investiga el error específico; podría ser un problema con tu caché de npm (`npm cache clean --force`), tu registro de npm, o un problema de red. Consulta `npmjs.com` para la última versión estable.
+        1.  Intenta instalarlo de nuevo: `npm install react-hcaptcha@latest --save`. Si falla, investiga el error específico; podría ser un problema con tu caché de npm (`npm cache clean --force`), tu registro de npm, o un problema de red. Consulta `npmjs.com` para la última versión estable.
         2.  Una vez instalado, descomenta las secciones de hCaptcha en `src/app/login/page.tsx` y `src/app/signup/page.tsx`.
         3.  Añade `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` a tu `.env.local` con tu clave de sitio de hCaptcha.
         4.  **Implementa la verificación del backend:** Esto es crucial. Necesitarás añadir lógica a tus endpoints de backend (si los usas para manejar login/signup) o directamente en las Server Actions si usas Supabase Auth para enviar el token CAPTCHA (`h-captcha-response`) a `https://api.hcaptcha.com/siteverify` junto con tu `HCAPTCHA_SECRET_KEY` (configurada como variable de entorno en el servidor). El registro/inicio de sesión solo debe proceder si la verificación es exitosa.
@@ -293,6 +343,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   Los formularios de Login/Signup (`src/app/login/page.tsx`, `src/app/signup/page.tsx`) interactúan con las funciones de autenticación de Supabase (`signInWithPassword`, `signUp`).
 *   El `AuthContext` (`src/context/AuthContext.tsx`) escucha los cambios de estado de autenticación de Supabase y obtiene el perfil del usuario de la tabla `user_profiles`. El estado `isPremium` se deriva de `userProfile.subscription_status`.
 *   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'`) cuando un nuevo usuario se registra en `auth.users`.
+*   Se ha definido el SQL para crear la tabla `analysis_records` para almacenar el historial de análisis, pero la lógica para guardar los análisis en esta tabla aún no está implementada en `src/app/actions.ts`.
 
 ## Implementación de Pagos con PayPal (API REST - Sandbox)
 
@@ -308,29 +359,29 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
         *   `paypal_order_id`.
 *   **Refresco de Estado en Frontend:** `AuthContext` llama a `refreshUserProfile()` después de una captura de pago exitosa para cargar el nuevo estado de suscripción desde la base de datos, lo que actualiza el acceso a las funciones premium en la UI.
 
-## Pasos Críticos para una Facturación Real y Funcionalidad Completa
+## Implementación de Webhooks de PayPal (CRÍTICO para Producción)
 
-1.  **Backend de Captura de Pagos (PayPal) y Actualización de DB:** ¡Hecho! La lógica en `/api/paypal/capture-order` captura el pago y actualiza la tabla `user_profiles` en Supabase. Asegúrate de que esta lógica sea robusta y maneje todos los casos de error.
-2.  **Credenciales LIVE de PayPal:** Para procesar pagos reales, cambia las variables de entorno `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` y `PAYPAL_API_BASE_URL` a tus credenciales y URL de producción de PayPal. Lo mismo para `NEXT_PUBLIC_PAYPAL_CLIENT_ID`.
-3.  **Implementación de Webhooks de PayPal (¡CRÍTICO PARA PRODUCCIÓN!):**
-    *   **Necesidad:** Para manejar confirmaciones de pago asíncronas y eventos del ciclo de vida de la suscripción (renovaciones, cancelaciones, etc.) de forma fiable. Esto asegura que tu base de datos se mantenga sincronizada incluso si el flujo del cliente se interrumpe.
-    *   **Endpoint:** Crea y configura un endpoint de webhook en tu aplicación (ej. `/api/paypal/webhook`) y regístralo en tu aplicación de PayPal Developer. El archivo `/src/app/api/paypal/webhook/route.ts` contiene un placeholder detallado para la lógica de verificación de firma y procesamiento de eventos.
-    *   **Verificación de Firma:** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad. La lógica para esto es compleja y debe implementarse cuidadosamente.
-    *   **Procesamiento de Eventos:** Procesa los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`, `BILLING.SUBSCRIPTION.CANCELLED`, etc.) y actualiza la tabla `user_profiles` en Supabase.
-4.  **Lógica de Suscripción Completa:**
-    *   Asegurar que `AuthContext` y toda la lógica que dependa de `isPremium` refleje correctamente el estado de `user_profiles.subscription_status`.
-    *   Proteger robustamente las funciones premium.
-5.  **Gestión de Suscripciones en UI:** Una página donde los usuarios puedan ver/gestionar su suscripción.
-6.  **Tablas Adicionales:** Considerar `AnalysisRecord` para guardar resultados de análisis vinculados a `userId`.
+*   **Necesidad:** Para manejar confirmaciones de pago asíncronas y eventos del ciclo de vida de la suscripción (renovaciones, cancelaciones, etc.) de forma fiable. Esto asegura que tu base de datos se mantenga sincronizada incluso si el flujo del cliente se interrumpe.
+*   **Endpoint:** Se ha creado un placeholder en `/src/app/api/paypal/webhook/route.ts`. Debes configurar esta URL en tu aplicación de PayPal Developer y registrarla para los eventos relevantes.
+*   **Verificación de Firma:** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad. La lógica para esto es compleja y debe implementarse cuidadosamente (actualmente es un placeholder).
+*   **Procesamiento de Eventos:** El endpoint debe procesar los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`, `BILLING.SUBSCRIPTION.CANCELLED`, etc.) y actualizar la tabla `user_profiles` en Supabase.
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
-1.  **Autenticación y Gestión de Perfiles Completa (Supabase).**
-2.  **Integración Completa de Pasarela de Pagos (PayPal):** Facturación real, **webhooks implementados y probados**, actualización de DB.
-3.  **Despliegue y Alojamiento Profesional:** Vercel, AWS, GCP, etc. Configuración segura de variables de entorno LIVE.
-4.  **Seguridad de la Plataforma:** Protección de claves, validación de entradas, rate limiting.
-5.  **Aspectos Legales:** Términos de Servicio y Política de Privacidad profesionalmente redactados.
-6.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte.
+1.  **Autenticación y Gestión de Perfiles Completa (Supabase):**
+    *   Asegurar que la creación de perfiles (`user_profiles`) funcione sin fallos.
+    *   Implementar una UI para que los usuarios gestionen su perfil (cambiar nombre, avatar, etc.).
+2.  **Integración Completa de Pasarela de Pagos (PayPal):**
+    *   Pasar a credenciales LIVE de PayPal en variables de entorno de producción.
+    *   **Implementar y probar exhaustivamente los Webhooks de PayPal.**
+    *   Asegurar que la actualización de `user_profiles` en la base de datos sea 100% fiable.
+3.  **Persistencia del Historial de Análisis:**
+    *   Implementar la lógica en `src/app/actions.ts` (dentro de `performAnalysisAction`) para guardar los resultados de cada análisis en la tabla `analysis_records` de Supabase, vinculados al `userId`.
+    *   Crear una página de "Dashboard" o "Mis Análisis" (`/dashboard`) que muestre estos registros al usuario autenticado.
+4.  **Despliegue y Alojamiento Profesional:** Vercel, AWS, GCP, etc. Configuración segura de variables de entorno LIVE.
+5.  **Seguridad de la Plataforma:** Protección de claves, validación de entradas, rate limiting, firewalls.
+6.  **Aspectos Legales:** Términos de Servicio y Política de Privacidad profesionalmente redactados y adaptados a tu servicio.
+7.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte al cliente.
 
 ## Roadmap (Posibles Mejoras Futuras)
 *   **Integración Profunda con Herramientas de Seguridad:** Permitir importación/exportación con Nessus, Burp Suite.
@@ -339,13 +390,12 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   **Integración con SIEM/SOAR:** Enviar alertas y hallazgos a Splunk, QRadar, Sentinel.
 *   **Integración con CI/CD:** Automatizar análisis en pipelines de desarrollo.
 *   **Análisis de Seguridad de APIs Dedicado.**
-*   **Paneles de Control (Dashboards) Avanzados:** Con métricas, tendencias y visualizaciones interactivas.
+*   **Paneles de Control (Dashboards) Avanzados:** Con métricas, tendencias y visualizaciones interactivas para el historial de análisis.
 *   **Informes en PDF Personalizables.**
 *   **Interfaz de Línea de Comandos (CLI).**
 *   **Mejoras en Análisis de Servidores de Juegos:** Detección de trampas, análisis de protocolos de juego, análisis de scripts/mods.
 *   **Soporte Multilingüe Adicional.**
-*   **Gestión de Equipos/Organizaciones:** Cuentas maestras con múltiples usuarios.
-*   **Historial de Análisis Detallado por Usuario:** Guardar y comparar análisis en la base de datos.
+*   **Gestión de Equipos/Organizaciones:** Cuentas maestras con múltiples usuarios y roles.
 *   **Pruebas Unitarias y de Integración.**
 *   **Documentación Técnica Detallada para Desarrolladores (`/docs` o Wiki).**
 
@@ -353,4 +403,3 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-

@@ -2,14 +2,13 @@
 "use client";
 
 import Link from 'next/link';
-import { ShieldCheck, UserCircle, LogIn, LogOut, Menu } from 'lucide-react';
+import { ShieldCheck, UserCircle, LogIn, LogOut, Menu, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -18,7 +17,8 @@ import { useState } from 'react';
 
 const navItems = [
   { href: "/", label: "Inicio" },
-  { href: "/#servicios", label: "Servicios" }, // Enlace a sección en la homepage
+  { href: "/#servicios", label: "Servicios" },
+  { href: "/dashboard", label: "Dashboard" }, // New Dashboard Link
   { href: "/resources", label: "Recursos" },
   { href: "/about", label: "Sobre Nosotros" },
   { href: "/contact", label: "Contacto" },
@@ -30,7 +30,7 @@ export function AppHeader() {
 
   const handleSignOut = async () => {
     await signOut();
-    // Redirección manejada por onAuthStateChange o puede ser forzada si es necesario
+    setMobileMenuOpen(false); // Close menu on sign out
   };
 
   const renderNavLinks = (isMobile = false) => (
@@ -66,14 +66,15 @@ export function AppHeader() {
           {isLoading ? (
             <div className="flex items-center gap-2">
               <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-20 md:hidden" /> {/* Skeleton for mobile trigger */}
+              <Skeleton className="h-8 w-8 md:hidden" /> {/* Skeleton for mobile trigger */}
             </div>
           ) : session ? (
             <>
+              {/* Conceptual User Profile Button - could link to /dashboard or a dedicated /profile page */}
               <Button variant="ghost" size="sm" className="hidden md:inline-flex text-foreground" asChild>
-                <Link href="#"> 
+                <Link href="/dashboard"> 
                   <UserCircle className="mr-2 h-4 w-4" />
-                  {user?.email?.split('@')[0] || "Mi Perfil"}
+                  {user?.email?.split('@')[0] || "Mi Cuenta"}
                 </Link>
               </Button>
               <Button 
@@ -94,7 +95,7 @@ export function AppHeader() {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <LogIn className="mr-2 h-4 w-4" />
-                Iniciar Sesión
+                Iniciar Sesión / Registrarse
               </Button>
             </Link>
           )}
@@ -122,15 +123,15 @@ export function AppHeader() {
                 {session ? (
                   <>
                     <Button variant="ghost" size="sm" className="w-full justify-start text-foreground" asChild>
-                      <Link href="#" onClick={() => setMobileMenuOpen(false)}> 
+                      <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}> 
                         <UserCircle className="mr-2 h-4 w-4" />
-                        {user?.email?.split('@')[0] || "Mi Perfil"}
+                        {user?.email?.split('@')[0] || "Mi Cuenta"}
                       </Link>
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => { handleSignOut(); setMobileMenuOpen(false); }} 
+                      onClick={handleSignOut} 
                       className="w-full justify-start border-destructive text-destructive hover:bg-destructive/10"
                     >
                       <LogOut className="mr-2 h-4 w-4" />

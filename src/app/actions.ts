@@ -43,8 +43,11 @@ import type {
   DependencyAnalysisInput,
   NetworkSecurityAnalysisInput,
   RemediationPlaybookInput,
-  GenerateAttackVectorsOutput, // Using the output type here which is AttackVectorItem[]
+  GenerateAttackVectorsOutput,
+  AnalysisRecord, // Import AnalysisRecord type
 } from "@/types/ai-schemas";
+
+// import { createClient } from '@/lib/supabase/server'; // For server-side Supabase in Server Actions
 
 interface PerformAnalysisParams {
   url?: string;
@@ -101,15 +104,17 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
   let dependencyAnalysisResult: DependencyAnalysisOutput | null = null;
   let networkAnalysisResult: NetworkSecurityAnalysisOutput | null = null;
   
-  const allFindings: VulnerabilityFinding[] = [];
+  let allFindings: VulnerabilityFinding[] = [];
+  let analysisPerformedTypes: Array<AnalysisRecord['analysis_type']> = [];
+
 
   try {
-    // Step 1: Perform individual analyses
     if (url) {
       try {
         const urlInput: AnalyzeUrlVulnerabilitiesInput = { url };
         urlAnalysisResult = await analyzeUrlVulnerabilities(urlInput);
         if (urlAnalysisResult?.findings) allFindings.push(...urlAnalysisResult.findings);
+        if (urlAnalysisResult) analysisPerformedTypes.push("URL");
       } catch (e: any) { collectedErrorMessages += `URL: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -118,6 +123,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         const serverInput: ServerConfigInput = { serverDescription };
         serverAnalysisResult = await analyzeServerSecurity(serverInput);
         if (serverAnalysisResult?.findings) allFindings.push(...serverAnalysisResult.findings);
+        if (serverAnalysisResult) analysisPerformedTypes.push("Server");
       } catch (e: any) { collectedErrorMessages += `Servidor: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -126,6 +132,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         const dbInput: DatabaseConfigInput = { databaseDescription };
         databaseAnalysisResult = await analyzeDatabaseSecurity(dbInput);
         if (databaseAnalysisResult?.findings) allFindings.push(...databaseAnalysisResult.findings);
+        if (databaseAnalysisResult) analysisPerformedTypes.push("Database");
       } catch (e: any) { collectedErrorMessages += `BD: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -135,6 +142,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         if (sastLanguage) sastInput.language = sastLanguage;
         sastAnalysisResult = await analyzeSastSecurity(sastInput);
         if (sastAnalysisResult?.findings) allFindings.push(...sastAnalysisResult.findings);
+        if (sastAnalysisResult) analysisPerformedTypes.push("SAST");
       } catch (e: any) { collectedErrorMessages += `SAST: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -143,6 +151,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         const dastInput: DastAnalysisInput = { targetUrl: dastTargetUrl, scanProfile: "Quick" }; 
         dastAnalysisResult = await analyzeDastSecurity(dastInput);
         if (dastAnalysisResult?.findings) allFindings.push(...dastAnalysisResult.findings);
+        if (dastAnalysisResult) analysisPerformedTypes.push("DAST");
       } catch (e: any) { collectedErrorMessages += `DAST: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -152,6 +161,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         if (cloudRegion) cloudInput.region = cloudRegion;
         cloudAnalysisResult = await analyzeCloudConfig(cloudInput);
         if (cloudAnalysisResult?.findings) allFindings.push(...cloudAnalysisResult.findings);
+        if (cloudAnalysisResult) analysisPerformedTypes.push("Cloud");
       } catch (e: any) { collectedErrorMessages += `Cloud: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -166,6 +176,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         if(Object.keys(containerInput).length > 0 && (containerInput.imageName || containerInput.dockerfileContent || containerInput.kubernetesManifestContent)) {
             containerAnalysisResult = await analyzeContainerSecurity(containerInput);
             if (containerAnalysisResult?.findings) allFindings.push(...containerAnalysisResult.findings);
+            if (containerAnalysisResult) analysisPerformedTypes.push("Container");
         }
       } catch (e: any) { collectedErrorMessages += `Contenedor: ${e.message}. `; errorOccurred = true; }
     }
@@ -175,6 +186,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         const depInput: DependencyAnalysisInput = { dependencyFileContent, fileType: dependencyFileType };
         dependencyAnalysisResult = await analyzeDependencies(depInput);
         if (dependencyAnalysisResult?.findings) allFindings.push(...dependencyAnalysisResult.findings);
+        if (dependencyAnalysisResult) analysisPerformedTypes.push("Dependency");
       } catch (e: any) { collectedErrorMessages += `Dependencias: ${e.message}. `; errorOccurred = true; }
     }
 
@@ -188,6 +200,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
             if (Object.keys(networkInput).length > 0) {
                 networkAnalysisResult = await analyzeNetworkSecurity(networkInput);
                 if (networkAnalysisResult?.findings) allFindings.push(...networkAnalysisResult.findings);
+                if (networkAnalysisResult) analysisPerformedTypes.push("Network");
             }
         } catch (e: any) { collectedErrorMessages += `Red: ${e.message}. `; errorOccurred = true; }
     }
@@ -198,24 +211,27 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
          urlAnalysis: null, serverAnalysis: null, databaseAnalysis: null, sastAnalysis: null, dastAnalysis: null, 
          cloudAnalysis: null, containerAnalysis: null, dependencyAnalysis: null, networkAnalysis: null,
          reportText: null, attackVectors: null, remediationPlaybooks: null, 
-         error: `Todos los análisis fallaron. Errores: ${collectedErrorMessages}`,
+         error: `Todos los análisis fallaron o no produjeron hallazgos. Errores: ${collectedErrorMessages}`,
          allFindings: []
        };
     }
 
     let targetDescParts = [];
     if (url) targetDescParts.push(`URL (${url})`);
-    if (serverDescription) targetDescParts.push('Servidor General');
+    if (serverDescription) targetDescParts.push('Servidor General/Juegos');
+    // Removed gameServerDescription from here as it's merged into serverDescription
     if (databaseDescription) targetDescParts.push('Base de Datos');
-    if (codeSnippet) targetDescParts.push('Fragmento de Código (SAST)');
+    if (codeSnippet) targetDescParts.push(`Fragmento de Código (${sastLanguage || 'SAST'})`);
     if (dastTargetUrl) targetDescParts.push(`Aplicación URL DAST (${dastTargetUrl})`);
     if (cloudProvider && cloudConfigDescription) targetDescParts.push(`Configuración Cloud (${cloudProvider}${cloudRegion ? `/${cloudRegion}` : ''})`);
     if (containerImageName || dockerfileContent || kubernetesManifestContent) targetDescParts.push('Contenedor/K8s');
-    if (dependencyFileContent && dependencyFileType) targetDescParts.push(`Dependencias de Software (${dependencyFileType})`);
+    if (dependencyFileContent && dependencyFileType) targetDescParts.push(`Dependencias (${dependencyFileType})`);
     if (networkDescription || networkScanResults || networkFirewallRules) targetDescParts.push('Configuración de Red');
     
+    const finalTargetDescription = targetDescParts.join(', ').replace(/, $/, '') || "Análisis general";
+
     const reportInput: GenerateSecurityReportInput = {
-        analyzedTargetDescription: `Análisis para ${targetDescParts.join(', ')}`.replace(/, $/, ''),
+        analyzedTargetDescription: `Análisis para ${finalTargetDescription}`,
         urlAnalysis: urlAnalysisResult ?? undefined,
         serverAnalysis: serverAnalysisResult ?? undefined,
         databaseAnalysis: databaseAnalysisResult ?? undefined,
@@ -259,6 +275,43 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
       }
     }
 
+    // CONCEPTUAL: Save Analysis Record to Supabase
+    // This part would require user authentication to be fully implemented to get a userId.
+    // const supabase = createClient(); // Needs to be server-side client from @supabase/ssr or similar
+    // const { data: { user } } = await supabase.auth.getUser();
+    // if (user) {
+    //   const analysisRecordData: Omit<AnalysisRecord, 'id' | 'created_at'> = {
+    //     user_id: user.id,
+    //     analysis_type: analysisPerformedTypes.length > 0 ? analysisPerformedTypes.join(', ') as AnalysisRecord['analysis_type'] : 'Unknown', // This needs adjustment if analysis_type is enum
+    //     target_description: finalTargetDescription,
+    //     overall_risk_assessment: reportInput.overallVulnerableFindings.length > 0 ? (allFindings.some(f => f.severity === 'Critical' || f.severity === 'High') ? 'High' : 'Medium') : 'Low', // Simplified risk
+    //     vulnerable_findings_count: reportInput.overallVulnerableFindings.length,
+    //     report_summary: reportResultText?.substring(0, 500), // Short summary
+    //     full_report_data: { // Storing all findings and the full report text
+    //        allFindings: allFindings,
+    //        reportText: reportResultText,
+    //        // You might also want to store the inputs 'params' here
+    //     }
+    //   };
+    //   try {
+    //     // const { error: dbError } = await supabase.from('analysis_records').insert([analysisRecordData]);
+    //     // if (dbError) {
+    //     //   console.error("Error saving analysis record to Supabase:", dbError);
+    //     //   collectedErrorMessages += ` Guardar Registro Análisis: ${dbError.message}. `;
+    //     // } else {
+    //     //   console.log("Analysis record saved to Supabase.");
+    //     // }
+    //     console.log("CONCEPTUAL: Analysis record data prepared for Supabase:", analysisRecordData);
+    //   } catch (dbCatchError: any) {
+    //       console.error("Exception saving analysis record:", dbCatchError);
+    //       collectedErrorMessages += ` Excepción Guardar Registro: ${dbCatchError.message}. `;
+    //   }
+    // } else {
+    //   console.log("No authenticated user found, skipping save of analysis record.");
+    // }
+    // END CONCEPTUAL
+
+
     return {
         urlAnalysis: urlAnalysisResult,
         serverAnalysis: serverAnalysisResult,
@@ -283,7 +336,7 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
     const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
     const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
-    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
+    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE" || apiKeyEnv === "tu_clave_api_google_aqui_valida") {
         errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no está configurada correctamente o es el valor predeterminado. Por favor, revise su archivo .env.local y las instrucciones del README.md.`;
     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
         errorMessage = `Error de Configuración del Servidor: La clave API (${apiKeyName}) proporcionada para el servicio de Inteligencia Artificial no es válida. Por favor, verifique la clave en Google AI Studio y asegúrese de que esté correctamente configurada en su archivo .env.local.`;
@@ -315,7 +368,7 @@ export async function askGeneralAssistantAction(input: GeneralQueryInput): Promi
     const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
     const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
-    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE") {
+    if (!apiKeyEnv || apiKeyEnv === "tu_clave_api_aqui" || apiKeyEnv.trim() === "" || apiKeyEnv === "YOUR_GOOGLE_AI_API_KEY_HERE" || apiKeyEnv === "tu_clave_api_google_aqui_valida") {
         errorMessage = `Error de Configuración del Asistente: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no está configurada o es el valor predeterminado. Por favor, contacte al administrador de la plataforma.`;
     } else if (error.message && (error.message.includes("API key not valid") || error.message.includes("API key is invalid") || error.message.includes("API_KEY_INVALID"))) {
         errorMessage = `Error de Configuración del Asistente: La clave API (${apiKeyName}) para el servicio de Inteligencia Artificial no es válida. Por favor, contacte al administrador de la plataforma.`;
