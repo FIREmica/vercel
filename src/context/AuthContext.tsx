@@ -25,41 +25,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserProfile = useCallback(async (userId: string | undefined) => {
-    if (!userId) {
-      console.log("AuthContext: No user ID provided, setting profile to null and non-premium.");
+  const fetchUserProfile = useCallback(async (userIdToFetch: string | undefined) => {
+    if (!userIdToFetch) {
+      console.log("AuthContext: No user ID provided to fetchUserProfile. Setting profile to null and non-premium.");
       setUserProfile(null);
       setIsPremium(false);
       return;
     }
 
-    console.log(`AuthContext: Fetching user profile for ID: ${userId}`);
+    console.log(`AuthContext: Attempting to fetch user profile for ID: ${userIdToFetch}`);
     try {
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('id', userId);
+        .eq('id', userIdToFetch); // No .single()
 
       if (error) {
-        console.error('AuthContext: Error fetching user profile:', error.message);
+        console.error(`AuthContext: Error fetching user profile for ID ${userIdToFetch}:`, error.message);
         setUserProfile(null);
         setIsPremium(false);
       } else if (profiles && profiles.length > 0) {
         const profile = profiles[0] as UserProfile;
         setUserProfile(profile);
-        // Determine premium status based on profile data
-        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active'];
         const currentSubscriptionStatus = profile?.subscription_status?.toLowerCase() || 'free';
+        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active']; // Consider 'active' as a generic premium state
         const newIsPremium = premiumStatuses.some(status => currentSubscriptionStatus.includes(status));
         setIsPremium(newIsPremium);
-        console.log("AuthContext: User profile fetched. Profile:", profile, "New isPremium status:", newIsPremium);
+        console.log(`AuthContext: User profile fetched successfully for ID ${userIdToFetch}. Profile:`, profile, "New isPremium status:", newIsPremium);
       } else {
-        console.warn(`AuthContext: No user profile found for user ID: ${userId}. User will be treated as non-premium.`);
+        console.warn(`AuthContext: No user profile found for user ID: ${userIdToFetch}. User will be treated as non-premium.`);
         setUserProfile(null);
         setIsPremium(false);
       }
     } catch (e: any) {
-        console.error('AuthContext: Critical error in fetchUserProfile:', e.message);
+        console.error(`AuthContext: Critical error in fetchUserProfile for ID ${userIdToFetch}:`, e.message);
         setUserProfile(null);
         setIsPremium(false);
     }
@@ -67,15 +66,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const getSessionAndProfile = async () => {
+      console.log("AuthContext: Initializing session and profile fetch...");
       setIsLoading(true);
       const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
       if (sessionError) {
         console.error("AuthContext: Error getting initial session:", sessionError.message);
       }
+      
       setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      await fetchUserProfile(currentSession?.user?.id);
+      const currentUser = currentSession?.user ?? null;
+      setUser(currentUser);
+      console.log("AuthContext: Initial session state:", currentSession ? `User ID: ${currentUser?.id}` : "No session");
+
+      await fetchUserProfile(currentUser?.id);
       setIsLoading(false);
+      console.log("AuthContext: Finished initializing session and profile fetch.");
     };
 
     getSessionAndProfile();
@@ -85,14 +91,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("AuthContext: Auth state changed. Event:", _event, "New session:", !!currentSession);
         setIsLoading(true);
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        await fetchUserProfile(currentSession?.user?.id);
-        setIsLoading(false);
+        const currentUser = currentSession?.user ?? null;
+        setUser(currentUser);
+        console.log("AuthContext: Auth state change. New session state:", currentSession ? `User ID: ${currentUser?.id}` : "No session");
+
+        await fetchUserProfile(currentUser?.id);
+        
         if (!currentSession) {
             console.log("AuthContext: User logged out, resetting profile and premium status.");
             setUserProfile(null);
             setIsPremium(false);
         }
+        setIsLoading(false);
+        console.log("AuthContext: Finished processing auth state change.");
       }
     );
 
@@ -106,19 +117,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("AuthContext: Signing out user...");
     await supabase.auth.signOut();
     // Auth listener will handle setting session, user, profile to null, and isPremium to false.
-    setIsLoading(false);
-    console.log("AuthContext: User signed out.");
+    // No need to manually set state here as onAuthStateChange will fire.
+    console.log("AuthContext: User sign out initiated. Waiting for auth state change.");
+    // setIsLoading(false); // isLoading will be handled by onAuthStateChange
   };
 
   const refreshUserProfileData = useCallback(async () => {
     if (user) {
-      console.log("AuthContext: Refreshing user profile data...");
-      setIsLoading(true);
+      console.log(`AuthContext: Manually refreshing user profile data for User ID: ${user.id}...`);
+      setIsLoading(true); // Potentially show a loading state specific to profile refresh
       await fetchUserProfile(user.id);
       setIsLoading(false);
-      console.log("AuthContext: User profile data refreshed.");
+      console.log(`AuthContext: User profile data refreshed for User ID: ${user.id}.`);
     } else {
-        console.log("AuthContext: No user to refresh profile data for.");
+        console.log("AuthContext: No user to refresh profile data for (refreshUserProfileData called).");
     }
   }, [user, fetchUserProfile]);
 
