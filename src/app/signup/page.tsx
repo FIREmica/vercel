@@ -5,19 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Facebook, Loader2 } from "lucide-react"; // Added Facebook icon
+import { UserPlus, Facebook, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react"; // Removed useRef
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
-// Declare FB a nivel global para TypeScript
 declare global {
   interface Window {
     FB: any;
-    fbAsyncInit: any;
+    fbAsyncInit: () => void;
   }
 }
 
@@ -27,7 +26,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
-  const [isFbSdkReady, setIsFbSdkReady] = useState(false); // New state for SDK readiness
+  const [isFbSdkReady, setIsFbSdkReady] = useState(false);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -41,20 +40,24 @@ export default function SignupPage() {
     }
   }, [session, authIsLoading, router, searchParams]);
 
-  // Facebook SDK Initialization
   useEffect(() => {
     const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!facebookAppId || facebookAppId === "TU_FACEBOOK_APP_ID_AQUI") {
-      console.warn("Facebook App ID no está configurado. El login/registro con Facebook no funcionará.");
+      console.warn("SignupPage: Facebook App ID no está configurado. El registro con Facebook no funcionará.");
       setIsFbSdkReady(false);
       return;
     }
 
     if (document.getElementById('facebook-jssdk')) {
-        if (window.FB) {
-             setIsFbSdkReady(true);
-        }
-        return;
+      if (window.FB && typeof window.FB.getLoginStatus === 'function') {
+        window.FB.getLoginStatus((response: any) => {
+          console.log("SignupPage: Facebook SDK already loaded, status:", response.status);
+          setIsFbSdkReady(true);
+        });
+      } else {
+         console.log("SignupPage: Facebook SDK script found, waiting for fbAsyncInit...");
+      }
+      return;
     }
 
     const script = document.createElement('script');
@@ -66,20 +69,22 @@ export default function SignupPage() {
     document.body.appendChild(script);
 
     window.fbAsyncInit = function() {
-      window.FB.init({
-        appId: facebookAppId,
-        cookie: true,
-        xfbml: true,
-        version: 'v19.0'
-      });
-      window.FB.AppEvents.logPageView();
-      setIsFbSdkReady(true); // SDK is ready
-      console.log("Facebook SDK Inicializado en Signup Page");
+      console.log("SignupPage: fbAsyncInit called.");
+      if (window.FB) {
+        window.FB.init({
+          appId: facebookAppId,
+          cookie: true,
+          xfbml: true,
+          version: 'v19.0'
+        });
+        window.FB.AppEvents.logPageView();
+        setIsFbSdkReady(true);
+        console.log("SignupPage: Facebook SDK Inicializado.");
+      } else {
+        console.error("SignupPage: fbAsyncInit called, but window.FB is not defined.");
+        setIsFbSdkReady(false);
+      }
     };
-    // return () => { // Opcional: limpiar script
-    //     const fbScript = document.getElementById('facebook-jssdk');
-    //     if (fbScript) document.body.removeChild(fbScript);
-    // }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,12 +110,6 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      // Puedes pasar datos adicionales aquí para el trigger de Supabase, ej:
-      // options: {
-      //   data: {
-      //     full_name: 'Usuario Nuevo', // Si tuvieras un campo de nombre en el formulario
-      //   }
-      // }
     });
 
     if (error) {
@@ -119,16 +118,15 @@ export default function SignupPage() {
 
       if (error.message.toLowerCase().includes("invalid api key") || error.message.toLowerCase().includes("api key error") || error.message.toLowerCase().includes("failed to fetch")) {
         title = "Error de Configuración de Supabase";
-        description = `Error de Supabase: ${error.message}. Esto usualmente significa que las claves API son incorrectas o el servidor no está accesible. 
-        Por favor, verifica lo siguiente:
-        1. Que las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en tu archivo .env.local (en la raíz de tu proyecto) sean EXACTAMENTE las mismas que aparecen en tu panel de Supabase (Project Settings > API).
-        2. Que hayas REINICIADO tu servidor de desarrollo Next.js (npm run dev) después de guardar cualquier cambio en .env.local.
-        3. Que tu conexión a internet funcione y puedas acceder a la URL de tu proyecto Supabase.`;
+        description = `Error de Supabase: ${error.message}. Verifique:
+        1. Que NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en .env.local sean correctas.
+        2. Que haya REINICIADO su servidor de desarrollo (npm run dev) después de guardar .env.local.
+        3. Su conexión a internet y acceso a la URL de Supabase.`;
       } else if (error.message.toLowerCase().includes("captcha verification process failed")) {
         title = "Error de CAPTCHA de Supabase";
-        description = `Supabase rechazó el intento de registro debido a un problema con la verificación CAPTCHA. 
-        **Solución:** Ve a tu proyecto en supabase.com -> Authentication -> Settings (o "Proveedores" -> "Email") y DESACTIVA la "Protección con CAPTCHA". Guarda los cambios.
-        Si el problema persiste, verifica que no haya restos de integraciones de hCaptcha en el código o que alguna extensión del navegador esté interfiriendo.`;
+        description = `Supabase rechazó el registro por CAPTCHA. 
+        **Solución:** En su proyecto Supabase -> Authentication -> Settings (o "Proveedores" -> "Email") DESACTIVE la "Protección con CAPTCHA" y guarde.
+        Si el problema persiste, revise que no haya restos de integraciones de hCaptcha o extensiones de navegador interfiriendo.`;
       }
       toast({
         variant: "destructive",
@@ -137,7 +135,6 @@ export default function SignupPage() {
         duration: 12000, 
       });
     } else if (data.user && data.session) {
-      // Usuario registrado y sesión iniciada automáticamente
       toast({
         title: "¡Registro Exitoso!",
         description: "Tu cuenta ha sido creada y has iniciado sesión. Serás redirigido.",
@@ -150,7 +147,6 @@ export default function SignupPage() {
       const redirectUrl = searchParams.get('redirect') || '/';
       router.push(redirectUrl); 
     } else if (data.user) {
-      // Usuario registrado, pero puede requerir confirmación por email (sesión no iniciada)
          toast({
             title: "Registro Casi Completo",
             description: "Tu cuenta ha sido creada. Si la configuración de Supabase lo requiere, revisa tu correo electrónico para confirmar tu cuenta. Luego podrás iniciar sesión.",
@@ -161,7 +157,6 @@ export default function SignupPage() {
         console.log("INFO (SignupPage): El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, "con estado 'free'.");
         router.push('/login'); 
     } else {
-        // Caso inesperado
         toast({
             variant: "destructive",
             title: "Error de Registro Inesperado",
@@ -174,7 +169,7 @@ export default function SignupPage() {
 
   const handleFacebookLogin = async () => {
     setIsLoadingFacebook(true);
-    if (!isFbSdkReady || typeof window.FB === 'undefined' || !window.FB || typeof window.FB.login !== 'function') {
+    if (!isFbSdkReady || typeof window.FB === 'undefined' || !window.FB.login || typeof window.FB.api !== 'function') {
       toast({
         variant: "destructive",
         title: "Error de Facebook Login",
@@ -187,11 +182,23 @@ export default function SignupPage() {
     window.FB.login(function(response: any) {
       console.log('Respuesta de FB.login (Signup):', response);
       if (response.authResponse) {
-        toast({
-          title: "Conexión con Facebook Exitosa (Frontend)",
-          description: `Token de acceso recibido (userID: ${response.authResponse.userID}). Se necesita implementación de backend para completar el registro/login.`,
-          variant: "default",
-          duration: 7000,
+        window.FB.api('/me', {fields: 'id,name'}, function(profileResponse: any) {
+           console.log('Respuesta de FB.api /me (Signup):', profileResponse);
+           if (profileResponse && !profileResponse.error) {
+            toast({
+              title: `Conexión con Facebook Exitosa (Frontend)`,
+              description: `¡Hola, ${profileResponse.name}! (ID: ${profileResponse.id}). Se necesita implementación de backend para completar el registro/login.`,
+              variant: "default",
+              duration: 7000,
+            });
+            // Conceptualmente: router.push('/procesar-facebook-login?token=' + response.authResponse.accessToken);
+          } else {
+             toast({
+              variant: "destructive",
+              title: "Error al obtener perfil de Facebook",
+              description: `No se pudo obtener tu información de Facebook después del login: ${profileResponse?.error?.message || 'Error desconocido.'}`,
+            });
+          }
         });
       } else {
         toast({
@@ -205,7 +212,7 @@ export default function SignupPage() {
   };
 
 
-  if (authIsLoading) {
+  if (authIsLoading && !session) {
      return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -223,8 +230,8 @@ export default function SignupPage() {
             Crear Cuenta
           </CardTitle>
           <CardDescription>
-            Regístrate para empezar a utilizar el Centro de Análisis de Seguridad y descubrir sus funciones.
-            Esta es una simulación. La autenticación real se haría con Supabase.
+            Regístrate para empezar a utilizar el Centro de Análisis de Seguridad.
+            La autenticación real se gestiona con Supabase.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -301,13 +308,12 @@ export default function SignupPage() {
             </Link>
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora registra usuarios con Supabase Auth.
-            El registro/inicio de sesión con Facebook es solo frontend por ahora y requiere implementación de backend para ser funcional y seguro.
+            <strong>Nota Importante:</strong> Este formulario registra usuarios con Supabase Auth.
+            El registro con Facebook es solo frontend y requiere implementación de backend para ser funcional y seguro.
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
     
