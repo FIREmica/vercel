@@ -1,33 +1,27 @@
 // /src/app/api/paypal/webhook/route.ts
 import { NextResponse } from 'next/server';
-import paypal from '@paypal/checkout-server-sdk'; // Ensure this SDK is appropriate for webhook verification or use direct API calls
+import paypal from '@paypal/checkout-server-sdk'; // SDK for verification, if applicable
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase admin client FOR DATABASE OPERATIONS
 // Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in your environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !serviceRoleKey) {
+if (!supabaseUrl || !supabaseServiceRoleKey) {
   console.error("CRITICAL ERROR (PayPal Webhook): Supabase URL or Service Role Key not configured. Webhook cannot update database.");
   // This is a server configuration error. The webhook will likely fail to process meaningfully.
 }
-const supabaseAdminClient = createClient(supabaseUrl!, serviceRoleKey!);
+const supabaseAdminClient = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
 
 // Helper function to configure PayPal client (ensure this matches your other PayPal API routes)
 // This might be different for webhook verification depending on PayPal's SDK/API.
 // For webhook verification, you often use your Client ID, Secret, and Webhook ID.
 function getPayPalEnvironment() {
-  const clientId = process.env.NODE_ENV === 'production'
-    ? process.env.PAYPAL_LIVE_CLIENT_ID // You'll need to set these for production
-    : process.env.PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.NODE_ENV === 'production'
-    ? process.env.PAYPAL_LIVE_CLIENT_SECRET // You'll need to set these for production
-    : process.env.PAYPAL_CLIENT_SECRET;
-  const baseUrl = process.env.NODE_ENV === 'production'
-    ? process.env.PAYPAL_LIVE_API_BASE_URL || 'https://api-m.paypal.com'
-    : process.env.PAYPAL_API_BASE_URL || 'https://api-m.sandbox.paypal.com';
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const baseUrl = process.env.PAYPAL_API_BASE_URL || 'https://api-m.sandbox.paypal.com';
 
   if (!clientId || !clientSecret) {
     console.error('CRITICAL ERROR (PayPal Webhook): PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET not configured for environment.');
@@ -39,151 +33,214 @@ function getPayPalEnvironment() {
     : new paypal.core.LiveEnvironment(clientId, clientSecret);
 }
 
+// --- TODO: CRITICAL - Implement PayPal Webhook Signature Verification ---
+// This function is a conceptual placeholder. Actual implementation is complex.
+// You MUST verify the webhook signature to ensure requests are genuinely from PayPal.
+// Refer to PayPal's official documentation for "Verifying webhook signatures".
+// You'll need your PAYPAL_WEBHOOK_ID (from PayPal Developer Portal) and specific headers from the request.
+async function verifyPayPalWebhookSignature(request: Request, rawBody: string): Promise<boolean> {
+  const paypalWebhookId = process.env.PAYPAL_WEBHOOK_ID; // You must set this in your .env.local
+
+  if (!paypalWebhookId) {
+    console.error("PayPal Webhook: PAYPAL_WEBHOOK_ID environment variable is not set. Cannot verify signature.");
+    return false; // Or throw an error, depending on desired strictness for security
+  }
+
+  const headers = request.headers;
+  const transmissionId = headers.get('paypal-transmission-id');
+  const transmissionSig = headers.get('paypal-transmission-sig');
+  const transmissionTime = headers.get('paypal-transmission-time');
+  const authAlgo = headers.get('paypal-auth-algo');
+  const certUrl = headers.get('paypal-cert-url');
+
+  if (!transmissionId || !transmissionSig || !transmissionTime || !authAlgo || !certUrl) {
+    console.error("PayPal Webhook: Missing required PayPal headers for signature verification.");
+    return false;
+  }
+
+  // The PayPal SDK (@paypal/checkout-server-sdk) might have utilities for this,
+  // or you might need to make a direct API call to PayPal's verify-webhook-signature endpoint.
+  // This is a simplified conceptual outline:
+  /*
+  try {
+    const client = new paypal.core.PayPalHttpClient(getPayPalEnvironment());
+    const verificationRequest = new paypal.notifications.VerifyWebhookSignatureRequest(); // This class might vary or not exist; check SDK
+    verificationRequest.transmissionId(transmissionId);
+    verificationRequest.transmissionSig(transmissionSig);
+    verificationRequest.transmissionTime(transmissionTime);
+    verificationRequest.authAlgo(authAlgo);
+    verificationRequest.certUrl(certUrl);
+    verificationRequest.webhookId(paypalWebhookId);
+    verificationRequest.webhookEvent(JSON.parse(rawBody)); // The SDK might require the parsed event body
+
+    const response = await client.execute(verificationRequest);
+    if (response.result.verification_status === 'SUCCESS') {
+      console.log('PayPal Webhook: Signature verified successfully.');
+      return true;
+    } else {
+      console.error('PayPal Webhook: SIGNATURE VERIFICATION FAILED:', response.result);
+      return false;
+    }
+  } catch (error) {
+    console.error('PayPal Webhook: Error during signature verification API call:', error);
+    return false;
+  }
+  */
+
+  // For now, returning true as a placeholder.
+  console.warn("PayPal Webhook: 🔴🔴🔴 CRITICAL SECURITY WARNING: Webhook signature verification is CURRENTLY A PLACEHOLDER and BYPASSED. This is NOT secure for production. You MUST implement actual signature verification. 🔴🔴🔴");
+  return true; // !! REPLACE WITH ACTUAL VERIFICATION !!
+}
+// --- END TODO ---
+
+
 export async function POST(request: Request) {
-  console.log('PayPal Webhook: POST request received.');
+  console.log('PayPal Webhook: Received POST request.');
   let eventData;
+  let rawBody;
 
   try {
-    const rawBody = await request.text();
-    eventData = JSON.parse(rawBody); // PayPal sends JSON
-    console.log('PayPal Webhook: Event body parsed:', JSON.stringify(eventData, null, 2));
+    rawBody = await request.text(); // Get raw body for signature verification first
+    eventData = JSON.parse(rawBody); // Then parse it
+    console.log('PayPal Webhook: Event body parsed. Event Type:', eventData.event_type, 'Resource ID:', eventData.resource?.id);
+    // console.log('PayPal Webhook: Full Event (truncated):', JSON.stringify(eventData, null, 2).substring(0, 1000) + "...");
 
     // -------------------------------------------------------------------------
     // STEP 1: VERIFY WEBHOOK SIGNATURE (CRITICAL FOR SECURITY!)
     // -------------------------------------------------------------------------
-    // This is a conceptual placeholder. Actual implementation is complex and
-    // requires using PayPal's SDK or specific API calls with headers from the request.
-    // You need:
-    // 1. Your Webhook ID from PayPal Developer Portal (set as an env variable, e.g., PAYPAL_WEBHOOK_ID).
-    // 2. Headers from the incoming request:
-    //    - 'paypal-auth-algo'
-    //    - 'paypal-cert-url'
-    //    - 'paypal-transmission-id'
-    //    - 'paypal-transmission-sig'
-    //    - 'paypal-transmission-time'
-    // 3. The raw request body (eventData).
-    //
-    // Example using a conceptual SDK function (this function doesn't exist in this exact form):
-    // const paypalClient = new paypal.core.PayPalHttpClient(getPayPalEnvironment());
-    // const verificationRequest = new paypal.webhooks.WebhooksVerifySignatureRequest(); // Fictional
-    // verificationRequest.webhookId = process.env.PAYPAL_WEBHOOK_ID;
-    // verificationRequest.authAlgo = request.headers.get('paypal-auth-algo');
-    // ... add other headers and the event body ...
-    // const verificationResponse = await paypalClient.execute(verificationRequest);
-    // if (verificationResponse.result.verification_status !== 'SUCCESS') {
-    //   console.error('PayPal Webhook: SIGNATURE VERIFICATION FAILED:', verificationResponse.result);
-    //   return NextResponse.json({ error: 'Webhook signature verification failed. Unauthorized.' }, { status: 401 });
-    // }
-    // console.log('PayPal Webhook: Signature verified successfully (CONCEPTUAL).');
-    //
-    // FOR DEVELOPMENT/TESTING ONLY - REMOVE THIS IN PRODUCTION IF SIGNATURE VERIFICATION IS NOT IMPLEMENTED
-    const isSignatureVerified = true; // !! IMPORTANT: REPLACE WITH ACTUAL VERIFICATION !!
+    const isSignatureVerified = await verifyPayPalWebhookSignature(request, rawBody);
     if (!isSignatureVerified) {
-        console.error('PayPal Webhook: SIGNATURE VERIFICATION FAILED (Actual implementation needed).');
-        return NextResponse.json({ error: 'Webhook signature verification failed. Unauthorized.' }, { status: 401 });
+      console.error('PayPal Webhook: SIGNATURE VERIFICATION FAILED. Unauthorized request.');
+      return NextResponse.json({ error: 'Webhook signature verification failed. Unauthorized.' }, { status: 401 });
     }
-    console.warn("PayPal Webhook: SIGNATURE VERIFICATION IS CURRENTLY A PLACEHOLDER. DO NOT USE IN PRODUCTION WITHOUT ACTUAL IMPLEMENTATION!");
+    console.log('PayPal Webhook: Signature verification passed (or placeholder bypassed).');
 
 
     // -------------------------------------------------------------------------
     // STEP 2: PROCESS THE EVENT
     // -------------------------------------------------------------------------
     const eventType = eventData.event_type;
-    const resource = eventData.resource;
-
-    console.log(`PayPal Webhook: Event Type: ${eventType}, Resource ID: ${resource?.id}`);
+    const resource = eventData.resource; // This contains the data for the event (e.g., order details, capture details)
 
     if (eventType === 'PAYMENT.CAPTURE.COMPLETED') {
-      const orderId = resource.id; // ID of the PayPal order (capture ID in this case)
-      // To link this back to a user, you need a common identifier.
-      // If you stored your internal order ID or user ID in `purchase_units[0].custom_id` or `invoice_id`
-      // when creating the order, you would extract it here.
-      // For example: const internalOrderId = resource.purchase_units?.[0]?.invoice_id;
-      // Then, you'd look up the userId associated with that internalOrderId.
+      // This event is fired when a payment capture is completed.
+      const captureId = resource.id; // This is the PayPal capture ID
+      const orderIdFromCapture = resource.supplementary_data?.related_ids?.order_id || resource.purchase_units?.[0]?.payments?.captures?.[0]?.links?.find((link: any) => link.rel === 'up')?.href.split('/').pop();
+      const customId = resource.custom_id || resource.purchase_units?.[0]?.custom_id; // If you set a custom_id when creating the order
+      const invoiceId = resource.invoice_id || resource.purchase_units?.[0]?.invoice_id; // If you set an invoice_id
 
-      // ** SIMPLIFIED LOGIC FOR DEMO: Assume orderId might be what we stored in `paypal_order_id` **
-      // In a real system, you'd need a more robust way to map PayPal's order/capture ID back to your user.
-      // One way is to query `user_profiles` for a matching `paypal_order_id` if you updated it
-      // during the `/api/paypal/capture-order` flow.
+      console.log(`PayPal Webhook: Processing PAYMENT.CAPTURE.COMPLETED. Capture ID: ${captureId}, Order ID (from capture): ${orderIdFromCapture}, Custom ID: ${customId}, Invoice ID: ${invoiceId}`);
 
-      if (!orderId) {
-          console.error(`PayPal Webhook (PAYMENT.CAPTURE.COMPLETED): Order ID missing in resource.`);
-          return NextResponse.json({ received: true, error: "Order ID missing in webhook resource." });
+      // Determine the user to update.
+      // The most reliable way is if your `/api/paypal/capture-order` route stored the *PayPal Order ID*
+      // (the one returned when you *created* the order, not the capture ID) in your `user_profiles.paypal_order_id` field.
+      // The webhook resource for PAYMENT.CAPTURE.COMPLETED often has the original order ID in `resource.supplementary_data.related_ids.order_id`
+      // or you might need to link it via `custom_id` or `invoice_id` if you set those.
+
+      const payPalOrderIdToSearch = orderIdFromCapture || (customId ? customId.split('_user_')[0] : null) || invoiceId; // Adapt this logic based on how you link orders to users
+
+      if (!payPalOrderIdToSearch) {
+          console.error(`PayPal Webhook (PAYMENT.CAPTURE.COMPLETED): Could not determine a valid PayPal Order ID from webhook resource to link to a user. Capture ID: ${captureId}`);
+          return NextResponse.json({ received: true, error: "Could not link webhook to an internal order/user." }, { status: 200 });
       }
       
-      console.log(`PayPal Webhook: Processing PAYMENT.CAPTURE.COMPLETED for Order/Capture ID: ${orderId}`);
-
-      // Find user by the PayPal Order ID that should have been stored during the capture flow
+      console.log(`PayPal Webhook: Searching user_profiles for paypal_order_id: ${payPalOrderIdToSearch}`);
       const { data: userProfileData, error: profileError } = await supabaseAdminClient
         .from('user_profiles')
-        .select('id, subscription_status')
-        .eq('paypal_order_id', orderId) // Match against the order ID
-        .single(); // Expect one user for this order ID
+        .select('id, subscription_status, email') // Select email for logging
+        .eq('paypal_order_id', payPalOrderIdToSearch) // Match against the PayPal Order ID you stored
+        .single();
 
       if (profileError || !userProfileData) {
-        console.error(`PayPal Webhook: Error fetching user profile for paypal_order_id ${orderId} or profile not found:`, profileError?.message);
-        // Respond 200 to PayPal, but log for investigation.
-        return NextResponse.json({ received: true, error: `User profile not found for PayPal order ID ${orderId} or DB error.` });
+        console.warn(`PayPal Webhook: User profile not found for paypal_order_id ${payPalOrderIdToSearch}. Error: ${profileError?.message}. This might be okay if /api/paypal/capture-order already updated the DB, or if this is a duplicate webhook.`);
+        return NextResponse.json({ received: true, message: `User profile not found for PayPal order ID ${payPalOrderIdToSearch} or already processed.` }, { status: 200 });
       }
       
       const userId = userProfileData.id;
-      console.log(`PayPal Webhook: User profile found for PayPal order ID ${orderId}. User ID: ${userId}`);
+      console.log(`PayPal Webhook: User profile found for PayPal order ID ${payPalOrderIdToSearch}. User ID: ${userId}, Email: ${userProfileData.email}`);
 
-      // Update the database if not already premium or if subscription needs extension
+      // Idempotency Check: Only update if not already premium or if subscription needs extension.
       if (userProfileData.subscription_status !== 'active_premium') {
-        const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        const { data: updateData, error: dbError } = await supabaseAdminClient
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+        console.log(`PayPal Webhook: Updating user ${userId} to active_premium.`);
+        const { error: dbUpdateError } = await supabaseAdminClient
           .from('user_profiles')
           .update({
             subscription_status: 'active_premium',
             current_period_end: thirtyDaysFromNow.toISOString(),
-            // paypal_customer_id: resource.payer?.payer_id, // If you need Payer ID
             updated_at: new Date().toISOString(),
+            // Optionally, store the capture_id if needed for reconciliation, maybe in a separate payments table
+            // paypal_capture_id: captureId, 
           })
-          .eq('id', userId)
-          .select();
+          .eq('id', userId);
 
-        if (dbError) {
-          console.error(`PayPal Webhook: Error updating DB for order ${orderId}, user ${userId}:`, dbError.message);
-          // Still return 200 to PayPal to prevent retries for this event, but log this critical error.
-          return NextResponse.json({ received: true, error_db_update: dbError.message });
+        if (dbUpdateError) {
+          console.error(`PayPal Webhook: CRITICAL - Error updating DB for order ${payPalOrderIdToSearch}, user ${userId}:`, dbUpdateError.message);
+          // Still return 200 to PayPal to prevent retries for this event, but this needs immediate investigation.
+          return NextResponse.json({ received: true, error_db_update: dbUpdateError.message }, { status: 200 });
         }
-        console.log(`PayPal Webhook: Subscription updated in DB for order ${orderId}, user ${userId}. New status: active_premium.`);
+        console.log(`PayPal Webhook: Subscription updated in DB for order ${payPalOrderIdToSearch}, user ${userId}. New status: active_premium.`);
       } else {
-        console.log(`PayPal Webhook: User ${userId} already has active_premium status. No DB update needed for this event.`);
+        console.log(`PayPal Webhook: User ${userId} (order ${payPalOrderIdToSearch}) already has active_premium status. No DB update needed from this PAYMENT.CAPTURE.COMPLETED event.`);
       }
 
     } else if (eventType === 'CHECKOUT.ORDER.APPROVED') {
-        // This event occurs BEFORE the capture. Usually, you act on PAYMENT.CAPTURE.COMPLETED.
-        console.log(`PayPal Webhook: Received CHECKOUT.ORDER.APPROVED for Order ID: ${resource.id}. Typically, action is taken on PAYMENT.CAPTURE.COMPLETED.`);
+        // This event fires when the user approves the order on PayPal's site, *before* capture.
+        // You usually act on PAYMENT.CAPTURE.COMPLETED to grant service.
+        // You might use this event for provisional actions or logging.
+        console.log(`PayPal Webhook: Received CHECKOUT.ORDER.APPROVED for Order ID: ${resource?.id}. Typically, action is taken on PAYMENT.CAPTURE.COMPLETED.`);
     
     } else if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
-        // If you implement PayPal Subscriptions (recurring payments)
+        // For PayPal Subscriptions (recurring payments)
         // const subscriptionId = resource.id;
         // const userId = resource.custom_id; // If you set custom_id on the subscription plan
-        // TODO: Logic to update user status, set subscription period.
-        console.log(`PayPal Webhook: TODO - Implement logic for BILLING.SUBSCRIPTION.ACTIVATED. ID: ${resource.id}`);
+        console.log(`PayPal Webhook: TODO - Implement logic for BILLING.SUBSCRIPTION.ACTIVATED. Subscription ID: ${resource?.id}`);
+        // Logic: Mark user as premium, set current_period_end based on subscription details.
     
     } else if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED') {
-        // If you implement PayPal Subscriptions
+        // For PayPal Subscriptions
         // const subscriptionId = resource.id;
-        // TODO: Logic to update user status to cancelled, adjust current_period_end if applicable.
-        console.log(`PayPal Webhook: TODO - Implement logic for BILLING.SUBSCRIPTION.CANCELLED. ID: ${resource.id}`);
+        console.log(`PayPal Webhook: TODO - Implement logic for BILLING.SUBSCRIPTION.CANCELLED. Subscription ID: ${resource?.id}`);
+        // Logic: Update user's subscription_status to 'cancelled', perhaps keep premium until current_period_end.
+    
+    } else if (eventType === 'CUSTOMER.DISPUTE.CREATED') {
+        console.log(`PayPal Webhook: Customer dispute created for resource ID: ${resource?.id}. Investigate.`);
+        // Logic: Log this event, potentially flag the user's account for review.
+    
+    } else if (eventType === 'PAYMENT.SALE.REFUNDED') {
+        console.log(`PayPal Webhook: Payment refunded for resource ID: ${resource?.id}. Original Sale ID: ${resource?.sale_id}`);
+        // Logic: Update user's subscription status (e.g., to 'free' or 'refunded'), adjust access.
     
     } else {
-      console.log(`PayPal Webhook: Event type "${eventType}" not explicitly handled or not relevant for immediate subscription activation.`);
+      console.log(`PayPal Webhook: Event type "${eventType}" received but not explicitly handled or not relevant for this application's immediate subscription logic.`);
     }
 
     // Always respond to PayPal with a 200 OK to acknowledge receipt.
-    // This prevents PayPal from retrying the webhook.
-    return NextResponse.json({ received: true, message: "Webhook event processed." });
+    // This prevents PayPal from retrying the webhook for events we've "seen".
+    return NextResponse.json({ received: true, message: "Webhook event acknowledged." }, { status: 200 });
 
   } catch (error: any) {
     console.error('PayPal Webhook: Critical error in webhook handler:', error.message);
+    console.error('PayPal Webhook: Raw body received before error:', rawBody ? rawBody.substring(0, 500) + "..." : "No raw body captured or error before body was read.");
+    
+    // It's generally recommended to return a 200 OK to PayPal even if your internal processing fails,
+    // to prevent PayPal from retrying the same (potentially malformed or unprocessable) event indefinitely.
+    // Log the error thoroughly on your side for investigation.
+    // If the error was due to a temporary issue on your server (e.g., DB down), PayPal might retry if it got a 5xx.
+    // However, for parsing errors or unhandled event types, a 200 is safer to stop retries.
+    let status = 200; // Default to 200 to acknowledge receipt to PayPal
+    let errorMessage = 'Webhook event acknowledged but internal processing error occurred.';
+
     if (error instanceof SyntaxError) { // JSON parsing error
-        return NextResponse.json({ error: 'Invalid JSON payload received from PayPal.' }, { status: 400 });
+        errorMessage = 'Invalid JSON payload received from PayPal.';
+        // status = 400; // You might choose to send 400 for bad payload, but PayPal might retry.
+    } else {
+        errorMessage = error.message || 'Internal server error processing webhook.';
+        // status = 500; // If you want PayPal to retry for genuine server errors.
     }
-    // For other errors, respond 500 so PayPal might retry if it's a transient issue.
-    return NextResponse.json({ error: 'Internal server error processing webhook.' }, { status: 500 });
+    
+    return NextResponse.json({ error: errorMessage, details: error.message }, { status });
   }
 }
