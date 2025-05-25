@@ -103,7 +103,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Estas son las credenciales que usarás para pruebas y desarrollo.
     # Asegúrate de que estas coincidan con las de tu aplicación REST API en el Dashboard de PayPal Developer para el entorno Sandbox.
     # ¡IMPORTANTE! El PAYPAL_CLIENT_SECRET debe corresponder al PAYPAL_CLIENT_ID. Si cambias uno, verifica el otro.
-    PAYPAL_CLIENT_ID=ATS6bSM3-KBf9Trv9R5XhqJdGVoZpczywbfrfTkeNMsJ5LLSviNrl3BXn5QneozinaE2bGO4EJTR7c5gO
+    PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
     PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8 # ¡VERIFICA QUE ESTE SECRET CORRESPONDA AL CLIENT_ID DE ARRIBA!
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
     # Para PRODUCCIÓN, necesitarás tus credenciales LIVE de PayPal:
@@ -114,7 +114,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Client ID de PayPal para el SDK de JavaScript (Frontend)
     # IMPORTANTE: Este Client ID (NEXT_PUBLIC_PAYPAL_CLIENT_ID) debe ser el MISMO que el PAYPAL_CLIENT_ID
     # usado para la API REST (Sandbox o Live según el entorno). Ambos deben corresponder al Client ID de tu aplicación REST API.
-    NEXT_PUBLIC_PAYPAL_CLIENT_ID=ATS6bSM3-KBf9Trv9R5XhqJdGVoZpczywbfrfTkeNMsJ5LLSviNrl3BXn5QneozinaE2bGO4EJTR7c5gO
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
     # Para PRODUCCIÓN:
     # NEXT_PUBLIC_PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI_PARA_SDK_JS_ (el mismo que PAYPAL_LIVE_CLIENT_ID)
 
@@ -147,7 +147,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```
     **IMPORTANTE:**
     *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real.
-    *   El `PAYPAL_CLIENT_ID` y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` se han actualizado con el valor de tu captura. **Asegúrate de que `PAYPAL_CLIENT_SECRET` realmente corresponda a este nuevo `PAYPAL_CLIENT_ID`.** Si este Client ID es de una aplicación REST API de PayPal diferente a la que usabas antes, el Client Secret también será diferente. Debes obtener el correcto del PayPal Developer Dashboard.
+    *   Verifica que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean los correctos para tu aplicación REST API de PayPal Sandbox. Asegúrate de que el `PAYPAL_CLIENT_SECRET` que uses realmente corresponda al `PAYPAL_CLIENT_ID`.
     *   Las credenciales de Supabase ya están pre-llenadas con los valores que has proporcionado.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
@@ -512,4 +512,5 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
 
