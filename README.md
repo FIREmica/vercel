@@ -35,6 +35,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
         *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
         *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
         *   El endpoint `/api/paypal/capture-order` ahora captura el pago con PayPal y luego actualiza el `subscription_status` del usuario en la tabla `user_profiles` de Supabase (utilizando la `SUPABASE_SERVICE_ROLE_KEY` para permisos).
+    *   **Login Social con Facebook (Solo Frontend Implementado):** Se han añadido botones para "Iniciar Sesión con Facebook" y "Registrarse con Facebook" en las páginas respectivas. Esta funcionalidad actualmente solo inicia el flujo de login de Facebook en el frontend y muestra el token en consola. **Requiere implementación de backend** para verificar el token de Facebook y crear/vincular la cuenta de usuario en Supabase.
     *   **Funciones Premium Desbloqueadas:** Si `AuthContext` determina (leyendo de `user_profiles` después de una actualización) que el usuario tiene una suscripción activa (`subscription_status = 'active_premium'` o similar), se desbloquean:
         *   **Informe Técnico Detallado:** El informe de seguridad completo sin truncamiento.
         *   **Generación de Escenarios de Ataque Ilustrativos:** Ejemplos conceptuales de cómo podrían explotarse las vulnerabilidades.
@@ -53,6 +54,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Empaquetado (Descargas ZIP):** JSZip
 *   **Pasarela de Pagos (Integración API REST):** PayPal (con SDK `@paypal/checkout-server-sdk` para backend y SDK de JS para frontend)
 *   **Autenticación y Base de Datos:** Supabase (Cliente JS `@supabase/supabase-js` y `@supabase/ssr` para helpers del lado del servidor)
+*   **Login Social (Frontend):** Facebook SDK para JavaScript.
 *   **Gestión de Estado de Autenticación:** React Context (`AuthProvider`) para manejar la sesión de Supabase globalmente y el estado del perfil.
 *   **Validación de Esquemas:** Zod
 *   **Fuentes:** Geist Sans, Geist Mono
@@ -69,6 +71,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 *   npm o yarn
 *   Una cuenta de Supabase ([supabase.com](https://supabase.com/))
 *   Una cuenta de PayPal Developer ([developer.paypal.com](https://developer.paypal.com/)) para credenciales Sandbox.
+*   Una cuenta de Facebook Developer ([developers.facebook.com](https://developers.facebook.com/)) para obtener una App ID.
 *   Una cuenta de Firebase (opcional, si deseas usar Firebase Analytics u otros servicios de Firebase).
 
 ### Instalación
@@ -127,6 +130,10 @@ Este proyecto requiere claves API para funcionar correctamente.
     # ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
     SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
 
+    # --- Credenciales de Facebook Login ---
+    # Consigue tu App ID en https://developers.facebook.com/apps/
+    NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
+
     # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics)
     # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
     
@@ -137,7 +144,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # HCAPTCHA_SECRET_KEY=TU_CLAVE_SECRETA_DE_HCAPTCHA_AQUI
     ```
     **IMPORTANTE:**
-    *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real. Las credenciales de PayPal Sandbox y Supabase ya están pre-llenadas con los valores que proporcionaste.
+    *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real y `TU_FACEBOOK_APP_ID_AQUI` con tu App ID de Facebook. Las credenciales de PayPal Sandbox y Supabase ya están pre-llenadas con los valores que proporcionaste.
     *   **Asegúrate de que el `PAYPAL_CLIENT_SECRET` (`EKbft...`) realmente corresponda al `PAYPAL_CLIENT_ID` (`AdLdNl...`). Si el nuevo Client ID es de una aplicación PayPal REST diferente, necesitarás el Client Secret de *esa* aplicación.**
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
@@ -149,6 +156,13 @@ Este proyecto requiere claves API para funcionar correctamente.
         3.  Obtén el `Client ID` y `Client Secret` para cada entorno.
         4.  En la configuración de tu aplicación en PayPal Developer, configura una URL para Webhooks (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`.
     *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard). Necesitarás `URL del Proyecto`, `Clave anónima pública (anon key)` y la `Clave de servicio (service_role key)`.
+    *   **Facebook Login:**
+        1.  Ve a [Facebook Developer Apps](https://developers.facebook.com/apps/).
+        2.  Crea una nueva aplicación (o selecciona una existente).
+        3.  Añade el producto "Inicio de sesión con Facebook".
+        4.  En la configuración de "Inicio de sesión con Facebook" > "Configuración", asegúrate de que "Login con el SDK de JavaScript" esté activado.
+        5.  Añade `http://localhost:9002` (o el puerto que uses) y la URL de tu sitio en producción a las "URIs de redirección OAuth válidas".
+        6.  Copia tu **App ID** (este va en `NEXT_PUBLIC_FACEBOOK_APP_ID`).
     *   **Firebase (si usas Analytics):** Configuración de tu proyecto en la [Consola de Firebase](https://console.firebase.google.com/).
     *   **hCaptcha (si lo reactivas):** Obtén tu "Site Key" y "Secret Key" desde tu [hCaptcha Dashboard](https://dashboard.hcaptcha.com/).
 
@@ -357,6 +371,10 @@ CREATE POLICY "public can read notes"
         2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
         3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
         4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
+*   **Login con Facebook:**
+    *   Asegúrate de que `NEXT_PUBLIC_FACEBOOK_APP_ID` esté configurada en tu `.env.local` con tu App ID real.
+    *   Verifica que has añadido `http://localhost:9002` (o el puerto que uses) a las "URIs de redirección OAuth válidas" en la configuración de tu app de Facebook Developer.
+    *   Recuerda que la implementación actual es solo frontend. Para un login completo, necesitas un backend que verifique el token de Facebook y cree/vincule usuarios en Supabase.
 *   **Problemas con hCaptcha (Actualmente Deshabilitado):**
     *   El componente `react-hcaptcha` ha sido eliminado de las dependencias y su uso comentado en los formularios de login/signup debido a problemas persistentes con `npm install`.
     *   **Si deseas reactivarlo:** Sigue las instrucciones detalladas en la sección "Reactivación de hCaptcha" más abajo en este README.
@@ -371,6 +389,12 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   El `AuthContext` (`src/context/AuthContext.tsx`) escucha los cambios de estado de autenticación de Supabase y obtiene el perfil del usuario de la tabla `user_profiles`. El estado `isPremium` se deriva de `userProfile.subscription_status`.
 *   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'`) cuando un nuevo usuario se registra en `auth.users`.
 *   Se ha definido el SQL para crear la tabla `analysis_records` para almacenar el historial de análisis. La lógica para guardar los análisis en esta tabla (dentro de `src/app/actions.ts`) y para mostrar el historial en `/dashboard` ya está implementada.
+
+## Login Social (Facebook - Solo Frontend Implementado)
+*   Las páginas de Login y Signup ahora muestran un botón para "Iniciar Sesión con Facebook" o "Registrarse con Facebook".
+*   El SDK de JavaScript de Facebook se carga y se inicializa usando la `NEXT_PUBLIC_FACEBOOK_APP_ID` de las variables de entorno.
+*   Al hacer clic, se llama a `FB.login()` para iniciar el flujo de autenticación de Facebook. La respuesta se muestra en la consola del navegador.
+*   **Importante:** Esta es una implementación solo del lado del cliente. Para un inicio de sesión seguro y completo, el `accessToken` devuelto por Facebook debe ser enviado a un endpoint de backend. Ese backend verificaría el token con los servidores de Facebook, y luego crearía o iniciaría sesión para el usuario correspondiente en tu sistema Supabase. Este desarrollo de backend **no está implementado actualmente**.
 
 ## Implementación de Pagos con PayPal (API REST - Sandbox)
 
@@ -398,6 +422,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 1.  **Autenticación y Gestión de Perfiles Completa (Supabase):**
     *   Asegurar que la creación de perfiles (`user_profiles`) funcione sin fallos con el trigger `handle_new_user`.
     *   Implementar una UI para que los usuarios gestionen su perfil (cambiar nombre, avatar, etc. - *Roadmap*).
+    *   Implementar la lógica de backend para el login social (Facebook, etc.) para verificar tokens y gestionar cuentas de usuario en Supabase.
 2.  **Integración Completa de Pasarela de Pagos (PayPal):**
     *   Pasar a credenciales LIVE de PayPal en variables de entorno de producción.
     *   **Implementar y probar exhaustivamente los Webhooks de PayPal**, incluyendo la verificación de firma.
@@ -409,6 +434,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 5.  **Seguridad de la Plataforma:** Protección de claves, validación de entradas, rate limiting, firewalls.
 6.  **Aspectos Legales:** Términos de Servicio (`terms.md`) y Política de Privacidad (`privacy.md`) profesionalmente redactados y adaptados a tu servicio. (Actualmente son placeholders).
 7.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte al cliente.
+8.  **Publicidad (Google AdSense - Opcional):** Si se desea, integrar Google AdSense para ingresos adicionales, considerando el impacto en la experiencia del usuario.
 
 ## Roadmap (Posibles Mejoras Futuras)
 *   **Integración Profunda con Herramientas de Seguridad:** Permitir importación/exportación con Nessus, Burp Suite.
