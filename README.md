@@ -102,9 +102,9 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de PayPal API REST (Sandbox) ---
     # Estas son las credenciales que usarás para pruebas y desarrollo.
     # Asegúrate de que estas coincidan con las de tu aplicación REST API en el Dashboard de PayPal Developer para el entorno Sandbox.
-    # IMPORTANTE: El PAYPAL_CLIENT_SECRET debe corresponder a este PAYPAL_CLIENT_ID.
-    PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
-    PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8
+    # ¡IMPORTANTE! El PAYPAL_CLIENT_SECRET debe corresponder al PAYPAL_CLIENT_ID. Si cambias uno, verifica el otro.
+    PAYPAL_CLIENT_ID=ATS6bSM3-KBf9Trv9R5XhqJdGVoZpczywbfrfTkeNMsJ5LLSviNrl3BXn5QneozinaE2bGO4EJTR7c5gO
+    PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8 # ¡VERIFICA QUE ESTE SECRET CORRESPONDA AL CLIENT_ID DE ARRIBA!
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
     # Para PRODUCCIÓN, necesitarás tus credenciales LIVE de PayPal:
     # PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI
@@ -114,7 +114,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Client ID de PayPal para el SDK de JavaScript (Frontend)
     # IMPORTANTE: Este Client ID (NEXT_PUBLIC_PAYPAL_CLIENT_ID) debe ser el MISMO que el PAYPAL_CLIENT_ID
     # usado para la API REST (Sandbox o Live según el entorno). Ambos deben corresponder al Client ID de tu aplicación REST API.
-    NEXT_PUBLIC_PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=ATS6bSM3-KBf9Trv9R5XhqJdGVoZpczywbfrfTkeNMsJ5LLSviNrl3BXn5QneozinaE2bGO4EJTR7c5gO
     # Para PRODUCCIÓN:
     # NEXT_PUBLIC_PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI_PARA_SDK_JS_ (el mismo que PAYPAL_LIVE_CLIENT_ID)
 
@@ -134,6 +134,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de Facebook Login (Necesarias para Supabase Auth Provider) ---
     # El App ID y App Secret de Facebook se configuran directamente en el panel de Supabase (Authentication > Providers > Facebook).
     # No son necesarias como variables de entorno en el proyecto para este flujo de Supabase OAuth.
+    # NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
 
     # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics)
     # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
@@ -146,7 +147,8 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```
     **IMPORTANTE:**
     *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real.
-    *   Las credenciales de PayPal Sandbox y Supabase ya están pre-llenadas con los valores que has proporcionado. Asegúrate de que `PAYPAL_CLIENT_SECRET` realmente corresponda al `PAYPAL_CLIENT_ID`.
+    *   El `PAYPAL_CLIENT_ID` y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` se han actualizado con el valor de tu captura. **Asegúrate de que `PAYPAL_CLIENT_SECRET` realmente corresponda a este nuevo `PAYPAL_CLIENT_ID`.** Si este Client ID es de una aplicación REST API de PayPal diferente a la que usabas antes, el Client Secret también será diferente. Debes obtener el correcto del PayPal Developer Dashboard.
+    *   Las credenciales de Supabase ya están pre-llenadas con los valores que has proporcionado.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
@@ -154,7 +156,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     *   **PayPal Sandbox/Live:**
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications).
         2.  Crea o selecciona tu aplicación REST API. Necesitarás una para Sandbox y otra para Live.
-        3.  Obtén el `Client ID` y `Client Secret` para cada entorno.
+        3.  Obtén el `Client ID` y `Client Secret` para cada entorno. **Verifica que el Secret que uses en `.env.local` sea el correcto para el Client ID que estás usando.**
         4.  En la configuración de tu aplicación en PayPal Developer, crea un Webhook (Dashboard > My Apps & Credentials > [Tu App] > Add Webhook). Configura la URL de tu endpoint de webhook (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`. Este ID se usará en la variable de entorno `PAYPAL_WEBHOOK_ID` y es necesario para la verificación de webhooks.
     *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard). Necesitarás `URL del Proyecto`, `Clave anónima pública (anon key)` y la `Clave de servicio (service_role key)`.
     *   **Facebook Login (para Supabase Auth Provider):**
