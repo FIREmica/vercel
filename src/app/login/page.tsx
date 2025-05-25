@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Facebook } from "lucide-react"; // Added Facebook icon
+import { LogIn, Facebook, Loader2 } from "lucide-react"; // Added Facebook icon
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
+  const [isFbSdkReady, setIsFbSdkReady] = useState(false); // New state for SDK readiness
 
   const { toast } = useToast();
   const router = useRouter();
@@ -44,11 +45,18 @@ export default function LoginPage() {
     const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!facebookAppId || facebookAppId === "TU_FACEBOOK_APP_ID_AQUI") {
       console.warn("Facebook App ID no está configurado. El login con Facebook no funcionará.");
+      setIsFbSdkReady(false); // Explicitly set to false if no App ID
       return;
     }
 
     // Cargar el SDK de Facebook de forma asíncrona
-    if (document.getElementById('facebook-jssdk')) return; // Evitar cargar múltiples veces
+    if (document.getElementById('facebook-jssdk')) {
+        // If script is already there, check if FB object exists
+        if (window.FB) {
+            setIsFbSdkReady(true);
+        }
+        return; 
+    }
 
     const script = document.createElement('script');
     script.id = 'facebook-jssdk';
@@ -66,14 +74,16 @@ export default function LoginPage() {
         version: 'v19.0' // Usa una versión específica de la API
       });
       window.FB.AppEvents.logPageView();
+      setIsFbSdkReady(true); // SDK is ready
       console.log("Facebook SDK Inicializado en Login Page");
     };
 
     return () => {
-        const fbScript = document.getElementById('facebook-jssdk');
-        if (fbScript) {
-           // document.body.removeChild(fbScript); // Opcional: limpiar script al desmontar
-        }
+        // Optional: cleanup script on unmount if needed, but generally not required for SDKs like this
+        // const fbScript = document.getElementById('facebook-jssdk');
+        // if (fbScript) {
+        //    document.body.removeChild(fbScript);
+        // }
     }
   }, []);
 
@@ -97,7 +107,9 @@ export default function LoginPage() {
         3. Que tu conexión a internet funcione y puedas acceder a la URL de tu proyecto Supabase.`;
       } else if (error.message.toLowerCase().includes("captcha verification process failed")) {
         title = "Error de CAPTCHA de Supabase";
-        description = "Supabase rechazó el intento de inicio de sesión debido a un problema con la verificación CAPTCHA. Por favor, asegúrate de que la protección CAPTCHA esté DESACTIVADA en la configuración de tu proyecto Supabase (Authentication -> Settings -> CAPTCHA protection) y guarda los cambios. Si persiste, contacta el soporte de Supabase.";
+        description = `Supabase rechazó el intento de inicio de sesión debido a un problema con la verificación CAPTCHA. 
+        **Solución:** Ve a tu proyecto en supabase.com -> Authentication -> Settings (o "Proveedores" -> "Email") y DESACTIVA la "Protección con CAPTCHA". Guarda los cambios.
+        Si el problema persiste, verifica que no haya restos de integraciones de hCaptcha en el código o que alguna extensión del navegador esté interfiriendo.`;
       }
 
       toast({
@@ -114,18 +126,19 @@ export default function LoginPage() {
         duration: 3000,
       });
       await refreshUserProfile(); // Asegúrate de que el perfil se actualice después del login
-      router.push('/');
+      const redirectUrl = searchParams.get('redirect') || '/';
+      router.push(redirectUrl);
     }
     setIsLoading(false);
   };
 
   const handleFacebookLogin = async () => {
     setIsLoadingFacebook(true);
-    if (typeof window.FB === 'undefined' || !window.FB) {
+    if (!isFbSdkReady || typeof window.FB === 'undefined' || !window.FB || typeof window.FB.login !== 'function') {
       toast({
         variant: "destructive",
         title: "Error de Facebook Login",
-        description: "El SDK de Facebook no se ha cargado correctamente. Revisa tu conexión o la configuración de la App ID.",
+        description: "El SDK de Facebook no se ha cargado o inicializado correctamente. Por favor, espera un momento e inténtalo de nuevo o revisa tu conexión/configuración de App ID.",
       });
       setIsLoadingFacebook(false);
       return;
@@ -141,8 +154,9 @@ export default function LoginPage() {
         // para el usuario en tu sistema (Supabase).
         toast({
           title: "Login con Facebook Exitoso (Frontend)",
-          description: "Token de acceso recibido. Se necesita implementación de backend para completar el login.",
-          variant: "default"
+          description: `Token de acceso recibido (userID: ${response.authResponse.userID}). Se necesita implementación de backend para completar el login.`,
+          variant: "default",
+          duration: 7000,
         });
         // Conceptualmente: router.push('/procesar-facebook-login?token=' + response.authResponse.accessToken);
       } else {
@@ -159,7 +173,12 @@ export default function LoginPage() {
 
 
   if (authIsLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Cargando...</p></div>;
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Cargando sesión...</p>
+        </div>
+    );
   }
 
 
@@ -173,6 +192,7 @@ export default function LoginPage() {
           </CardTitle>
           <CardDescription>
             Accede a tu cuenta para gestionar tus análisis de seguridad y acceder a funciones premium.
+            Esta es una simulación. La autenticación real se haría con Supabase.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -187,7 +207,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                disabled={isLoading}
+                disabled={isLoading || isLoadingFacebook}
               />
             </div>
             <div className="space-y-2">
@@ -200,11 +220,18 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                disabled={isLoading}
+                disabled={isLoading || isLoadingFacebook}
               />
             </div>
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || isLoadingFacebook}>
-              {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar Sesión"
+              )}
             </Button>
           </form>
 
@@ -216,10 +243,10 @@ export default function LoginPage() {
             variant="outline" 
             className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
             onClick={handleFacebookLogin}
-            disabled={isLoading || isLoadingFacebook}
+            disabled={isLoading || isLoadingFacebook || !isFbSdkReady}
           >
             <Facebook className="mr-2 h-5 w-5" />
-            {isLoadingFacebook ? "Conectando con Facebook..." : "Iniciar Sesión con Facebook"}
+            {isLoadingFacebook ? "Conectando..." : (isFbSdkReady ? "Iniciar Sesión con Facebook" : "Cargando Facebook...")}
           </Button>
 
           <div className="mt-6 text-center text-sm">
@@ -230,10 +257,12 @@ export default function LoginPage() {
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> Este formulario ahora interactúa con <strong className="text-primary">Supabase Auth</strong> para intentos de inicio de sesión.
-            El inicio de sesión con Facebook es solo frontend por ahora y requiere implementación de backend.
+            El inicio de sesión con Facebook es solo frontend por ahora y requiere implementación de backend para ser funcional y seguro.
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    

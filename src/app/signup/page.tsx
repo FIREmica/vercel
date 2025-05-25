@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Facebook } from "lucide-react"; // Added Facebook icon
+import { UserPlus, Facebook, Loader2 } from "lucide-react"; // Added Facebook icon
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
+  const [isFbSdkReady, setIsFbSdkReady] = useState(false); // New state for SDK readiness
 
   const { toast } = useToast();
   const router = useRouter();
@@ -45,9 +46,16 @@ export default function SignupPage() {
     const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!facebookAppId || facebookAppId === "TU_FACEBOOK_APP_ID_AQUI") {
       console.warn("Facebook App ID no está configurado. El login/registro con Facebook no funcionará.");
+      setIsFbSdkReady(false);
       return;
     }
-    if (document.getElementById('facebook-jssdk')) return;
+
+    if (document.getElementById('facebook-jssdk')) {
+        if (window.FB) {
+             setIsFbSdkReady(true);
+        }
+        return;
+    }
 
     const script = document.createElement('script');
     script.id = 'facebook-jssdk';
@@ -65,6 +73,7 @@ export default function SignupPage() {
         version: 'v19.0'
       });
       window.FB.AppEvents.logPageView();
+      setIsFbSdkReady(true); // SDK is ready
       console.log("Facebook SDK Inicializado en Signup Page");
     };
     // return () => { // Opcional: limpiar script
@@ -117,7 +126,9 @@ export default function SignupPage() {
         3. Que tu conexión a internet funcione y puedas acceder a la URL de tu proyecto Supabase.`;
       } else if (error.message.toLowerCase().includes("captcha verification process failed")) {
         title = "Error de CAPTCHA de Supabase";
-        description = "Supabase rechazó el intento de registro debido a un problema con la verificación CAPTCHA. Por favor, asegúrate de que la protección CAPTCHA esté DESACTIVADA en la configuración de tu proyecto Supabase (Authentication -> Settings -> CAPTCHA protection) y guarda los cambios. Si persiste, contacta el soporte de Supabase.";
+        description = `Supabase rechazó el intento de registro debido a un problema con la verificación CAPTCHA. 
+        **Solución:** Ve a tu proyecto en supabase.com -> Authentication -> Settings (o "Proveedores" -> "Email") y DESACTIVA la "Protección con CAPTCHA". Guarda los cambios.
+        Si el problema persiste, verifica que no haya restos de integraciones de hCaptcha en el código o que alguna extensión del navegador esté interfiriendo.`;
       }
       toast({
         variant: "destructive",
@@ -136,7 +147,8 @@ export default function SignupPage() {
       console.log("INFO (SignupPage): Registro y sesión exitosos para:", data.user.email);
       console.log("INFO (SignupPage): El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, "con estado 'free'.");
       await refreshUserProfile();
-      router.push('/'); 
+      const redirectUrl = searchParams.get('redirect') || '/';
+      router.push(redirectUrl); 
     } else if (data.user) {
       // Usuario registrado, pero puede requerir confirmación por email (sesión no iniciada)
          toast({
@@ -162,11 +174,11 @@ export default function SignupPage() {
 
   const handleFacebookLogin = async () => {
     setIsLoadingFacebook(true);
-    if (typeof window.FB === 'undefined' || !window.FB) {
+    if (!isFbSdkReady || typeof window.FB === 'undefined' || !window.FB || typeof window.FB.login !== 'function') {
       toast({
         variant: "destructive",
         title: "Error de Facebook Login",
-        description: "El SDK de Facebook no se ha cargado correctamente. Revisa tu conexión o la configuración de la App ID.",
+        description: "El SDK de Facebook no se ha cargado o inicializado correctamente. Por favor, espera un momento e inténtalo de nuevo o revisa tu conexión/configuración de App ID.",
       });
       setIsLoadingFacebook(false);
       return;
@@ -177,8 +189,9 @@ export default function SignupPage() {
       if (response.authResponse) {
         toast({
           title: "Conexión con Facebook Exitosa (Frontend)",
-          description: "Token de acceso recibido. Se necesita implementación de backend para completar el registro/login.",
-          variant: "default"
+          description: `Token de acceso recibido (userID: ${response.authResponse.userID}). Se necesita implementación de backend para completar el registro/login.`,
+          variant: "default",
+          duration: 7000,
         });
       } else {
         toast({
@@ -193,7 +206,12 @@ export default function SignupPage() {
 
 
   if (authIsLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Cargando...</p></div>;
+     return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Cargando...</p>
+        </div>
+    );
   }
 
   return (
@@ -206,6 +224,7 @@ export default function SignupPage() {
           </CardTitle>
           <CardDescription>
             Regístrate para empezar a utilizar el Centro de Análisis de Seguridad y descubrir sus funciones.
+            Esta es una simulación. La autenticación real se haría con Supabase.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -250,7 +269,14 @@ export default function SignupPage() {
               />
             </div>
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || isLoadingFacebook}>
-              {isLoading ? "Registrando..." : "Registrarse"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Registrando...
+                </>
+              ) : (
+                "Registrarse"
+              )}
             </Button>
           </form>
 
@@ -262,10 +288,10 @@ export default function SignupPage() {
             variant="outline" 
             className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
             onClick={handleFacebookLogin}
-            disabled={isLoading || isLoadingFacebook}
+            disabled={isLoading || isLoadingFacebook || !isFbSdkReady}
           >
             <Facebook className="mr-2 h-5 w-5" />
-            {isLoadingFacebook ? "Conectando con Facebook..." : "Registrarse con Facebook"}
+             {isLoadingFacebook ? "Conectando..." : (isFbSdkReady ? "Registrarse con Facebook" : "Cargando Facebook...")}
           </Button>
 
           <div className="mt-6 text-center text-sm">
@@ -275,11 +301,13 @@ export default function SignupPage() {
             </Link>
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario registra usuarios con Supabase Auth.
-            El registro/inicio de sesión con Facebook es solo frontend por ahora y requiere implementación de backend.
+            <strong>Nota Importante:</strong> Este formulario ahora registra usuarios con Supabase Auth.
+            El registro/inicio de sesión con Facebook es solo frontend por ahora y requiere implementación de backend para ser funcional y seguro.
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    
