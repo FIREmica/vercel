@@ -99,8 +99,9 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de PayPal API REST (Sandbox) ---
     # Estas son las credenciales que usarás para pruebas y desarrollo.
     # Asegúrate de que estas coincidan con las de tu aplicación REST API en el Dashboard de PayPal Developer para el entorno Sandbox.
-    PAYPAL_CLIENT_ID=AdLdNlavBkmAj9AyalbF_sDT0pF5I7PH0W6JHfHKI9gI5bl
-    PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8
+    # IMPORTANTE: El PAYPAL_CLIENT_SECRET debe corresponder a este PAYPAL_CLIENT_ID.
+    PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
+    PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8 # ASEGÚRATE QUE ESTE SECRET CORRESPONDE AL CLIENT_ID DE ARRIBA
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
     # Para PRODUCCIÓN, necesitarás tus credenciales LIVE de PayPal:
     # PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI
@@ -110,7 +111,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Client ID de PayPal para el SDK de JavaScript (Frontend)
     # IMPORTANTE: Este Client ID (NEXT_PUBLIC_PAYPAL_CLIENT_ID) debe ser el MISMO que el PAYPAL_CLIENT_ID
     # usado para la API REST (Sandbox o Live según el entorno). Ambos deben corresponder al Client ID de tu aplicación REST API.
-    NEXT_PUBLIC_PAYPAL_CLIENT_ID=AdLdNlavBkmAj9AyalbF_sDT0pF5I7PH0W6JHfHKI9gI5bl
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
     # Para PRODUCCIÓN:
     # NEXT_PUBLIC_PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI_PARA_SDK_JS_ (el mismo que PAYPAL_LIVE_CLIENT_ID)
 
@@ -137,6 +138,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     ```
     **IMPORTANTE:**
     *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real. Las credenciales de PayPal Sandbox y Supabase ya están pre-llenadas con los valores que proporcionaste.
+    *   **Asegúrate de que el `PAYPAL_CLIENT_SECRET` (`EKbft...`) realmente corresponda al `PAYPAL_CLIENT_ID` (`AdLdNl...`). Si el nuevo Client ID es de una aplicación PayPal REST diferente, necesitarás el Client Secret de *esa* aplicación.**
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
@@ -341,6 +343,7 @@ CREATE POLICY "public can read notes"
 *   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
 *   **Error de Pagos de PayPal:** Si los botones de PayPal no aparecen o los pagos fallan:
     *   Verifica que `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` estén correctamente configurados en `.env.local` con tus credenciales de **Sandbox** de PayPal Developer para tu aplicación REST API. (Idealmente `PAYPAL_CLIENT_ID` y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` son el mismo valor).
+    *   **Asegúrate de que `PAYPAL_CLIENT_SECRET` corresponda a la aplicación REST API asociada con el `PAYPAL_CLIENT_ID` que estás usando.**
     *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com`.
     *   Revisa la consola del navegador y la consola del servidor Next.js para mensajes de error específicos. Si ves "Error creando orden en backend: {}", usualmente significa que `PAYPAL_CLIENT_ID` o `PAYPAL_CLIENT_SECRET` no están accesibles o son incorrectos en el backend.
 *   **Errores de Autenticación o Base de Datos con Supabase:**
@@ -457,5 +460,3 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-
-```
