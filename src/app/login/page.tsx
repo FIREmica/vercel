@@ -47,26 +47,23 @@ export default function LoginPage() {
       return;
     }
 
-    // Define fbAsyncInit if not already defined
-    if (typeof window.fbAsyncInit === 'undefined') {
-      window.fbAsyncInit = function() {
-        console.log("LoginPage: fbAsyncInit called.");
-        if (window.FB) {
-          window.FB.init({
-            appId: facebookAppId,
-            cookie: true,
-            xfbml: true,
-            version: 'v19.0' // او v20.0 si está disponible y probado
-          });
-          setIsFbSdkReady(true);
-          console.log("LoginPage: Facebook SDK Inicializado y listo via fbAsyncInit.");
-        } else {
-          console.error("LoginPage: fbAsyncInit called, but window.FB is not defined.");
-          setIsFbSdkReady(false);
-        }
-      };
-    }
-
+    // Define fbAsyncInit. This function will be called by the Facebook SDK after it loads.
+    window.fbAsyncInit = function() {
+      console.log("LoginPage: fbAsyncInit called.");
+      if (window.FB) {
+        window.FB.init({
+          appId: facebookAppId,
+          cookie: true,
+          xfbml: true,
+          version: 'v19.0'
+        });
+        setIsFbSdkReady(true); // SDK is initialized and ready
+        console.log("LoginPage: Facebook SDK Initialized and ready via fbAsyncInit.");
+      } else {
+        console.error("LoginPage: fbAsyncInit called, but window.FB is not defined.");
+        setIsFbSdkReady(false);
+      }
+    };
 
     // Load the SDK script if it doesn't exist
     if (!document.getElementById('facebook-jssdk')) {
@@ -77,36 +74,16 @@ export default function LoginPage() {
       script.async = true;
       script.defer = true;
       script.crossOrigin = "anonymous";
-      script.onload = () => {
-        // fbAsyncInit should be called automatically by the SDK after it loads
-        // but as a fallback, if it's defined and FB object exists, call it.
-        if (typeof window.fbAsyncInit === 'function' && window.FB && !isFbSdkReady) {
-          console.log("LoginPage: SDK script loaded, calling fbAsyncInit directly as a fallback.");
-          window.fbAsyncInit();
-        }
-      };
-      document.body.appendChild(script);
-    } else {
-      // If script exists, FB might already be initialized.
-      // Check if FB object exists and our init function has run.
-      if (window.FB && typeof window.FB.getLoginStatus === 'function' && !isFbSdkReady ) {
-         // This case can be tricky if another part of the app initialized FB.
-         // For simplicity, we assume our fbAsyncInit will set isFbSdkReady.
-         // If fbAsyncInit was already called by the SDK, our isFbSdkReady might remain false.
-         // A robust solution might involve a global flag or event.
-         // Let's try to call our fbAsyncInit if FB is loaded but our flag isn't set.
-         if(typeof window.fbAsyncInit === 'function'){
-            console.log("LoginPage: Facebook SDK script tag already present. FB object exists. Trying to ensure our fbAsyncInit runs.");
-            window.fbAsyncInit(); // Attempt to run our init sequence if not already done.
-         } else {
-            console.log("LoginPage: Facebook SDK script tag already present, FB object exists, but isFbSdkReady is false and no window.fbAsyncInit.");
-         }
-      } else if (window.FB && isFbSdkReady) {
-          console.log("LoginPage: Facebook SDK script tag already present and our SDK is marked as ready.");
-      }
+      // The SDK will automatically call window.fbAsyncInit once it's loaded
+      document.head.appendChild(script);
+    } else if (window.FB && typeof window.FB.init === 'function' && !isFbSdkReady) {
+      // If script tag exists, FB object might exist, but our app-specific init might not have run
+      // (or our component mounted after SDK's initial fbAsyncInit call).
+      // Call our fbAsyncInit to ensure our app's FB.init and flag setting occurs.
+      console.log("LoginPage: FB SDK script tag present. FB object exists. Forcing our fbAsyncInit.");
+      window.fbAsyncInit();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,7 +105,7 @@ export default function LoginPage() {
       } else if (error.message.toLowerCase().includes("captcha verification process failed")) {
         title = "Error de CAPTCHA de Supabase";
         description = `Supabase rechazó el inicio de sesión por CAPTCHA. 
-        **Solución Posible:** En la configuración de tu proyecto Supabase (Autenticación -> Proveedores -> Email o en Authentication -> Settings), asegúrate de que la "Protección con CAPTCHA" esté DESACTIVADA y guarda los cambios. Este proyecto actualmente no implementa un CAPTCHA frontend compatible con esa configuración de Supabase.`;
+        **Solución Posible:** En la configuración de tu proyecto Supabase (Autenticación -> Configuración), asegúrate de que la "Protección con CAPTCHA" esté DESACTIVADA y guarda los cambios. Este proyecto actualmente no implementa un CAPTCHA frontend compatible con esa configuración de Supabase. Contacta al administrador de la plataforma si el problema persiste.`;
       }
 
       toast({
@@ -153,55 +130,83 @@ export default function LoginPage() {
 
   const handleFacebookLogin = async () => {
     setIsLoadingFacebook(true);
-    if (!isFbSdkReady || typeof window.FB === 'undefined' || typeof window.FB.login !== 'function') {
+
+    if (!isFbSdkReady || !window.FB || typeof window.FB.login !== 'function') {
       toast({
         variant: "destructive",
         title: "Error de Facebook Login",
-        description: "El SDK de Facebook no está listo. Por favor, espera un momento o revisa tu conexión/configuración de App ID.",
+        description: "El SDK de Facebook no está listo o no se pudo inicializar. Por favor, espera un momento e inténtalo de nuevo.",
       });
       setIsLoadingFacebook(false);
       return;
     }
+    
+    window.FB.login(async (loginResponse: any) => {
+      console.log('Respuesta de FB.login:', loginResponse);
+      if (loginResponse.authResponse) {
+        const accessToken = loginResponse.authResponse.accessToken;
+        // Call FB.api to get user details
+        window.FB.api('/me', {fields: 'id,name,email'}, async function(profileResponse: any) {
+          console.log('Respuesta de FB.api /me:', profileResponse);
+          if (profileResponse && !profileResponse.error) {
+            toast({
+              title: `Conexión con Facebook Exitosa (Frontend)`,
+              description: `¡Hola, ${profileResponse.name}! (ID: ${profileResponse.id}). Ahora intentando autenticar con el backend...`,
+              variant: "default",
+              duration: 4000,
+            });
+            
+            try {
+              const res = await fetch("/api/auth/facebook", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ accessToken }), // Send the access token obtained from FB.login
+              });
 
-    window.FB.getLoginStatus(function(statusResponse: any) {
-      console.log('FB.getLoginStatus response (before login attempt):', statusResponse);
-      // We call FB.login regardless of current status, as the user initiated the login action.
-      // The main purpose here is to ensure getLoginStatus completes, implying init is done.
-      window.FB.login(function(loginResponse: any) {
-        console.log('Respuesta de FB.login:', loginResponse);
-        if (loginResponse.authResponse) {
-          // El usuario ha iniciado sesión y ha autorizado tu aplicación.
-          // authResponse.accessToken, authResponse.userID, etc. están disponibles.
-          window.FB.api('/me', {fields: 'id,name'}, function(profileResponse: any) {
-            console.log('Respuesta de FB.api /me:', profileResponse);
-            if (profileResponse && !profileResponse.error) {
+              const data = await res.json();
+
+              if (!res.ok) {
+                throw new Error(data.error || "Error inesperado del servidor durante la autenticación con Facebook.");
+              }
+
               toast({
-                title: `Login con Facebook Exitoso (Frontend)`,
-                description: `¡Hola, ${profileResponse.name}! (ID: ${profileResponse.id}). Se necesita implementación de backend para completar.`,
+                title: "Autenticación Completa Exitosa",
+                description: "Te has autenticado correctamente con Facebook a través de nuestro servidor.",
                 variant: "default",
+                duration: 5000,
+              });
+
+              await refreshUserProfile(); 
+              router.push(searchParams.get("redirect") || "/");
+
+            } catch (err: any) {
+              console.error("Error en la llamada a /api/auth/facebook:", err);
+              toast({
+                variant: "destructive",
+                title: "Error de Autenticación con Servidor",
+                description: err.message || "No se pudo completar la autenticación con Facebook en el servidor.",
                 duration: 7000,
               });
-              // TODO: Enviar loginResponse.authResponse.accessToken y/o profileResponse.id al backend
-              // para verificar el token y crear/iniciar sesión del usuario en Supabase.
-            } else {
-               toast({
-                variant: "destructive",
-                title: "Error al obtener perfil de Facebook",
-                description: `No se pudo obtener tu información de Facebook después del login: ${profileResponse?.error?.message || 'Error desconocido.'}`,
-              });
             }
-          });
-        } else {
-          // El usuario canceló el inicio de sesión o no autorizó completamente.
-          toast({
-            variant: "destructive",
-            title: "Login con Facebook Cancelado",
-            description: "No se completó el inicio de sesión con Facebook.",
-          });
-        }
-        setIsLoadingFacebook(false);
-      }, { scope: 'email,public_profile' }); // Solicitar permisos
-    }, true); // Pass true to force a roundtrip to Facebook
+          } else {
+             toast({
+              variant: "destructive",
+              title: "Error al obtener perfil de Facebook",
+              description: `No se pudo obtener tu información de Facebook después del login: ${profileResponse?.error?.message || 'Error desconocido.'}`,
+            });
+          }
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Login con Facebook Cancelado",
+          description: "No se completó el inicio de sesión con Facebook.",
+        });
+      }
+      setIsLoadingFacebook(false);
+    }, { scope: 'email,public_profile' });
   };
 
 
@@ -225,7 +230,6 @@ export default function LoginPage() {
           </CardTitle>
           <CardDescription>
             Accede a tu cuenta para gestionar tus análisis de seguridad.
-            La autenticación con Email/Contraseña se gestiona con Supabase.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -289,14 +293,16 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Los formularios de Email/Contraseña interactúan con Supabase Auth.
-            El inicio de sesión con Facebook es solo frontend y requiere implementación de backend para ser funcional y seguro.
+            <strong>Nota Importante:</strong> El inicio de sesión con Email/Contraseña usa Supabase Auth. 
+            El inicio de sesión con Facebook actualmente llama a un endpoint de backend (`/api/auth/facebook`) que necesita ser implementado para una autenticación segura y completa con Supabase.
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+    
+
     
 
     
