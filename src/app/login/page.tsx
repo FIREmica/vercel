@@ -39,55 +39,32 @@ export default function LoginPage() {
     }
   }, [session, authIsLoading, router, searchParams]);
 
-  /* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
-  const onCaptchaVerify = (token: string) => {
-    setCaptchaToken(token);
-  };
-
-  const onCaptchaExpire = () => {
-    setCaptchaToken(null);
-    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
-  };
-
-  const onCaptchaError = (err: string) => {
-    setCaptchaToken(null);
-    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
-    toast({
-      variant: "destructive",
-      title: "Error de CAPTCHA",
-      description: `Error de hCaptcha: ${err}. Por favor, intente de nuevo.`,
-    });
-  };
-  */
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    /* HCAPTCHA - Temporarily disabled.
-    if (!captchaToken) {
-      toast({
-        variant: "destructive",
-        title: "Verificación Requerida",
-        description: "Por favor, complete el CAPTCHA.",
-      });
-      setIsLoading(false);
-      return;
-    }
-    */
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      let title = "Error de Inicio de Sesión";
       let description = error.message || "No se pudo iniciar sesión. Por favor, verifica tus credenciales.";
+      
       if (error.message.toLowerCase().includes("captcha verification process failed") || error.message.toLowerCase().includes("captcha required")) {
+        title = "Error de CAPTCHA";
         description = "Error de CAPTCHA de Supabase: La verificación CAPTCHA falló. Por favor, asegúrate de que la protección CAPTCHA esté DESACTIVADA en la configuración de tu proyecto Supabase (Authentication -> Settings -> CAPTCHA protection) y guarda los cambios. Si persiste, contacta el soporte de Supabase.";
+      } else if (error.message.toLowerCase().includes("invalid api key") || error.message.toLowerCase().includes("api key error") || error.message.toLowerCase().includes("failed to fetch")) {
+        title = "Error de Configuración de Supabase";
+        description = `Error de Supabase: ${error.message}. Esto usualmente significa que las claves API son incorrectas o el servidor no está accesible. 
+        Por favor, verifica lo siguiente:
+        1. Que las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en tu archivo .env.local (en la raíz de tu proyecto) sean EXACTAMENTE las mismas que aparecen en tu panel de Supabase (Project Settings > API).
+        2. Que hayas REINICIADO tu servidor de desarrollo Next.js (npm run dev) después de guardar cualquier cambio en .env.local.
+        3. Que tu conexión a internet funcione y puedas acceder a la URL de tu proyecto Supabase.`;
       }
       toast({
         variant: "destructive",
-        title: "Error de Inicio de Sesión",
+        title: title,
         description: description,
-        duration: 9000,
+        duration: 12000, // Increased duration for more complex error messages
       });
     } else {
       toast({
@@ -96,14 +73,10 @@ export default function LoginPage() {
         variant: "default",
         duration: 3000,
       });
-      await refreshUserProfile(); // Refresh user profile to get latest subscription status
-      router.push('/'); // Redirect on successful login
+      await refreshUserProfile();
+      router.push('/');
     }
     setIsLoading(false);
-    /* HCAPTCHA - Temporarily disabled.
-    // captchaRef.current?.resetCaptcha(); // Uncomment if captchaRef is defined
-    // setCaptchaToken(null);
-    */
   };
 
   if (authIsLoading) {
@@ -151,21 +124,7 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
-
-            {/* HCAPTCHA - Temporarily disabled. Uncomment when react-hcaptcha is successfully installed.
-            // See README.md for instructions on how to re-enable and troubleshoot.
-            // <div className="flex justify-center my-4">
-            //  <HCaptcha
-            //    sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "YOUR_FALLBACK_SITE_KEY_HERE"}
-            //    onVerify={onCaptchaVerify}
-            //    onExpire={onCaptchaExpire}
-            //    onError={onCaptchaError}
-            //    ref={captchaRef} // Ensure captchaRef is defined and typed if uncommenting
-            //  />
-            // </div>
-            */}
-
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading /* HCAPTCHA - Temporarily disabled. || !captchaToken */ }>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
               {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
@@ -176,9 +135,10 @@ export default function LoginPage() {
             </Link>
           </div>
            <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            <strong>Nota Importante:</strong> Este formulario ahora interactúa con <strong className="text-primary">Supabase Auth</strong>.
-            La funcionalidad de CAPTCHA del frontend está temporalmente deshabilitada debido a problemas persistentes con la instalación del paquete `react-hcaptcha`.
-            Si experimenta errores de CAPTCHA, asegúrese de que la protección CAPTCHA esté DESACTIVADA en la configuración de su proyecto Supabase (Authentication {"->"} Settings).
+            <strong>Nota Importante:</strong> Este formulario ahora interactúa con <strong className="text-primary">Supabase Auth</strong> para intentos de inicio de sesión.
+            La funcionalidad de CAPTCHA del frontend está temporalmente deshabilitada.
+            Si experimenta errores de CAPTCHA persistentes, asegúrese de que la protección CAPTCHA esté DESACTIVADA en la configuración de su proyecto Supabase (Authentication {"->"} Settings).
+            Si ve "Invalid API key", revise sus variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en `.env.local` y reinicie su servidor.
           </div>
         </CardContent>
       </Card>

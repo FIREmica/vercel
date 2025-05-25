@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS public.analysis_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    analysis_type TEXT NOT NULL, -- e.g., "URL", "Server", "SAST", "DAST", "Cloud", "Container", "Dependency", "Network"
+    analysis_type TEXT NOT NULL, -- e.g., "URL", "Server", "Database", "SAST", "DAST", "Cloud", "Container", "Dependency", "Network"
     target_description TEXT NOT NULL,
     overall_risk_assessment TEXT, -- e.g., "Low", "Medium", "High", "Critical", "Informational"
     vulnerable_findings_count INTEGER DEFAULT 0,
@@ -344,7 +344,10 @@ CREATE POLICY "public can read notes"
     *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com`.
     *   Revisa la consola del navegador y la consola del servidor Next.js para mensajes de error específicos. Si ves "Error creando orden en backend: {}", usualmente significa que `PAYPAL_CLIENT_ID` o `PAYPAL_CLIENT_SECRET` no están accesibles o son incorrectos en el backend.
 *   **Errores de Autenticación o Base de Datos con Supabase:**
-    *   Verifica que `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` estén correctos en `.env.local`.
+    *   **Error "Invalid API key" o "Failed to fetch" al Iniciar Sesión/Registrarse:** Este error casi siempre significa que `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu archivo `.env.local` son incorrectas, están vacías, o el servidor de desarrollo no se reinició después de modificarlas.
+        1.  Verifica dos veces que los valores en `.env.local` coincidan exactamente con los de tu proyecto Supabase (Project Settings > API).
+        2.  Asegúrate de que el archivo se llame `.env.local` y esté en la raíz de tu proyecto.
+        3.  **Detén y reinicia tu servidor de desarrollo Next.js** (`npm run dev`).
     *   Para operaciones de backend (como actualizar el estado de suscripción en `/api/paypal/capture-order`), asegúrate de que `SUPABASE_SERVICE_ROLE_KEY` esté configurada en `.env.local` y sea correcta.
     *   **Error en la Creación de Perfiles de Usuario:** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
         1.  **Verifica la Ejecución del SQL:** Asegúrate de haber ejecutado **todo** el script SQL para `user_profiles` y `handle_new_user` (incluyendo `CREATE FUNCTION` y `CREATE TRIGGER`) en el Editor SQL de Supabase.
@@ -454,3 +457,5 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
+```
