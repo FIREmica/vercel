@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -11,7 +12,7 @@ import { Loader2, AlertTriangle, FileText, History, Eye, BarChart3, ShieldCheck,
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { createClient } from '@/lib/supabase/client'; // Client-side client
+import { supabase } from '@/lib/supabase/client'; // Corrected import
 import type { AnalysisRecord as AnalysisRecordType } from '@/types/ai-schemas';
 
 
@@ -38,7 +39,7 @@ export default function DashboardPage() {
       setIsLoadingRecords(true);
       setErrorRecords(null);
       
-      const supabase = createClient();
+      // Use the imported supabase client instance directly
       const { data, error } = await supabase
         .from('analysis_records')
         .select('id, created_at, analysis_type, target_description, overall_risk_assessment, vulnerable_findings_count')
@@ -258,3 +259,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
