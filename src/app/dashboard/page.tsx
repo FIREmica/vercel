@@ -260,3 +260,46 @@ export default function DashboardPage() {
   );
 }
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+
+export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace('/');
+      } else {
+        setUser(session.user);
+        setLoading(false);
+      }
+    };
+
+    getUser();
+  }, [router]);
+
+  if (loading) return <p className="text-center mt-20">Cargando...</p>;
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-4">Bienvenido, {user.email}</h1>
+      <button
+        onClick={async () => {
+          await supabase.auth.signOut();
+          router.push('/');
+        }}
+        className="bg-red-500 text-white px-4 py-2 rounded"
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  );
+}

@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Info, Download, ShieldCheck, LogIn, UserCheck, AlertTriangle, Database, ServerIcon, Briefcase, BarChart3, Zap, FileLock2, Globe, Sparkles, Unlock, Gamepad2, MessageCircle, Code, Cloud, SlidersHorizontal, Users, ShieldEllipsis, Bot, Check, ListChecks, SearchCode, Network, BoxIcon, LibraryIcon, GitBranch, Columns, AlertOctagon, Waypoints, FileJson, Wifi, ExternalLink, LockIcon, CreditCard, ShoppingCart, Loader2, Lightbulb, Target, Menu, UserCircle as UserCircleIcon, Building, Search } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +53,7 @@ const PayPalSmartPaymentButtons = ({
   const { toast } = useToast();
   const [isPayPalSDKReady, setIsPayPalSDKReady] = useState(false);
   const [payPalButtonInstance, setPayPalButtonInstance] = useState<any>(null);
-  const { session, refreshUserProfile } = useAuth();
+  const { session, refreshUserProfile } = useAuth(); // Added refreshUserProfile
 
   useEffect(() => {
     const checkPayPalSDK = () => {
@@ -99,7 +99,7 @@ const PayPalSmartPaymentButtons = ({
           },
           createOrder: async () => {
             console.log("PayPalButtons: createOrder iniciado.");
-            if (!session) {
+            if (!session) { // Double check session before creating order
                 toast({ variant: "destructive", title: "Error de Autenticación", description: "Debe iniciar sesión para crear una orden de pago." });
                 onLoginRequired();
                 return Promise.reject(new Error("User not logged in for createOrder"));
@@ -114,47 +114,41 @@ const PayPalSmartPaymentButtons = ({
 
               let orderData;
               try {
-                if (!response.ok) {
-                  // If response is not OK, try to get text first for better error message
-                  const errorText = await response.text().catch(() => "Respuesta de error no legible del servidor.");
-                  console.error("PayPalButtons: Error en backend al crear orden. Status:", response.status, "Respuesta:", errorText);
-                  const description = `Error del servidor (${response.status}): ${errorText.substring(0, 200)}. Revise los logs del servidor para más detalles.`;
-                  toast({ variant: "destructive", title: "Error de Creación de Orden", description });
-                  onPaymentError(new Error(description));
-                  return Promise.reject(new Error(description));
-                }
                 orderData = await response.json();
               } catch (jsonError: any) {
                 console.error("PayPalButtons: Error al parsear la respuesta JSON de /api/paypal/create-order:", jsonError);
-                const errorText = await response.text().catch(() => "No se pudo leer el cuerpo de la respuesta, y no era JSON válido.");
-                const description = `Respuesta inesperada o no JSON del servidor (Estado: ${response.status}). Detalle: ${errorText.substring(0,200)}. Revise los logs del servidor.`;
-                toast({ variant: "destructive", title: "Error de Comunicación con Servidor", description });
-                onPaymentError(new Error(description));
+                const errorText = await response.text().catch(() => "No se pudo leer el cuerpo de la respuesta.");
+                console.error("PayPalButtons: Error en backend al crear orden. Status:", response.status, "Respuesta:", errorText);
+                const description = `Error del servidor (${response.status}): ${errorText.substring(0, 200)}. Revise los logs del servidor para más detalles.`;
+                toast({ variant: "destructive", title: "Error de Creación de Orden", description });
+                if (typeof onPaymentError === 'function') onPaymentError(new Error(description));
                 return Promise.reject(new Error(description));
               }
 
-              if (orderData.error) { // Assuming backend sends { error: "message" } for handled errors
-                const errorMsg = orderData.error || 'Error desconocido del servidor al crear la orden.';
-                toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}. Revise los logs del servidor.` });
-                console.error("PayPalButtons: Error creando orden en backend (JSON):", orderData);
-                onPaymentError(new Error(errorMsg));
+
+              if (!response.ok || !orderData || orderData.error) {
+                const errorMsg = orderData?.error || (response.ok ? 'Respuesta vacía o malformada del servidor.' : `Error del servidor: ${response.statusText}`);
+                toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}` });
+                console.error("PayPalButtons: Error creando orden en backend:", orderData || `Estado: ${response.status}, Texto: ${response.statusText}`);
+                if (typeof onPaymentError === 'function') onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
+
               if (!orderData.orderID) {
                 const errorMsg = 'Respuesta del servidor no contiene orderID. Revise los logs del servidor.';
                 toast({ variant: "destructive", title: "Error de Respuesta del Servidor", description: errorMsg });
                 console.error("PayPalButtons: Respuesta de /api/paypal/create-order sin orderID:", orderData);
-                onPaymentError(new Error(errorMsg));
+                 if (typeof onPaymentError === 'function') onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
               toast({ title: "Orden Creada", description: `Redirigiendo a PayPal para completar el pago. OrderID: ${orderData.orderID}`, variant: "default" });
               console.log("PayPalButtons: Orden creada exitosamente en backend. OrderID:", orderData.orderID);
               return orderData.orderID;
-            } catch (error: any) { // Catches fetch network errors or rejections from above
+            } catch (error: any) {
               const description = error.message || "No se pudo conectar con el servidor de pagos.";
               toast({ variant: "destructive", title: "Error de Pago", description });
               console.error("PayPalButtons: Error en fetch a /api/paypal/create-order o promesa rechazada:", error);
-              onPaymentError(error);
+              if (typeof onPaymentError === 'function') onPaymentError(error);
               return Promise.reject(error);
             }
           },
@@ -176,6 +170,7 @@ const PayPalSmartPaymentButtons = ({
                 onPaymentError(new Error(errorMsg));
               } else {
                  console.log("PayPalButtons: Captura de orden en backend exitosa. Detalles:", captureData);
+                 // Call the onPaymentSuccess passed from HomePage
                  await onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id, captureDetails: captureData });
               }
             } catch (error: any) {
@@ -205,6 +200,7 @@ const PayPalSmartPaymentButtons = ({
         });
 
         if (BCPC && document.body.contains(BCPC)) {
+           // paypalButtonsContainerRef.current.innerHTML = ''; // Removed this line
           buttonsInstance.render(BCPC)
             .then(() => {
                 setPayPalButtonInstance(buttonsInstance);
@@ -226,18 +222,17 @@ const PayPalSmartPaymentButtons = ({
     }
 
     return () => {
-      if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
-        if (paypalButtonsContainerRef.current && document.body.contains(paypalButtonsContainerRef.current)) {
+        if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
+          if (paypalButtonsContainerRef.current && document.body.contains(paypalButtonsContainerRef.current)) {
             console.log("PayPalButtons: Limpiando instancia de botones de PayPal...");
             payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
-        } else {
+          } else {
             console.log("PayPalButtons: Contenedor no encontrado en cleanup, no se llama a close().");
+          }
+          setPayPalButtonInstance(null);
         }
-        setPayPalButtonInstance(null);
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPayPalSDKReady, session]); // Removed onPaymentError etc. use useCallback on parent
+      };
+  }, [isPayPalSDKReady, session, onLoginRequired, onPaymentError, onPaymentCancel, onPaymentSuccess, payPalButtonInstance, toast]);
 
 
   if (!isPayPalSDKReady) {
@@ -419,7 +414,7 @@ export default function HomePage() {
         return;
       }
 
-      const result = await performAnalysisAction(params, !!session && isPremium);
+      const result = await performAnalysisAction(params, !!session && isPremium); // Use !!session for logged-in check
       setAnalysisResult(result);
 
       if (result.error && !result.reportText && (!result.allFindings || result.allFindings.length === 0 )) {
@@ -432,19 +427,19 @@ export default function HomePage() {
           if (result.allFindings && result.allFindings.length > 0) {
              await generateJsonExportFile(result.allFindings, currentTargetDesc);
           }
-          if (!!session && isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
+          if (session && isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
             await generateZipFile(result, currentTargetDesc);
           }
           toast({
             title: "Análisis Completo",
-            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${!!session && isPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión y suscríbase para acceder a todas las funciones premium.'}`,
+            description: `${vulnerableCount} vulnerabilidad(es) activa(s) encontrada(s). ${primarySummary} ${result.error ? ` (Nota: ${result.error})` : ''} ${session && isPremium ? 'Informe, vectores de ataque, playbooks y descargas disponibles.' : 'Inicie sesión y suscríbase para acceder a todas las funciones premium.'}`,
             variant: vulnerableCount > 0 ? "default" : "default",
             duration: 7000,
           });
       }
     } catch (e) {
       const error = e as Error;
-      let errorMessage = "Ocurrió un error inesperado durante el análisis.";
+      let errorMessage = "Ocurrió un error inesperado durante el proceso de análisis.";
       const apiKeyEnv = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
       const apiKeyName = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ? "NEXT_PUBLIC_GOOGLE_API_KEY" : "GOOGLE_API_KEY";
 
@@ -471,8 +466,8 @@ export default function HomePage() {
 
   const handlePayPalPaymentSuccess = useCallback(async (details: any) => {
     console.log("HomePage: PayPal onPaymentSuccess, detalles:", details);
+    toast({ title: "¡Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Actualizando estado de suscripción...`, variant: "default", duration: 5000 });
     await refreshUserProfile(); // Espera a que el perfil se refresque
-    toast({ title: "¡Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Su acceso Premium ha sido activado.`, variant: "default", duration: 5000 });
   },[refreshUserProfile, toast]);
 
   const handlePayPalPaymentError = useCallback((error: any) => {
@@ -503,7 +498,7 @@ export default function HomePage() {
     </Card>
   );
 
-  const PremiumFeatureCard = ({ title, description, icon: Icon, children }: { title: string, description:string, icon: React.ElementType, children?: React.ReactNode }) => (
+  const PremiumFeatureCard = ({ title, description, icon: Icon, children, isPremiumFeature }: { title: string, description:string, icon: React.ElementType, children?: React.ReactNode, isPremiumFeature?: boolean }) => (
     <Card className="mt-6 shadow-lg border-l-4 border-accent bg-accent/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg text-accent"> <Icon className="h-5 w-5" /> {title} </CardTitle>
@@ -514,18 +509,20 @@ export default function HomePage() {
             <Button onClick={() => router.push('/login?redirect=/')} className="w-full sm:w-auto bg-accent hover:bg-accent/80 text-accent-foreground">
                 <LogIn className="mr-2 h-4 w-4"/>Iniciar Sesión para Acceder
             </Button>
-        ) : !isPremium ? (
+        ) : !isPremium && isPremiumFeature ? (
              <PayPalSmartPaymentButtons
                 onPaymentSuccess={handlePayPalPaymentSuccess}
                 onPaymentError={handlePayPalPaymentError}
                 onPaymentCancel={handlePayPalPaymentCancel}
                 onLoginRequired={handleLoginForPayPal}
             />
-        ) : (
+        ) : session && isPremium && isPremiumFeature ? (
           <>
             <div className="text-sm text-green-600 dark:text-green-500 font-semibold flex items-center mb-2"><ShieldCheck className="mr-2 h-4 w-4"/>¡Función Premium Activada!</div>
             {children}
           </>
+        ) : (
+          children
         )}
       </CardContent>
     </Card>
@@ -547,7 +544,6 @@ export default function HomePage() {
         <AppHeader />
         <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
 
-          {/* Hero Section */}
           <section className="text-center py-12 md:py-16 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl shadow-lg border border-border mb-12 md:mb-16">
               <Card className="max-w-4xl mx-auto p-6 md:p-10 bg-transparent border-0 shadow-none">
                 <CardHeader className="p-0 mb-6">
@@ -567,7 +563,6 @@ export default function HomePage() {
               </Card>
           </section>
 
-          {/* Services Overview Section */}
           <section id="servicios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Nuestras Capacidades</Badge>
@@ -592,7 +587,6 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Why Choose Us Section */}
           <section id="porque-nosotros" className="py-12 md:py-16 bg-secondary/30 rounded-xl shadow-inner border border-border">
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
@@ -634,7 +628,6 @@ export default function HomePage() {
 
           <Separator className="my-8 md:my-12" />
 
-          {/* Testimonials Section Placeholder */}
           <section id="testimonios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Confianza Comprobada</Badge>
@@ -681,9 +674,13 @@ export default function HomePage() {
                 title="Escenarios de Ataque Ilustrativos (Premium)"
                 description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
                 icon={Zap}
+                isPremiumFeature={true}
               >
-                {!!session && isPremium && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
+                {session && isPremium && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
                    <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} />
+                )}
+                 {session && isPremium && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
+                    <p className="text-sm text-muted-foreground">No se generaron escenarios de ataque, o no se encontraron vulnerabilidades activas para generar escenarios.</p>
                 )}
               </PremiumFeatureCard>
 
@@ -691,10 +688,14 @@ export default function HomePage() {
                 title="Playbooks de Remediación Sugeridos (Premium)"
                 description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
                 icon={FileLock2}
+                isPremiumFeature={true}
               >
-                 {!!session && isPremium && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
+                 {session && isPremium && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
                    <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
                  )}
+                  {session && isPremium && (!analysisResult.remediationPlaybooks || analysisResult.remediationPlaybooks.length === 0) && (
+                    <p className="text-sm text-muted-foreground">No se generaron playbooks de remediación, o no se encontraron vulnerabilidades activas para generar playbooks.</p>
+                )}
               </PremiumFeatureCard>
 
               {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
@@ -705,7 +706,7 @@ export default function HomePage() {
                       Descargar Resultados
                     </CardTitle>
                     <CardDescription>
-                      {!!session && isPremium ? "Descargue el paquete completo (ZIP) o solo los hallazgos (JSON)." : "Descargue los hallazgos en JSON. Inicie sesión y suscríbase a Premium para el paquete ZIP completo."}
+                      {session && isPremium ? "Descargue el paquete completo (ZIP) o solo los hallazgos (JSON)." : "Descargue los hallazgos en JSON. Inicie sesión y suscríbase a Premium para el paquete ZIP completo."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col sm:flex-row justify-center items-center gap-4">

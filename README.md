@@ -26,7 +26,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Resumen ejecutivo general.
     *   Detalles de hallazgos por cada tipo de análisis realizado (con CVSS y detalles técnicos si se ha iniciado sesión y se tiene suscripción activa - simula Premium).
     *   Severidad, descripción, impacto potencial y remediación sugerida para cada hallazgo.
-    *   Priorización Inteligente de Remediaciones: La IA no solo identifica vulnerabilidades, sino que también ayuda a priorizar cuáles abordar primero, considerando el impacto y la posible facilidad de explotación.
+    *   **Priorización Inteligente de Remediaciones:** La IA no solo identifica vulnerabilidades, sino que también ayuda a priorizar cuáles abordar primero, considerando el impacto y la posible facilidad de explotación.
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
 *   **Acceso a Funciones Avanzadas con Suscripción Premium (Gestionado con Supabase Auth y Simulación de Pago PayPal):**
@@ -368,35 +368,6 @@ CREATE POLICY "public can read notes"
     ```
     Genkit UI estará disponible en [http://localhost:4000](http://localhost:4000) por defecto.
 
-### Solución de Problemas Comunes
-
-*   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
-*   **Error de Pagos de PayPal (Error `invalid_client` o similar):** Si los botones de PayPal no aparecen, la creación de órdenes falla, o la captura de pagos falla con un error de autenticación:
-    *   **VERIFICA TUS CREDENCIALES DE PAYPAL EN `.env.local`:** Asegúrate de que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean **EXACTAMENTE** los correctos para tu aplicación REST API de PayPal **Sandbox**. Un solo carácter erróneo causará el fallo.
-    *   **REINICIA EL SERVIDOR DE DESARROLLO (`npm run dev`)**: Después de cualquier cambio en `.env.local`, DEBES reiniciar el servidor.
-    *   **REVISA LOS LOGS DEL SERVIDOR NEXT.JS:** La terminal donde ejecutas `npm run dev` mostrará errores detallados del backend (ej. de `/api/paypal/create-order`) que son cruciales para diagnosticar. Busca mensajes como "PAYPAL_CLIENT_ID (desde process.env en API): NO DEFINIDO".
-    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com` para pruebas.
-    *   Verifica que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (para el frontend) sea el mismo que `PAYPAL_CLIENT_ID` (para el backend).
-*   **Errores de Autenticación o Base de Datos con Supabase:**
-    *   **Error "Invalid API key" o "Failed to fetch" al Iniciar Sesión/Registrarse:** Este error casi siempre significa que `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu archivo `.env.local` son incorrectas, están vacías, o el servidor de desarrollo no se reinició después de modificarlas.
-        1.  Verifica dos veces que los valores en `.env.local` coincidan exactamente con los de tu proyecto Supabase (Project Settings > API).
-        2.  Asegúrate de que el archivo se llame `.env.local` y esté en la raíz de tu proyecto.
-        3.  **Detén y reinicia tu servidor de desarrollo Next.js** (`npm run dev`).
-    *   Para operaciones de backend (como actualizar el estado de suscripción en `/api/paypal/capture-order`), asegúrate de que `SUPABASE_SERVICE_ROLE_KEY` esté configurada en `.env.local` y sea correcta.
-    *   **Error en la Creación de Perfiles de Usuario:** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
-        1.  **Verifica la Ejecución del SQL:** Asegúrate de haber ejecutado **todo** el script SQL para `user_profiles` y `handle_new_user` (incluyendo `CREATE FUNCTION` y `CREATE TRIGGER`) en el Editor SQL de Supabase.
-        2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
-        3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER` y el uso de `NEW.raw_user_meta_data->>'full_name'` y `NEW.raw_user_meta_data->>'avatar_url'`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
-        4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
-*   **Login con Facebook (usando Supabase OAuth Provider):**
-    *   Asegúrate de haber habilitado Facebook como proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y haber configurado el **App ID** y **App Secret** de Facebook allí.
-    *   En la configuración de tu app de Facebook Developer, verifica que has añadido la **URL de Callback de Supabase** a las "URIs de redirección OAuth válidas".
-    *   Asegúrate de que la "URL del Sitio" en la configuración de autenticación de Supabase esté correctamente establecida para tu entorno de desarrollo (ej. `http://localhost:9002`).
-*   **Problemas con hCaptcha (Actualmente Deshabilitado):**
-    *   El componente `react-hcaptcha` ha sido eliminado de las dependencias y su uso comentado en los formularios de login/signup debido a problemas persistentes con `npm install`.
-    *   **Si deseas reactivarlo:** Sigue las instrucciones detalladas en la sección "Reactivación de hCaptcha" más abajo en este README.
-    *   **Error "captcha verification process failed" de Supabase:** Si ves este error en los `toast` de login/signup incluso con el frontend de hCaptcha deshabilitado, significa que **tienes la protección CAPTCHA activada a nivel de proyecto en Supabase**. Ve a tu proyecto Supabase -> Authentication -> Settings y desactiva la protección CAPTCHA. Guarda los cambios.
-
 ## Implementación de Autenticación Real y Base de Datos (En Progreso con Supabase)
 
 La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthContext.tsx`) gestiona la sesión globalmente y carga el perfil del usuario desde la tabla `user_profiles` para determinar el estado `isPremium` basado en el campo `subscription_status`.
@@ -408,7 +379,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'` y datos de OAuth si están disponibles) cuando un nuevo usuario se registra en `auth.users`.
 *   Se ha definido el SQL para crear la tabla `analysis_records` para almacenar el historial de análisis. La lógica para guardar los análisis en esta tabla (dentro de `src/app/actions.ts`) y para mostrar el historial en `/dashboard` ya está implementada.
 
-## Login Social (Facebook - Usando Supabase OAuth Provider)
+## Login Social con Facebook (Usando Supabase OAuth Provider)
 *   Las páginas de Login y Signup ahora utilizan `supabase.auth.signInWithOAuth({ provider: 'facebook' })` para el inicio de sesión/registro con Facebook.
 *   Esto requiere que hayas configurado Facebook como un proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y que hayas proporcionado tu App ID y App Secret de Facebook allí.
 *   También debes configurar la URL de Callback de Supabase en tu app de Facebook Developer.
@@ -434,6 +405,35 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   **Endpoint:** Se ha creado un endpoint en `/src/app/api/paypal/webhook/route.ts`. Debes configurar esta URL en tu aplicación de PayPal Developer y registrarla para los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`).
 *   **Verificación de Firma (Placeholder Actual - ¡NO SEGURO PARA PRODUCCIÓN!):** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad. La lógica para esto es compleja y debe implementarse cuidadosamente. El código actual tiene un placeholder que **OMITE esta verificación** y debe ser reemplazado por una implementación real antes de pasar a producción. Necesitarás tu `PAYPAL_WEBHOOK_ID` de PayPal Developer.
 *   **Procesamiento de Eventos:** El endpoint tiene una estructura para analizar el `event_type` (como `PAYMENT.CAPTURE.COMPLETED`) y conceptualmente actualizar la tabla `user_profiles` en Supabase. Debe ser **idempotente**.
+
+## Solución de Problemas Comunes
+
+*   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
+*   **Error de Pagos de PayPal (Error `invalid_client` o similar):** Si los botones de PayPal no aparecen, la creación de órdenes falla, o la captura de pagos falla con un error de autenticación:
+    *   **VERIFICA TUS CREDENCIALES DE PAYPAL EN `.env.local`:** Asegúrate de que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean **EXACTAMENTE** los correctos para tu aplicación REST API de PayPal **Sandbox**. Un solo carácter erróneo causará el fallo. (Usa las credenciales que proporcionaste: `PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr` y el secreto `EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8`).
+    *   **REINICIA EL SERVIDOR DE DESARROLLO (`npm run dev`)**: Después de cualquier cambio en `.env.local`, DEBES reiniciar el servidor.
+    *   **REVISA LOS LOGS DEL SERVIDOR NEXT.JS:** La terminal donde ejecutas `npm run dev` mostrará errores detallados del backend (ej. de `/api/paypal/create-order`) que son cruciales para diagnosticar. Busca mensajes como "PAYPAL_CLIENT_ID (desde process.env en API): NO DEFINIDO".
+    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com` para pruebas.
+    *   Verifica que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (para el frontend) sea el mismo que `PAYPAL_CLIENT_ID` (para el backend).
+*   **Errores de Autenticación o Base de Datos con Supabase:**
+    *   **Error "Invalid API key" o "Failed to fetch" al Iniciar Sesión/Registrarse:** Este error casi siempre significa que `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu archivo `.env.local` son incorrectas, están vacías, o el servidor de desarrollo no se reinició después de modificarlas.
+        1.  Verifica dos veces que los valores en `.env.local` coincidan exactamente con los de tu proyecto Supabase (Project Settings > API).
+        2.  Asegúrate de que el archivo se llame `.env.local` y esté en la raíz de tu proyecto.
+        3.  **Detén y reinicia tu servidor de desarrollo Next.js** (`npm run dev`).
+    *   Para operaciones de backend (como actualizar el estado de suscripción en `/api/paypal/capture-order`), asegúrate de que `SUPABASE_SERVICE_ROLE_KEY` esté configurada en `.env.local` y sea correcta.
+    *   **Error en la Creación de Perfiles de Usuario:** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
+        1.  **Verifica la Ejecución del SQL:** Asegúrate de haber ejecutado **todo** el script SQL para `user_profiles` y `handle_new_user` (incluyendo `CREATE FUNCTION` y `CREATE TRIGGER`) en el Editor SQL de Supabase.
+        2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
+        3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER` y el uso de `NEW.raw_user_meta_data->>'full_name'` y `NEW.raw_user_meta_data->>'avatar_url'`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
+        4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
+*   **Login con Facebook (usando Supabase OAuth Provider):**
+    *   Asegúrate de haber habilitado Facebook como proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y haber configurado el **App ID** y **App Secret** de Facebook allí.
+    *   En la configuración de tu app de Facebook Developer, verifica que has añadido la **URL de Callback de Supabase** a las "URIs de redirección OAuth válidas".
+    *   Asegúrate de que la "URL del Sitio" en la configuración de autenticación de Supabase esté correctamente establecida para tu entorno de desarrollo (ej. `http://localhost:9002`).
+*   **Problemas con hCaptcha (Actualmente Deshabilitado):**
+    *   El componente `react-hcaptcha` ha sido eliminado de las dependencias y su uso comentado en los formularios de login/signup debido a problemas persistentes con `npm install`.
+    *   **Si deseas reactivarlo:** Sigue las instrucciones detalladas en la sección "Reactivación de hCaptcha" más abajo en este README.
+    *   **Error "captcha verification process failed" de Supabase:** Si ves este error en los `toast` de login/signup incluso con el frontend de hCaptcha deshabilitado, significa que **tienes la protección CAPTCHA activada a nivel de proyecto en Supabase**. Ve a tu proyecto Supabase -> Authentication -> Settings y desactiva la protección CAPTCHA. Guarda los cambios.
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
@@ -518,3 +518,4 @@ Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LI
 **Idea y Visión:** Ronald Gonzalez Niche
 
 ```
+  
