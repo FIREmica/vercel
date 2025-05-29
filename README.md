@@ -1,3 +1,4 @@
+
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -134,7 +135,7 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de Facebook Login (Necesarias para Supabase Auth Provider) ---
     # El App ID y App Secret de Facebook se configuran directamente en el panel de Supabase (Authentication > Providers > Facebook).
     # No son necesarias como variables de entorno en el proyecto para este flujo de Supabase OAuth.
-    # NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
+    # Ya NO necesitas NEXT_PUBLIC_FACEBOOK_APP_ID aquí si usas el flujo OAuth de Supabase.
 
     # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics)
     # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
@@ -230,6 +231,8 @@ CREATE POLICY "Users can update their own non-sensitive details."
 
 -- 4. Create a trigger function to automatically create a user profile
 --    when a new user signs up in auth.users.
+--    This function now attempts to use full_name and avatar_url from raw_user_meta_data
+--    which Supabase often populates with data from OAuth providers like Facebook.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -240,8 +243,8 @@ BEGIN
   VALUES (
     NEW.id,
     NEW.email,
-    NEW.raw_user_meta_data->>'full_name', 
-    NEW.raw_user_meta_data->>'avatar_url',
+    NEW.raw_user_meta_data->>'full_name', -- For OAuth (Facebook, Google, etc.)
+    NEW.raw_user_meta_data->>'avatar_url', -- For OAuth
     'free' -- Default subscription status
   );
   RETURN NEW;
@@ -342,15 +345,16 @@ CREATE POLICY "public can read notes"
 ```
 
 ### Configuración de Proveedores de Autenticación en Supabase
-1.  **Facebook Login:**
+1.  **Facebook Login (Usando el flujo OAuth de Supabase):**
     *   En tu proyecto Supabase: Ve a "Authentication" -> "Providers".
     *   Habilita "Facebook".
-    *   Ingresa tu **Facebook App ID** y **Facebook App Secret** (obtenidos de Facebook Developer Portal).
-    *   Copia la **Callback URL** que Supabase te proporciona.
-    *   En tu configuración de la App de Facebook (developers.facebook.com):
+    *   Ingresa tu **Facebook App ID** y **Facebook App Secret** (obtenidos de Facebook Developer Portal) directamente en los campos correspondientes de Supabase.
+    *   Supabase te proporcionará una **URL de Callback/Redirección**. Cópiala.
+    *   En la configuración de tu App de Facebook (developers.facebook.com):
         *   Asegúrate de que el producto "Inicio de sesión con Facebook" esté añadido.
-        *   En "Configuración" (bajo "Inicio de sesión con Facebook"), pega la Callback URL de Supabase en "URIs de redirección OAuth válidas".
+        *   En "Configuración" (bajo "Inicio de sesión con Facebook"), pega la URL de Callback de Supabase en "URIs de redirección OAuth válidas".
         *   Añade `http://localhost:9002` (o tu puerto de desarrollo) y tu URL de producción a las URIs válidas también.
+    *   **Importante:** Asegúrate de que la "URL del Sitio" en Supabase (Authentication -> Settings) esté configurada a `http://localhost:9002` para desarrollo y a tu URL de producción para el entorno live. También añade estas URLs a la lista de "Redirect URLs" adicionales en la misma página de configuración de Supabase Auth.
 
 ### Ejecutando la Aplicación
 
@@ -382,7 +386,7 @@ CREATE POLICY "public can read notes"
     *   **Error en la Creación de Perfiles de Usuario:** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
         1.  **Verifica la Ejecución del SQL:** Asegúrate de haber ejecutado **todo** el script SQL para `user_profiles` y `handle_new_user` (incluyendo `CREATE FUNCTION` y `CREATE TRIGGER`) en el Editor SQL de Supabase.
         2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
-        3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
+        3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER` y el uso de `NEW.raw_user_meta_data->>'full_name'` y `NEW.raw_user_meta_data->>'avatar_url'`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
         4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
 *   **Login con Facebook (usando Supabase OAuth Provider):**
     *   Asegúrate de haber habilitado Facebook como proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y haber configurado el **App ID** y **App Secret** de Facebook allí.
@@ -401,14 +405,14 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   Los formularios de Login/Signup (`src/app/login/page.tsx`, `src/app/signup/page.tsx`) interactúan con las funciones de autenticación de Supabase (`signInWithPassword`, `signUp`).
 *   El inicio de sesión con Facebook ahora utiliza el flujo `supabase.auth.signInWithOAuth({ provider: 'facebook' })`.
 *   El `AuthContext` (`src/context/AuthContext.tsx`) escucha los cambios de estado de autenticación de Supabase y obtiene el perfil del usuario de la tabla `user_profiles`. El estado `isPremium` se deriva de `userProfile.subscription_status`.
-*   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'`) cuando un nuevo usuario se registra en `auth.users`.
+*   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'` y datos de OAuth si están disponibles) cuando un nuevo usuario se registra en `auth.users`.
 *   Se ha definido el SQL para crear la tabla `analysis_records` para almacenar el historial de análisis. La lógica para guardar los análisis en esta tabla (dentro de `src/app/actions.ts`) y para mostrar el historial en `/dashboard` ya está implementada.
 
 ## Login Social (Facebook - Usando Supabase OAuth Provider)
 *   Las páginas de Login y Signup ahora utilizan `supabase.auth.signInWithOAuth({ provider: 'facebook' })` para el inicio de sesión/registro con Facebook.
 *   Esto requiere que hayas configurado Facebook como un proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y que hayas proporcionado tu App ID y App Secret de Facebook allí.
 *   También debes configurar la URL de Callback de Supabase en tu app de Facebook Developer.
-*   Este método gestiona el flujo OAuth completo, incluyendo redirecciones y manejo de tokens.
+*   Este método gestiona el flujo OAuth completo, incluyendo redirecciones y manejo de tokens. Ya **NO** es necesario cargar el SDK de JavaScript de Facebook manualmente en el frontend ni manejar `FB.login()` o `FB.init()`.
 
 ## Implementación de Pagos con PayPal (API REST - Sandbox)
 
@@ -434,7 +438,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
 1.  **Autenticación y Gestión de Perfiles Completa (Supabase):**
-    *   Asegurar que la creación de perfiles (`user_profiles`) funcione sin fallos con el trigger `handle_new_user`.
+    *   Asegurar que la creación de perfiles (`user_profiles`) funcione sin fallos con el trigger `handle_new_user` para todos los métodos de registro (email, Facebook, etc.).
     *   Implementar una UI para que los usuarios gestionen su perfil (cambiar nombre, avatar, etc. - *Roadmap*).
 2.  **Integración Completa de Pasarela de Pagos (PayPal):**
     *   Pasar a credenciales LIVE de PayPal en variables de entorno de producción.
@@ -512,4 +516,3 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-```
