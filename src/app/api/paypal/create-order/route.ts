@@ -7,13 +7,18 @@ function getPayPalClient() {
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
   const baseUrl = process.env.PAYPAL_API_BASE_URL || 'https://api-m.sandbox.paypal.com'; // Sandbox por defecto
 
+  console.log("PAYPAL_CLIENT_ID (desde process.env en API):", clientId ? clientId.substring(0, 5) + "..." : "NO DEFINIDO");
+  console.log("PAYPAL_CLIENT_SECRET (desde process.env en API):", clientSecret ? clientSecret.substring(0, 5) + "..." : "NO DEFINIDO");
+  console.log("PAYPAL_API_BASE_URL (desde process.env en API o default):", baseUrl);
+
+
   if (!clientId) {
-    const errorMsg = 'CRITICAL_SERVER_ERROR: PAYPAL_CLIENT_ID no está configurado en las variables de entorno del servidor. No se puede inicializar el cliente PayPal.';
+    const errorMsg = 'CRITICAL_SERVER_ERROR: PAYPAL_CLIENT_ID no está configurado en las variables de entorno del servidor. No se puede inicializar el cliente PayPal. Verifique su archivo .env.local y reinicie el servidor.';
     console.error(errorMsg);
     throw new Error(errorMsg);
   }
   if (!clientSecret) {
-    const errorMsg = 'CRITICAL_SERVER_ERROR: PAYPAL_CLIENT_SECRET no está configurado en las variables de entorno del servidor. No se puede inicializar el cliente PayPal.';
+    const errorMsg = 'CRITICAL_SERVER_ERROR: PAYPAL_CLIENT_SECRET no está configurado en las variables de entorno del servidor. No se puede inicializar el cliente PayPal. Verifique su archivo .env.local y reinicie el servidor.';
     console.error(errorMsg);
     throw new Error(errorMsg);
   }
@@ -34,11 +39,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Cuerpo de la solicitud inválido o no es JSON.", details: (e as Error).message }, { status: 400 });
   }
 
-  // Use defaults if not provided, or if body parsing failed and body is {}
   const requestedAmount = body?.orderAmount;
   const requestedCurrency = body?.currencyCode;
   const requestedDescription = body?.description;
 
+  // Usar valores por defecto si no se proporcionan o son inválidos
   const orderAmount = typeof requestedAmount === 'string' && requestedAmount.trim() !== '' ? requestedAmount : '10.00';
   const currencyCode = typeof requestedCurrency === 'string' && requestedCurrency.trim() !== '' ? requestedCurrency : 'USD';
   const description = typeof requestedDescription === 'string' && requestedDescription.trim() !== '' ? requestedDescription : 'Suscripción Premium - Centro de Análisis de Seguridad Integral';
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
     const paypalClient = getPayPalClient();
     
     const bodyPayload = {
-      intent: 'CAPTURE' as 'CAPTURE', // Explicitly type 'CAPTURE'
+      intent: 'CAPTURE' as 'CAPTURE',
       purchase_units: [
         {
           amount: {
@@ -60,8 +65,8 @@ export async function POST(request: Request) {
       ],
       application_context: {
         brand_name: 'Centro de Análisis de Seguridad Integral',
-        shipping_preference: 'NO_SHIPPING' as 'NO_SHIPPING', // Explicitly type
-        user_action: 'PAY_NOW' as 'PAY_NOW', // Explicitly type
+        shipping_preference: 'NO_SHIPPING' as 'NO_SHIPPING',
+        user_action: 'PAY_NOW' as 'PAY_NOW',
       },
     };
     
@@ -76,9 +81,11 @@ export async function POST(request: Request) {
 
     if (response.statusCode !== 201 || !response.result?.id) {
       console.error('Respuesta inesperada de PayPal al crear orden (RUTA API):', response);
+      // Intenta obtener más detalles del error si están disponibles
+      const errorDetails = response.result ? JSON.stringify(response.result) : 'Sin detalles adicionales de PayPal.';
       return NextResponse.json({
         error: `No se pudo crear la orden de PayPal. Código: ${response.statusCode}`,
-        details: response.result ? JSON.stringify(response.result) : 'Sin detalles de PayPal.',
+        details: errorDetails,
       }, { status: response.statusCode || 500 });
     }
 
@@ -91,7 +98,8 @@ export async function POST(request: Request) {
     let errorMessage = 'Error interno del servidor al crear la orden de PayPal.';
     let errorDetails = error.message || String(error);
 
-    if (error.message?.includes('Configuración de PayPal incompleta') || error.message?.includes('CRITICAL_SERVER_ERROR')) {
+    if (error.message?.includes('CRITICAL_SERVER_ERROR')) {
+      // Errores de configuración de variables de entorno ya detectados por getPayPalClient
       errorMessage = error.message;
     } else if (error.message?.includes('Authentication failed') || (error.data && JSON.stringify(error.data).includes('invalid_client'))) {
       errorMessage = 'Credenciales inválidas de PayPal. Verifica PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET.';
@@ -109,8 +117,4 @@ export async function POST(request: Request) {
     }
     
     return NextResponse.json({
-      error: errorMessage,
-      details: errorDetails,
-    }, { status: 500 });
-  }
-}
+      error

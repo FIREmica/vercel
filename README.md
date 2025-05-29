@@ -1,4 +1,3 @@
-
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -27,6 +26,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
     *   Resumen ejecutivo general.
     *   Detalles de hallazgos por cada tipo de análisis realizado (con CVSS y detalles técnicos si se ha iniciado sesión y se tiene suscripción activa - simula Premium).
     *   Severidad, descripción, impacto potencial y remediación sugerida para cada hallazgo.
+    *   Priorización Inteligente de Remediaciones: La IA no solo identifica vulnerabilidades, sino que también ayuda a priorizar cuáles abordar primero, considerando el impacto y la posible facilidad de explotación.
     *   Contexto específico para hallazgos SAST (ruta, línea, fragmento de código, sugerencia de arreglo) y DAST (parámetro, petición/respuesta).
     *   Consideraciones generales de cumplimiento normativo.
 *   **Acceso a Funciones Avanzadas con Suscripción Premium (Gestionado con Supabase Auth y Simulación de Pago PayPal):**
@@ -135,7 +135,6 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de Facebook Login (Necesarias para Supabase Auth Provider) ---
     # El App ID y App Secret de Facebook se configuran directamente en el panel de Supabase (Authentication > Providers > Facebook).
     # No son necesarias como variables de entorno en el proyecto para este flujo de Supabase OAuth.
-    # Ya NO necesitas NEXT_PUBLIC_FACEBOOK_APP_ID aquí si usas el flujo OAuth de Supabase.
 
     # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics)
     # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
@@ -372,11 +371,12 @@ CREATE POLICY "public can read notes"
 ### Solución de Problemas Comunes
 
 *   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
-*   **Error de Pagos de PayPal:** Si los botones de PayPal no aparecen o los pagos fallan:
-    *   Verifica que `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` estén correctamente configurados en `.env.local` con tus credenciales de **Sandbox** de PayPal Developer para tu aplicación REST API. (Idealmente `PAYPAL_CLIENT_ID` y `NEXT_PUBLIC_PAYPAL_CLIENT_ID` son el mismo valor).
-    *   **Asegúrate de que `PAYPAL_CLIENT_SECRET` corresponda a la aplicación REST API asociada con el `PAYPAL_CLIENT_ID` que estás usando.**
-    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com`.
-    *   Revisa la consola del navegador y la consola del servidor Next.js para mensajes de error específicos. Si ves "Error creando orden en backend: {}", usualmente significa que `PAYPAL_CLIENT_ID` o `PAYPAL_CLIENT_SECRET` no están accesibles o son incorrectos en el backend. **Revisa los logs de tu servidor Next.js para el error exacto que está devolviendo la API de PayPal.**
+*   **Error de Pagos de PayPal (Error `invalid_client` o similar):** Si los botones de PayPal no aparecen, la creación de órdenes falla, o la captura de pagos falla con un error de autenticación:
+    *   **VERIFICA TUS CREDENCIALES DE PAYPAL EN `.env.local`:** Asegúrate de que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean **EXACTAMENTE** los correctos para tu aplicación REST API de PayPal **Sandbox**. Un solo carácter erróneo causará el fallo.
+    *   **REINICIA EL SERVIDOR DE DESARROLLO (`npm run dev`)**: Después de cualquier cambio en `.env.local`, DEBES reiniciar el servidor.
+    *   **REVISA LOS LOGS DEL SERVIDOR NEXT.JS:** La terminal donde ejecutas `npm run dev` mostrará errores detallados del backend (ej. de `/api/paypal/create-order`) que son cruciales para diagnosticar. Busca mensajes como "PAYPAL_CLIENT_ID (desde process.env en API): NO DEFINIDO".
+    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com` para pruebas.
+    *   Verifica que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (para el frontend) sea el mismo que `PAYPAL_CLIENT_ID` (para el backend).
 *   **Errores de Autenticación o Base de Datos con Supabase:**
     *   **Error "Invalid API key" o "Failed to fetch" al Iniciar Sesión/Registrarse:** Este error casi siempre significa que `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu archivo `.env.local` son incorrectas, están vacías, o el servidor de desarrollo no se reinició después de modificarlas.
         1.  Verifica dos veces que los valores en `.env.local` coincidan exactamente con los de tu proyecto Supabase (Project Settings > API).
@@ -412,7 +412,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   Las páginas de Login y Signup ahora utilizan `supabase.auth.signInWithOAuth({ provider: 'facebook' })` para el inicio de sesión/registro con Facebook.
 *   Esto requiere que hayas configurado Facebook como un proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y que hayas proporcionado tu App ID y App Secret de Facebook allí.
 *   También debes configurar la URL de Callback de Supabase en tu app de Facebook Developer.
-*   Este método gestiona el flujo OAuth completo, incluyendo redirecciones y manejo de tokens. Ya **NO** es necesario cargar el SDK de JavaScript de Facebook manualmente en el frontend ni manejar `FB.login()` o `FB.init()`.
+*   Este método gestiona el flujo OAuth completo, incluyendo redirecciones y manejo de tokens.
 
 ## Implementación de Pagos con PayPal (API REST - Sandbox)
 
@@ -516,3 +516,5 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
+```
