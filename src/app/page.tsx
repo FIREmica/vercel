@@ -631,25 +631,25 @@ export default function HomePage() {
           <section id="testimonios" className="py-12 md:py-16">
             <div className="text-center mb-12">
                 <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Confianza Comprobada</Badge>
-                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Lo Que Dicen Nuestros Clientes (Ejemplos)</h3>
+                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Lo Que Dicen Nuestros Usuarios (Ejemplos)</h3>
             </div>
             <div className="grid md:grid-cols-2 gap-8">
               <Card className="bg-card border-border shadow-sm p-6">
                 <div className="flex items-start gap-4">
-                    <img src="https://placehold.co/60x60.png" alt="Cliente 1" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="professional person"/>
+                    <img src="https://placehold.co/60x60.png" alt="Usuario Ejemplo 1" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="professional person"/>
                     <div>
                         <p className="text-muted-foreground mb-3 italic leading-relaxed">\"Desde que usamos el Centro de Análisis de Seguridad Integral, hemos mejorado drásticamente nuestra postura de seguridad y reducido los tiempos de respuesta a incidentes. ¡Imprescindible!\"</p>
-                        <p className="font-semibold text-foreground">- CEO, Tech Solutions Inc.</p>
+                        <p className="font-semibold text-foreground">- Usuario Ejemplo, Empresa Tecnológica</p>
                         <p className="text-xs text-muted-foreground">Servicios Utilizados: Análisis Web, Análisis de Servidores</p>
                     </div>
                 </div>
               </Card>
               <Card className="bg-card border-border shadow-sm p-6">
                 <div className="flex items-start gap-4">
-                    <img src="https://placehold.co/60x60.png" alt="Cliente 2" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="game developer"/>
+                    <img src="https://placehold.co/60x60.png" alt="Usuario Ejemplo 2" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="game developer"/>
                     <div>
                         <p className="text-muted-foreground mb-3 italic leading-relaxed">\"La capacidad de analizar nuestros servidores de juegos y la configuración de la nube en una sola plataforma nos ha ahorrado innumerables horas y nos ha dado una tranquilidad invaluable.\"</p>
-                        <p className="font-semibold text-foreground">- Admin de Sistemas, Gaming Universe Ltd.</p>
+                        <p className="font-semibold text-foreground">- Desarrollador Freelance de Juegos</p>
                         <p className="text-xs text-muted-foreground">Servicios Utilizados: Análisis Servidores de Juegos, Análisis Cloud</p>
                     </div>
                 </div>
@@ -809,13 +809,18 @@ export default function HomePage() {
         <footer className="text-center py-8 text-sm text-muted-foreground border-t border-border bg-card">
           <p>© {new Date().getFullYear()} Centro de Análisis de Seguridad Integral. Todos los derechos reservados.</p>
           <p className="mb-2">Idea y Visión: Ronald Gonzalez Niche</p>
-          <div className="space-x-3">
+          <div className="space-x-3 mb-2">
             <Link href="/terms" className="text-xs text-primary hover:underline"> Términos y Condiciones </Link>
             <span className="text-xs text-muted-foreground">|</span>
             <Link href="/privacy" className="text-xs text-primary hover:underline"> Política de Privacidad </Link>
           </div>
+          <p className="text-xs text-muted-foreground/80 px-4 max-w-2xl mx-auto">
+            <strong>Descargo de Responsabilidad:</strong> Este servicio utiliza Inteligencia Artificial para el análisis de seguridad. Los resultados son para fines informativos y educativos, y no deben considerarse como una auditoría de seguridad exhaustiva ni una garantía de seguridad. Siempre consulte con profesionales de ciberseguridad para evaluaciones completas.
+          </p>
         </footer>
       </div>
     </TooltipProvider>
   );
 }
+
+    
