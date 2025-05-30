@@ -23,13 +23,29 @@ export default function ContactPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulación de envío de formulario
+    // SIMULACIÓN DE ENVÍO DE FORMULARIO
+    // En una aplicación real, aquí llamarías a tu API de backend
+    // para procesar el formulario y enviar el correo.
+    // Ejemplo:
+    // try {
+    //   const response = await fetch('/api/contact', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ name, email, company, message }),
+    //   });
+    //   if (!response.ok) throw new Error('Error al enviar el mensaje.');
+    //   // Éxito
+    // } catch (error) {
+    //   // Manejar error
+    // }
+    console.log("Simulación de envío de formulario:", { name, email, company, message });
     await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("Formulario enviado (simulado):", { name, email, company, message });
+    
     toast({
-      title: "Mensaje Enviado (Simulación)",
-      description: "Gracias por contactarnos. Nos pondremos en contacto contigo pronto.",
+      title: "Mensaje Recibido (Simulación)",
+      description: "Gracias por contactarnos. En una aplicación real, tu mensaje sería enviado. Esta es una demostración.",
       variant: "default",
+      duration: 6000,
     });
     setName("");
     setEmail("");
@@ -54,7 +70,7 @@ export default function ContactPage() {
           <Card className="shadow-xl border border-border">
             <CardHeader>
               <CardTitle className="text-2xl text-primary">Envíenos un Mensaje</CardTitle>
-              <CardDescription>Complete el formulario y nuestro equipo se pondrá en contacto.</CardDescription>
+              <CardDescription>Complete el formulario y nuestro equipo se pondrá en contacto. (Actualmente es una simulación)</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -130,15 +146,15 @@ export default function ContactPage() {
               <CardContent className="space-y-4 text-muted-foreground">
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-primary" />
-                  <span>info@centrodeseguridadintegral.com (Ejemplo)</span>
+                  <span><a href="mailto:soporte@tu-dominio.com" className="hover:underline">soporte@tu-dominio.com</a> (Reemplazar)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone className="h-5 w-5 text-primary" />
-                  <span>+1 (555) 123-4567 (Ejemplo)</span>
+                  <span>+1 (555) 123-4567 (Reemplazar)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPin className="h-5 w-5 text-primary" />
-                  <span>123 Calle Ficticia, Ciudad Segura, Mundo Digital (Ejemplo)</span>
+                  <span>123 Calle Ficticia, Ciudad Segura, Mundo Digital (Reemplazar)</span>
                 </div>
               </CardContent>
             </Card>

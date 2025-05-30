@@ -1,6 +1,9 @@
+
 # Términos y Condiciones del Centro de Análisis de Seguridad Integral
 
-**Última actualización:** [Fecha de Actualización]
+**Última actualización:** [Fecha de Actualización - REEMPLAZAR]
+
+**AVISO IMPORTANTE:** Este documento es una plantilla y un ejemplo general. **No constituye asesoramiento legal.** Debe consultar con un profesional legal para adaptar estos términos a sus necesidades específicas, a las leyes de su jurisdicción y a las características exactas de su plataforma. Reemplace todos los marcadores de posición como `[Fecha de Actualización - REEMPLAZAR]`, `[Su Jurisdicción - REEMPLAZAR]` y `[TU_EMAIL_DE_CONTACTO_AQUI@ejemplo.com]` con su información real.
 
 Bienvenido al Centro de Análisis de Seguridad Integral (en adelante, la "Plataforma" o el "Servicio"). Estos Términos y Condiciones (en adelante, los "Términos") rigen su acceso y uso de la Plataforma proporcionada por [Nombre de tu Empresa/Proyecto si lo tienes, sino "los desarrolladores de esta Plataforma"] (en adelante, "Nosotros", "Nuestro").
 
@@ -61,11 +64,10 @@ Podemos terminar o suspender su acceso a la Plataforma inmediatamente, sin previ
 
 ## 10. Ley Aplicable
 
-Estos Términos se regirán e interpretarán de acuerdo con las leyes de [Su Jurisdicción], sin tener en cuenta sus disposiciones sobre conflicto de leyes.
+Estos Términos se regirán e interpretarán de acuerdo con las leyes de [Su Jurisdicción - REEMPLAZAR], sin tener en cuenta sus disposiciones sobre conflicto de leyes.
 
 ## 11. Contacto
 
-Si tiene alguna pregunta sobre estos Términos, por favor contáctenos en [Su Correo Electrónico de Contacto].
+Si tiene alguna pregunta sobre estos Términos, por favor contáctenos en [TU_EMAIL_DE_CONTACTO_AQUI@ejemplo.com (Reemplazar con su email de contacto general)].
 
 **Al utilizar la Plataforma, usted reconoce que ha leído, entendido y aceptado estar sujeto a estos Términos y Condiciones.**
-```

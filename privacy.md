@@ -1,7 +1,9 @@
 
 # Política de Privacidad del Centro de Análisis de Seguridad Integral
 
-**Última actualización:** [Fecha de Actualización]
+**Última actualización:** [Fecha de Actualización - REEMPLAZAR]
+
+**AVISO IMPORTANTE:** Este documento es una plantilla y un ejemplo general. **No constituye asesoramiento legal.** Debe consultar con un profesional legal para adaptar esta política a sus necesidades específicas, a las leyes de su jurisdicción (ej. GDPR, CCPA, etc.) y a las características exactas de su plataforma y cómo maneja los datos de los usuarios. Reemplace todos los marcadores de posición como `[Fecha de Actualización - REEMPLAZAR]` y `[TU_EMAIL_DE_CONTACTO_AQUI@ejemplo.com]` con su información real.
 
 En el Centro de Análisis de Seguridad Integral (en adelante, "Nosotros", "Nuestro", "la Plataforma"), respetamos su privacidad y estamos comprometidos a proteger la información personal que pueda compartir con nosotros. Esta Política de Privacidad describe cómo recopilamos, usamos, almacenamos, compartimos y protegemos su información cuando utiliza nuestros servicios.
 
@@ -68,7 +70,7 @@ Podemos actualizar esta Política de Privacidad de vez en cuando. Le notificarem
 
 Si tiene alguna pregunta sobre esta Política de Privacidad, por favor contáctenos en:
 
-[Su Correo Electrónico de Contacto para Asuntos de Privacidad]
+[TU_EMAIL_DE_CONTACTO_AQUI@ejemplo.com (Reemplazar con su email para asuntos de privacidad)]
 
 ---
 **Nota Importante:** Este es un ejemplo de política de privacidad y puede no ser exhaustivo ni adecuado para todas las jurisdicciones o modelos de negocio. Se recomienda encarecidamente que consulte con un profesional legal para asegurarse de que su política de privacidad cumple con todas las leyes y regulaciones aplicables a su servicio y a los datos que procesa.
