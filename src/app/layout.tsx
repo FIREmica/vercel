@@ -30,16 +30,22 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Use the new Client ID from environment variable, with the new ID as a fallback placeholder
-  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr";
+  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
   return (
     <html lang="es" suppressHydrationWarning className="dark">
       <head>
-        <Script
-          src={`https://www.paypal.com/sdk/js?client-id=${paypalClientId}`}
-          strategy="beforeInteractive"
-        />
+        {paypalClientId && 
+         paypalClientId.trim() !== "" && 
+         paypalClientId !== "tu_paypal_sandbox_client_id_aqui_para_sdk_js_" && // Original placeholder
+         paypalClientId !== "AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr" && // Example placeholder
+         (
+          <Script
+            src={`https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`}
+            strategy="beforeInteractive"
+            data-sdk-integration-source="developer-studio" 
+          />
+        )}
       </head>
       <body 
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}

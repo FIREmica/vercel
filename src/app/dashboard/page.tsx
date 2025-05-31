@@ -12,18 +12,17 @@ import { Loader2, AlertTriangle, FileText, History, Eye, BarChart3, ShieldCheck,
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase/client'; // Corrected import
+import { supabase } from '@/lib/supabase/client'; 
 import type { AnalysisRecord as AnalysisRecordType } from '@/types/ai-schemas';
 
 
 interface AnalysisRecordDisplay extends Omit<AnalysisRecordType, 'full_report_data' | 'user_id' | 'report_summary'> {
-  id: string; // Ensure id is always string for key
-  created_at: string; // Keep as string from DB
-  // full_report_data can be large, so we might omit it for summary display
+  id: string; 
+  created_at: string; 
 }
 
 export default function DashboardPage() {
-  const { user, isLoading: authIsLoading, session } = useAuth();
+  const { user, isLoading: authIsLoading, session, userProfile, isPremium } = useAuth();
   const [analysisRecords, setAnalysisRecords] = useState<AnalysisRecordDisplay[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
   const [errorRecords, setErrorRecords] = useState<string | null>(null);
@@ -32,14 +31,12 @@ export default function DashboardPage() {
     const fetchAnalysisRecords = async () => {
       if (!user || !session) {
         setIsLoadingRecords(false);
-        // setErrorRecords("Debes iniciar sesión para ver tu historial de análisis."); // Can be uncommented if preferred
         return;
       }
 
       setIsLoadingRecords(true);
       setErrorRecords(null);
       
-      // Use the imported supabase client instance directly
       const { data, error } = await supabase
         .from('analysis_records')
         .select('id, created_at, analysis_type, target_description, overall_risk_assessment, vulnerable_findings_count')
@@ -59,7 +56,7 @@ export default function DashboardPage() {
       setIsLoadingRecords(false);
     };
 
-    if (!authIsLoading && session) { // Ensure session is also checked
+    if (!authIsLoading && session) { 
       fetchAnalysisRecords();
     } else if (!authIsLoading && !session) {
         setIsLoadingRecords(false);
@@ -67,7 +64,7 @@ export default function DashboardPage() {
     }
   }, [user, authIsLoading, session]);
 
-  if (authIsLoading) { // Only show global auth loading if auth is truly loading
+  if (authIsLoading) { 
     return (
       <div className="min-h-screen flex flex-col">
         <AppHeader />
@@ -101,12 +98,12 @@ export default function DashboardPage() {
         case 'high':
             return 'destructive';
         case 'medium':
-            return 'outline'; // For orange-like warning
+            return 'outline'; 
         case 'low':
-            return 'secondary'; // For yellow-like or neutral
+            return 'secondary'; 
         case 'informational':
         default:
-            return 'default'; // For blue-like or primary
+            return 'default'; 
     }
   };
 
@@ -138,7 +135,7 @@ export default function DashboardPage() {
                 Dashboard de Análisis
               </h1>
               <p className="text-lg text-muted-foreground mt-1">
-                Bienvenido, {user?.email?.split('@')[0] || 'Usuario'}. Aquí puedes ver y gestionar tus análisis de seguridad.
+                Bienvenido, {userProfile?.full_name || user?.email?.split('@')[0] || 'Usuario'}. Aquí puedes ver y gestionar tus análisis de seguridad.
               </p>
             </div>
             <Button asChild className="mt-4 sm:mt-0">
@@ -162,9 +159,9 @@ export default function DashboardPage() {
                 </div>
             )}
             {!isLoadingRecords && errorRecords && (
-              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
+              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300" role="alert">
                 <div className="flex">
-                  <div className="py-1"><AlertTriangle className="h-6 w-6 text-yellow-500 mr-3" /></div>
+                  <div className="py-1"><AlertTriangle className="h-6 w-6 text-yellow-500 dark:text-yellow-400 mr-3" /></div>
                   <div>
                     <p className="font-bold">Notificación</p>
                     <p className="text-sm">{errorRecords}</p>
@@ -210,10 +207,9 @@ export default function DashboardPage() {
                         )}
                         </TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" disabled> {/* Disabled until view report functionality is implemented */}
-                          <Eye className="mr-2 h-4 w-4" /> Ver
+                        <Button variant="outline" size="sm" disabled> {/* TODO: Implementar vista de detalle */}
+                          <Eye className="mr-2 h-4 w-4" /> Ver (Próximamente)
                         </Button>
-                         {/* <Button variant="ghost" size="icon" className="ml-2 text-destructive" disabled> <Trash2 className="h-4 w-4"/> </Button> */}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -227,8 +223,8 @@ export default function DashboardPage() {
 
         <Card className="mt-8 shadow-lg border-border">
             <CardHeader>
-                <CardTitle className="text-xl text-primary flex items-center"><BarChart3 className="mr-2 h-5 w-5"/>Estadísticas Generales (Conceptual)</CardTitle>
-                <CardDescription>Próximamente: Resumen visual de tu postura de seguridad.</CardDescription>
+                <CardTitle className="text-xl text-primary flex items-center"><BarChart3 className="mr-2 h-5 w-5"/>Estadísticas Generales (Próximamente)</CardTitle>
+                <CardDescription>Resumen visual de tu postura de seguridad.</CardDescription>
             </CardHeader>
             <CardContent>
                 <p className="text-muted-foreground">Aquí se mostrarían gráficos y métricas sobre los tipos de vulnerabilidades más comunes encontradas, tendencias de riesgo, etc.</p>
@@ -237,12 +233,12 @@ export default function DashboardPage() {
 
          <Card className="mt-8 shadow-lg border-border">
             <CardHeader>
-                <CardTitle className="text-xl text-primary flex items-center"><ShieldCheck className="mr-2 h-5 w-5"/>Gestión de Suscripción (Conceptual)</CardTitle>
-                 <CardDescription>Próximamente: Gestiona tu plan y detalles de facturación.</CardDescription>
+                <CardTitle className="text-xl text-primary flex items-center"><ShieldCheck className="mr-2 h-5 w-5"/>Gestión de Suscripción (Próximamente)</CardTitle>
+                 <CardDescription>Gestiona tu plan y detalles de facturación.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Tu estado actual de suscripción: {session?.user?.id ? 'Obteniendo...' : 'No disponible'}</p>
-                {/* Lógica para mostrar el estado real de la suscripción del AuthContext si está disponible */}
+                <p className="text-muted-foreground">Tu estado actual de suscripción: {isPremium ? <Badge className="ml-2 bg-green-500 text-white">Premium Activa</Badge> : <Badge variant="outline" className="ml-2">Gratuita</Badge>}</p>
+                <p className="text-sm text-muted-foreground mt-2">Aquí podrás cambiar tu plan, ver historial de pagos, etc.</p>
             </CardContent>
         </Card>
 
@@ -259,47 +255,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
-
-export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.replace('/');
-      } else {
-        setUser(session.user);
-        setLoading(false);
-      }
-    };
-
-    getUser();
-  }, [router]);
-
-  if (loading) return <p className="text-center mt-20">Cargando...</p>;
-
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Bienvenido, {user.email}</h1>
-      <button
-        onClick={async () => {
-          await supabase.auth.signOut();
-          router.push('/');
-        }}
-        className="bg-red-500 text-white px-4 py-2 rounded"
-      >
-        Cerrar sesión
-      </button>
-    </div>
-  );
-}
+```

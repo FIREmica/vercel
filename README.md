@@ -1,3 +1,4 @@
+
 # Centro de Análisis de Seguridad Integral
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
@@ -121,7 +122,8 @@ Este proyecto requiere claves API para funcionar correctamente.
 
     # (CRUCIAL para Producción) ID del Webhook de PayPal para verificar notificaciones de PayPal
     # Configúralo en PayPal Developer (Dashboard > My Apps & Credentials > [Tu App] > Add Webhook)
-    # PAYPAL_WEBHOOK_ID=TU_PAYPAL_WEBHOOK_ID_CONFIGURADO_EN_PAYPAL
+    # ESTA ES UNA CONFIGURACIÓN DE SEGURIDAD CRÍTICA PARA ENTORNOS DE PRODUCCIÓN.
+    PAYPAL_WEBHOOK_ID=TU_PAYPAL_WEBHOOK_ID_CONFIGURADO_EN_PAYPAL
 
     # --- Credenciales de Supabase ---
     NEXT_PUBLIC_SUPABASE_URL="https://odrdziwcmlumpifxfhfc.supabase.co"
@@ -132,9 +134,10 @@ Este proyecto requiere claves API para funcionar correctamente.
     # ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
     SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
 
-    # --- Credenciales de Facebook Login (Necesarias para Supabase Auth Provider) ---
-    # El App ID y App Secret de Facebook se configuran directamente en el panel de Supabase (Authentication > Providers > Facebook).
-    # No son necesarias como variables de entorno en el proyecto para este flujo de Supabase OAuth.
+    # --- Credenciales de Facebook Login (App ID para el frontend) ---
+    # El App ID de Facebook se usa en el frontend para inicializar el SDK de Facebook.
+    # El App Secret se configura DIRECTAMENTE en el panel de Supabase (Authentication > Providers > Facebook), NO aquí.
+    NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
 
     # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics)
     # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
@@ -148,6 +151,8 @@ Este proyecto requiere claves API para funcionar correctamente.
     **IMPORTANTE:**
     *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real.
     *   Verifica que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean los correctos para tu aplicación REST API de PayPal Sandbox. Asegúrate de que el `PAYPAL_CLIENT_SECRET` que uses realmente corresponda al `PAYPAL_CLIENT_ID`.
+    *   Reemplaza `TU_PAYPAL_WEBHOOK_ID_CONFIGURADO_EN_PAYPAL` con el ID real de tu webhook de PayPal para producción.
+    *   Reemplaza `TU_FACEBOOK_APP_ID_AQUI` con tu App ID de Facebook.
     *   Las credenciales de Supabase ya están pre-llenadas con los valores que has proporcionado.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
@@ -157,13 +162,13 @@ Este proyecto requiere claves API para funcionar correctamente.
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications).
         2.  Crea o selecciona tu aplicación REST API. Necesitarás una para Sandbox y otra para Live.
         3.  Obtén el `Client ID` y `Client Secret` para cada entorno. **Verifica que el Secret que uses en `.env.local` sea el correcto para el Client ID que estás usando.**
-        4.  En la configuración de tu aplicación en PayPal Developer, crea un Webhook (Dashboard > My Apps & Credentials > [Tu App] > Add Webhook). Configura la URL de tu endpoint de webhook (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`. Este ID se usará en la variable de entorno `PAYPAL_WEBHOOK_ID` y es necesario para la verificación de webhooks.
+        4.  En la configuración de tu aplicación en PayPal Developer, crea un Webhook (Dashboard > My Apps & Credentials > [Tu App] > Add Webhook). Configura la URL de tu endpoint de webhook (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`. Este ID se usará en la variable de entorno `PAYPAL_WEBHOOK_ID` y es necesario para la verificación de webhooks. **LA VERIFICACIÓN DE WEBHOOKS ES CRÍTICA PARA LA SEGURIDAD EN PRODUCCIÓN.**
     *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard). Necesitarás `URL del Proyecto`, `Clave anónima pública (anon key)` y la `Clave de servicio (service_role key)`.
-    *   **Facebook Login (para Supabase Auth Provider):**
+    *   **Facebook Login (para Supabase Auth Provider y Frontend SDK):**
         1.  Ve a [Facebook Developer Apps](https://developers.facebook.com/apps/).
         2.  Crea una nueva aplicación (o selecciona una existente).
         3.  Añade el producto "Inicio de sesión con Facebook".
-        4.  Obtén tu **App ID** y tu **App Secret**. Estas dos credenciales son las que deberás **configurar en Supabase** (Authentication > Providers > Facebook).
+        4.  Obtén tu **App ID** y tu **App Secret**. El **App ID** lo usarás en `NEXT_PUBLIC_FACEBOOK_APP_ID`. El **App ID** y **App Secret** los deberás **configurar en Supabase** (Authentication > Providers > Facebook).
         5.  En la configuración de "Inicio de sesión con Facebook" en Facebook Developers, asegúrate de que "Login con el SDK de JavaScript" esté activado y **añade la URL de Callback de OAuth de Supabase** a las "URIs de redirección OAuth válidas". Supabase te proporcionará esta URL de callback cuando configures Facebook como proveedor (será algo como `https://<TU_REF_DE_PROYECTO_SUPABASE>.supabase.co/auth/v1/callback`). También añade `http://localhost:9002` (o el puerto que uses) y la URL de tu sitio en producción.
     *   **Firebase (si usas Analytics):** Configuración de tu proyecto en la [Consola de Firebase](https://console.firebase.google.com/).
     *   **hCaptcha (si lo reactivas):** Obtén tu "Site Key" y "Secret Key" desde tu [hCaptcha Dashboard](https://dashboard.hcaptcha.com/).
@@ -374,13 +379,13 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 
 **Estado Actual:**
 *   Los formularios de Login/Signup (`src/app/login/page.tsx`, `src/app/signup/page.tsx`) interactúan con las funciones de autenticación de Supabase (`signInWithPassword`, `signUp`).
-*   El inicio de sesión con Facebook ahora utiliza el flujo `supabase.auth.signInWithOAuth({ provider: 'facebook' })`.
+*   El inicio de sesión con Facebook ahora utiliza el flujo `supabase.auth.signInWithOAuth({ provider: 'facebook' })` o una combinación del SDK de JS de Facebook y una API route para el backend.
 *   El `AuthContext` (`src/context/AuthContext.tsx`) escucha los cambios de estado de autenticación de Supabase y obtiene el perfil del usuario de la tabla `user_profiles`. El estado `isPremium` se deriva de `userProfile.subscription_status`.
 *   Se ha proporcionado el SQL para crear la tabla `user_profiles` y un trigger de base de datos (`handle_new_user`) que automáticamente crea un perfil básico (con `subscription_status = 'free'` y datos de OAuth si están disponibles) cuando un nuevo usuario se registra en `auth.users`.
 *   Se ha definido el SQL para crear la tabla `analysis_records` para almacenar el historial de análisis. La lógica para guardar los análisis en esta tabla (dentro de `src/app/actions.ts`) y para mostrar el historial en `/dashboard` ya está implementada.
 
-## Login Social con Facebook (Usando Supabase OAuth Provider)
-*   Las páginas de Login y Signup ahora utilizan `supabase.auth.signInWithOAuth({ provider: 'facebook' })` para el inicio de sesión/registro con Facebook.
+## Login Social con Facebook (Usando Supabase OAuth Provider o SDK de JS + API Route)
+*   Las páginas de Login y Signup utilizan el SDK de JS de Facebook para el frontend y llaman a una API Route (`/api/auth/facebook`) que necesita ser implementada para un intercambio seguro de tokens y autenticación con Supabase en el backend. Alternativamente, se podría simplificar usando `supabase.auth.signInWithOAuth({ provider: 'facebook' })` directamente si se prefiere el flujo gestionado por Supabase.
 *   Esto requiere que hayas configurado Facebook como un proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y que hayas proporcionado tu App ID y App Secret de Facebook allí.
 *   También debes configurar la URL de Callback de Supabase en tu app de Facebook Developer.
 *   Este método gestiona el flujo OAuth completo, incluyendo redirecciones y manejo de tokens.
@@ -403,7 +408,12 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 
 *   **Necesidad:** Para manejar confirmaciones de pago asíncronas y eventos del ciclo de vida de la suscripción (renovaciones, cancelaciones, etc.) de forma fiable. Esto asegura que tu base de datos se mantenga sincronizada incluso si el flujo del cliente se interrumpe.
 *   **Endpoint:** Se ha creado un endpoint en `/src/app/api/paypal/webhook/route.ts`. Debes configurar esta URL en tu aplicación de PayPal Developer y registrarla para los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`).
-*   **Verificación de Firma (Placeholder Actual - ¡NO SEGURO PARA PRODUCCIÓN!):** Tu endpoint de webhook DEBE verificar la firma de las solicitudes de PayPal para asegurar su autenticidad. La lógica para esto es compleja y debe implementarse cuidadosamente. El código actual tiene un placeholder que **OMITE esta verificación** y debe ser reemplazado por una implementación real antes de pasar a producción. Necesitarás tu `PAYPAL_WEBHOOK_ID` de PayPal Developer.
+*   **🔴 ADVERTENCIA DE SEGURIDAD CRÍTICA (WEBHOOKS PAYPAL) 🔴:**
+    *   **La verificación de la firma del webhook en `/src/app/api/paypal/webhook/route.ts` es ACTUALMENTE UN PLACEHOLDER y está BYPASSADA (siempre devuelve `true`).**
+    *   **PARA USO EN PRODUCCIÓN, ES ABSOLUTAMENTE ESENCIAL IMPLEMENTAR UNA VERIFICACIÓN DE FIRMA SEGURA Y ROBUSTA.**
+    *   Sin una verificación adecuada, su endpoint de webhook es vulnerable a solicitudes falsificadas, lo que podría permitir a un atacante manipular el estado de las suscripciones de los usuarios en su base de datos.
+    *   Consulte la documentación oficial de PayPal sobre "Verificación de firmas de webhook". Necesitará su `PAYPAL_WEBHOOK_ID` (configurado en PayPal Developer y en sus variables de entorno de producción).
+    *   **NO PASE A PRODUCCIÓN SIN IMPLEMENTAR ESTA VERIFICACIÓN.**
 *   **Procesamiento de Eventos:** El endpoint tiene una estructura para analizar el `event_type` (como `PAYMENT.CAPTURE.COMPLETED`) y conceptualmente actualizar la tabla `user_profiles` en Supabase. Debe ser **idempotente**.
 
 ## Solución de Problemas Comunes
@@ -426,8 +436,9 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
         2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
         3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER` y el uso de `NEW.raw_user_meta_data->>'full_name'` y `NEW.raw_user_meta_data->>'avatar_url'`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
         4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
-*   **Login con Facebook (usando Supabase OAuth Provider):**
+*   **Login con Facebook (usando Supabase OAuth Provider o SDK de JS + API Route):**
     *   Asegúrate de haber habilitado Facebook como proveedor de autenticación en tu panel de Supabase (Authentication > Providers) y haber configurado el **App ID** y **App Secret** de Facebook allí.
+    *   Verifica que `NEXT_PUBLIC_FACEBOOK_APP_ID` esté correctamente configurado en tu `.env.local`.
     *   En la configuración de tu app de Facebook Developer, verifica que has añadido la **URL de Callback de Supabase** a las "URIs de redirección OAuth válidas".
     *   Asegúrate de que la "URL del Sitio" en la configuración de autenticación de Supabase esté correctamente establecida para tu entorno de desarrollo (ej. `http://localhost:9002`).
 *   **Problemas con hCaptcha (Actualmente Deshabilitado):**
@@ -442,7 +453,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
     *   Implementar una UI para que los usuarios gestionen su perfil (cambiar nombre, avatar, etc. - *Roadmap*).
 2.  **Integración Completa de Pasarela de Pagos (PayPal):**
     *   Pasar a credenciales LIVE de PayPal en variables de entorno de producción.
-    *   **Implementar y probar exhaustivamente los Webhooks de PayPal, incluyendo la verificación de firma de forma segura con tu `PAYPAL_WEBHOOK_ID`.**
+    *   **Implementar y probar exhaustivamente los Webhooks de PayPal, incluyendo la VERIFICACIÓN DE FIRMA DE FORMA SEGURA con tu `PAYPAL_WEBHOOK_ID`. (VER ADVERTENCIA DE SEGURIDAD ARRIBA).**
     *   Asegurar que la actualización de `user_profiles` en la base de datos sea 100% fiable e idempotente.
 
     *   **¿Cómo obtener tu `PAYPAL_WEBHOOK_ID`?:**
@@ -462,7 +473,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
     *   La página `/dashboard` ahora muestra estos registros al usuario autenticado.
 5.  **Despliegue y Alojamiento Profesional:** Vercel, AWS, GCP, etc. Configuración segura de variables de entorno LIVE.
 6.  **Seguridad de la Plataforma:** Protección de claves, validación de entradas, rate limiting, firewalls.
-7.  **Aspectos Legales:** Términos de Servicio (`terms.md`) y Política de Privacidad (`privacy.md`) profesionalmente redactados y adaptados a tu servicio. (Actualmente son placeholders).
+7.  **Aspectos Legales:** Términos de Servicio (`terms.md`) y Política de Privacidad (`privacy.md`) profesionalmente redactados y adaptados a tu servicio. (Actualmente son placeholders y requieren revisión legal).
 8.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte al cliente.
 9.  **Publicidad (Google AdSense - Opcional):** Si se desea, integrar Google AdSense para ingresos adicionales, considerando el impacto en la experiencia del usuario.
 
@@ -516,6 +527,4 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-
 ```
-  
