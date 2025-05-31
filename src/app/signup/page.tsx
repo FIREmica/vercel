@@ -132,12 +132,19 @@ export default function SignupPage() {
         title = "Error de CAPTCHA de Supabase";
         description = `Supabase rechazó el registro por CAPTCHA. 
         **Solución Posible:** En la configuración de tu proyecto Supabase (Autenticación -> Configuración), asegúrate de que la "Protección con CAPTCHA" esté DESACTIVADA y guarda los cambios. Este proyecto actualmente no implementa un CAPTCHA frontend compatible con esa configuración de Supabase. Contacta al administrador de la plataforma si el problema persiste.`;
+      } else if (error.message.toLowerCase().includes("database error saving new user")) {
+        title = "Error de Base de Datos al Guardar Usuario";
+        description = `Supabase reportó: "${error.message}". Esto usualmente indica un problema con la configuración de la base de datos, como la tabla 'user_profiles' o el trigger 'handle_new_user'. 
+        **Acciones Sugeridas:**
+        1. Verifique que haya ejecutado COMPLETAMENTE el script SQL proporcionado en el archivo README.md en el Editor SQL de su proyecto Supabase.
+        2. Revise los logs de su base de datos en el panel de Supabase (Database > Logs) para errores más específicos en el momento del registro.
+        3. Asegúrese de que el correo electrónico no esté ya registrado de forma parcial.`;
       }
       toast({
         variant: "destructive",
         title: title,
         description: description,
-        duration: 12000, 
+        duration: 15000, 
       });
     } else if (data.user && data.session) {
       toast({
@@ -356,6 +363,8 @@ export default function SignupPage() {
     </div>
   );
 }
+    
+
     
 
     
