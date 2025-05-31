@@ -129,7 +129,14 @@ const PayPalSmartPaymentButtons = ({
               if (!response.ok || !orderData || orderData.error) {
                 const errorMsg = orderData?.error || (response.ok ? 'Respuesta vacía o malformada del servidor.' : `Error del servidor: ${response.statusText}`);
                 toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}` });
-                console.error("PayPalButtons: Error creando orden en backend:", orderData || `Estado: ${response.status}, Texto: ${response.statusText}`);
+                console.error(
+                  "PayPalButtons: Error creando orden en backend.",
+                  "Detail: HTTP Status:", response.status,
+                  "| Response OK:", response.ok,
+                  "| Parsed Response Body (orderData):", JSON.stringify(orderData),
+                  "| orderData.error property was:", orderData?.error,
+                  "| Effective error message for user:", errorMsg
+                );
                 if (typeof onPaymentError === 'function') onPaymentError(new Error(errorMsg));
                 return Promise.reject(new Error(errorMsg));
               }
@@ -822,5 +829,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
-    
