@@ -47,7 +47,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Exportación de Hallazgos en JSON:** Permite descargar todos los hallazgos (vulnerables o no) en formato JSON para integración con otras herramientas (ej. SIEM), disponible para todos los usuarios.
 *   **Asistente de Chat IA:** Un chatbot integrado para responder consultas sobre ciberseguridad y el uso de la plataforma.
 *   **Interfaz de Usuario Moderna:** Desarrollada con Next.js, ShadCN UI y Tailwind CSS, con modo oscuro por defecto y en español.
-*   **Historial de Análisis (En progreso):** Los análisis realizados por usuarios autenticados se guardan en la base de datos Supabase y se pueden visualizar en una página de Dashboard.
+*   **Historial de Análisis (En progreso):** Los análisis realizados por usuarios autenticados se guardan en la base de datos Supabase y se pueden visualizar en una página de Dashboard. (Próximamente: Vista de detalle de análisis individuales).
 
 ## Tecnologías Usadas
 
@@ -73,7 +73,7 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 *   Node.js (versión 18 o superior recomendada)
 *   npm o yarn
 *   Una cuenta de Supabase ([supabase.com](https://supabase.com/))
-*   Una cuenta de PayPal Developer ([developer.paypal.com](https://developer.paypal.com/)) para credenciales Sandbox.
+*   Una cuenta de PayPal Developer ([developer.paypal.com](https://developer.paypal.com/)) para credenciales Sandbox y/o Live.
 *   Una cuenta de Facebook Developer ([developers.facebook.com](https://developers.facebook.com/)) para obtener una App ID y App Secret.
 *   Una cuenta de Firebase (opcional, si deseas usar Firebase Analytics u otros servicios de Firebase).
 
@@ -96,6 +96,8 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 Este proyecto requiere claves API para funcionar correctamente.
 
 1.  **Crea un archivo `.env.local` en la raíz del proyecto con el siguiente contenido:**
+
+    **Para Desarrollo (usando PayPal Sandbox):**
     ```env
     # Clave API de Google AI (Requerida para los análisis de IA)
     # Consigue tu clave en https://aistudio.google.com/app/apikey
@@ -105,64 +107,75 @@ Este proyecto requiere claves API para funcionar correctamente.
     # Estas son las credenciales que usarás para pruebas y desarrollo.
     # Asegúrate de que estas coincidan con las de tu aplicación REST API en el Dashboard de PayPal Developer para el entorno Sandbox.
     # ¡IMPORTANTE! El PAYPAL_CLIENT_SECRET debe corresponder al PAYPAL_CLIENT_ID. Si cambias uno, verifica el otro.
-    PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
-    PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8
+    PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr # Reemplaza con TU Client ID de PayPal Sandbox
+    PAYPAL_CLIENT_SECRET=EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8 # Reemplaza con TU Client Secret de PayPal Sandbox
     PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com # Para desarrollo y pruebas con Sandbox
-    # Para PRODUCCIÓN, necesitarás tus credenciales LIVE de PayPal:
-    # PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI
-    # PAYPAL_LIVE_CLIENT_SECRET=TU_PAYPAL_LIVE_CLIENT_SECRET_AQUI
-    # PAYPAL_LIVE_API_BASE_URL=https://api-m.paypal.com
 
-    # Client ID de PayPal para el SDK de JavaScript (Frontend)
+    # Client ID de PayPal para el SDK de JavaScript (Frontend - Sandbox)
     # IMPORTANTE: Este Client ID (NEXT_PUBLIC_PAYPAL_CLIENT_ID) debe ser el MISMO que el PAYPAL_CLIENT_ID
-    # usado para la API REST (Sandbox o Live según el entorno). Ambos deben corresponder al Client ID de tu aplicación REST API.
-    NEXT_PUBLIC_PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr
-    # Para PRODUCCIÓN:
-    # NEXT_PUBLIC_PAYPAL_LIVE_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI_PARA_SDK_JS_ (el mismo que PAYPAL_LIVE_CLIENT_ID)
-
-    # (CRUCIAL para Producción) ID del Webhook de PayPal para verificar notificaciones de PayPal
-    # Configúralo en PayPal Developer (Dashboard > My Apps & Credentials > [Tu App] > Add Webhook)
-    # ESTA ES UNA CONFIGURACIÓN DE SEGURIDAD CRÍTICA PARA ENTORNOS DE PRODUCCIÓN.
-    PAYPAL_WEBHOOK_ID=TU_PAYPAL_WEBHOOK_ID_CONFIGURADO_EN_PAYPAL
+    # usado para la API REST de Sandbox.
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr # Reemplaza con TU Client ID de PayPal Sandbox (el mismo que PAYPAL_CLIENT_ID)
 
     # --- Credenciales de Supabase ---
     NEXT_PUBLIC_SUPABASE_URL="https://odrdziwcmlumpifxfhfc.supabase.co"
     NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1MTgwMjgsImV4cCI6MjA2MzA5NDAyOH0.P7Wr7e070TRPkQR8LGLofg8xoXKxKov9WwZFb5xGcow"
 
-    # Credencial Service Role Key de Supabase (¡ESENCIAL para el backend!)
-    # Permite operaciones privilegiadas como actualizar el estado de suscripción de un usuario.
-    # ¡MANÉJALA CON EXTREMO CUIDADO Y NUNCA LA EXPONGAS EN EL CLIENTE!
     SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
 
     # --- Credenciales de Facebook Login (App ID para el frontend) ---
-    # El App ID de Facebook se usa en el frontend para inicializar el SDK de Facebook.
-    # El App Secret se configura DIRECTAMENTE en el panel de Supabase (Authentication > Providers > Facebook), NO aquí.
     NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
 
-    # (Opcional) Clave API de Firebase para el cliente (si usas Firebase Analytics)
-    # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
-    
-    # (Opcional, si reactivas hCaptcha) Clave de Sitio de hCaptcha para el frontend
-    # NEXT_PUBLIC_HCAPTCHA_SITE_KEY=22860de4-8b40-4054-95d8-fac6d9f477ca
-
-    # (Opcional y MUY IMPORTANTE para backend, si reactivas hCaptcha) Clave Secreta de hCaptcha
-    # HCAPTCHA_SECRET_KEY=TU_CLAVE_SECRETA_DE_HCAPTCHA_AQUI
+    # (Opcional) ID del Webhook de PayPal para pruebas con Sandbox (si usas webhooks en desarrollo)
+    # PAYPAL_WEBHOOK_ID=TU_PAYPAL_SANDBOX_WEBHOOK_ID
     ```
+
+    **Para Producción (usando PayPal LIVE):**
+    ```env
+    # Clave API de Google AI (Requerida)
+    NEXT_PUBLIC_GOOGLE_API_KEY=TU_CLAVE_API_GOOGLE_AI_VALIDA
+
+    # --- Credenciales de PayPal API REST (LIVE - PRODUCCIÓN) ---
+    PAYPAL_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI
+    PAYPAL_CLIENT_SECRET=TU_PAYPAL_LIVE_CLIENT_SECRET_AQUI
+    PAYPAL_API_BASE_URL=https://api-m.paypal.com # URL de Producción
+
+    # Client ID de PayPal para el SDK de JavaScript (Frontend - LIVE)
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID=TU_PAYPAL_LIVE_CLIENT_ID_AQUI # (el mismo que PAYPAL_CLIENT_ID de LIVE)
+
+    # (CRUCIAL para Producción) ID del Webhook de PayPal para verificar notificaciones de PayPal (Live)
+    # Configúralo en PayPal Developer (Dashboard > My Apps & Credentials > [Tu App LIVE] > Add Webhook)
+    # ESTA ES UNA CONFIGURACIÓN DE SEGURIDAD CRÍTICA PARA ENTORNOS DE PRODUCCIÓN.
+    PAYPAL_WEBHOOK_ID=TU_PAYPAL_LIVE_WEBHOOK_ID_CONFIGURADO_EN_PAYPAL
+
+    # --- Credenciales de Supabase (Usa las mismas que para desarrollo o un proyecto de producción) ---
+    NEXT_PUBLIC_SUPABASE_URL="https://odrdziwcmlumpifxfhfc.supabase.co"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1MTgwMjgsImV4cCI6MjA2MzA5NDAyOH0.P7Wr7e070TRPkQR8LGLofg8xoXKxKov9WwZFb5xGcow"
+    SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUxODAyOCwiZXhwIjoyMDYzMDk0MDI4fQ.FeSKcPEwG-W-F5Lxca14A7gJcXJZBL_ongrAieCIURM"
+
+    # --- Credenciales de Facebook Login ---
+    NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
+
+    # (Opcional) Clave API de Firebase para el cliente
+    # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
+    ```
+
     **IMPORTANTE:**
     *   Reemplaza `TU_CLAVE_API_GOOGLE_AI_VALIDA` con tu propia clave real.
-    *   Verifica que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean los correctos para tu aplicación REST API de PayPal Sandbox. Asegúrate de que el `PAYPAL_CLIENT_SECRET` que uses realmente corresponda al `PAYPAL_CLIENT_ID`.
-    *   Reemplaza `TU_PAYPAL_WEBHOOK_ID_CONFIGURADO_EN_PAYPAL` con el ID real de tu webhook de PayPal para producción.
+    *   Para desarrollo con Sandbox, los valores de PayPal de ejemplo (`AdLdNIavBkmA...` y `EKbftPC4...`) **NO FUNCIONARÁN** a menos que sean tuyos. Obtén tus propias credenciales Sandbox de PayPal.
+    *   **Para Producción, DEBES usar tus credenciales LIVE de PayPal** y configurar la `PAYPAL_API_BASE_URL` a `https://api-m.paypal.com`.
+    *   Asegúrate de que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` sea el mismo que `PAYPAL_CLIENT_ID` para el entorno correspondiente (Sandbox o Live).
+    *   Para producción, el `PAYPAL_WEBHOOK_ID` es **ESENCIAL** para la seguridad.
     *   Reemplaza `TU_FACEBOOK_APP_ID_AQUI` con tu App ID de Facebook.
-    *   Las credenciales de Supabase ya están pre-llenadas con los valores que has proporcionado.
+    *   Las credenciales de Supabase ya están pre-llenadas; usa las de tu propio proyecto Supabase.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 
 2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
     *   **Google AI:** [Google AI Studio](https://aistudio.google.com/app/apikey).
     *   **PayPal Sandbox/Live:**
         1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications).
-        2.  Crea o selecciona tu aplicación REST API. Necesitarás una para Sandbox y otra para Live.
+        2.  Crea o selecciona tu aplicación REST API. Necesitarás una para Sandbox (desarrollo) y otra para Live (producción).
         3.  Obtén el `Client ID` y `Client Secret` para cada entorno. **Verifica que el Secret que uses en `.env.local` sea el correcto para el Client ID que estás usando.**
-        4.  En la configuración de tu aplicación en PayPal Developer, crea un Webhook (Dashboard > My Apps & Credentials > [Tu App] > Add Webhook). Configura la URL de tu endpoint de webhook (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`. Este ID se usará en la variable de entorno `PAYPAL_WEBHOOK_ID` y es necesario para la verificación de webhooks. **LA VERIFICACIÓN DE WEBHOOKS ES CRÍTICA PARA LA SEGURIDAD EN PRODUCCIÓN.**
+        4.  En la configuración de tu aplicación **LIVE** en PayPal Developer, crea un Webhook (Dashboard > My Apps & Credentials > [Tu App LIVE] > Add Webhook). Configura la URL de tu endpoint de webhook (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`. Este ID se usará en la variable de entorno `PAYPAL_WEBHOOK_ID` y es necesario para la verificación de webhooks. **LA VERIFICACIÓN DE WEBHOOKS ES CRÍTICA PARA LA SEGURIDAD EN PRODUCCIÓN.**
     *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard). Necesitarás `URL del Proyecto`, `Clave anónima pública (anon key)` y la `Clave de servicio (service_role key)`.
     *   **Facebook Login (para Supabase Auth Provider y Frontend SDK):**
         1.  Ve a [Facebook Developer Apps](https://developers.facebook.com/apps/).
@@ -390,7 +403,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 *   También debes configurar la URL de Callback de Supabase en tu app de Facebook Developer.
 *   Este método gestiona el flujo OAuth completo, incluyendo redirecciones y manejo de tokens.
 
-## Implementación de Pagos con PayPal (API REST - Sandbox)
+## Implementación de Pagos con PayPal (API REST - Sandbox/Live)
 
 *   **Creación de Órdenes:** El frontend (`src/app/page.tsx`) llama a `/api/paypal/create-order` (backend). El backend usa las credenciales API de PayPal (desde `.env.local`) para crear una orden en PayPal y devuelve el `orderID`.
 *   **Procesamiento de Pago Frontend:** El SDK de JS de PayPal (cargado en `src/app/layout.tsx`) usa el `orderID` para mostrar los botones de pago de PayPal.
@@ -408,8 +421,8 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 
 *   **Necesidad:** Para manejar confirmaciones de pago asíncronas y eventos del ciclo de vida de la suscripción (renovaciones, cancelaciones, etc.) de forma fiable. Esto asegura que tu base de datos se mantenga sincronizada incluso si el flujo del cliente se interrumpe.
 *   **Endpoint:** Se ha creado un endpoint en `/src/app/api/paypal/webhook/route.ts`. Debes configurar esta URL en tu aplicación de PayPal Developer y registrarla para los eventos relevantes (ej. `PAYMENT.CAPTURE.COMPLETED`).
-*   **🔴 ADVERTENCIA DE SEGURIDAD CRÍTICA (WEBHOOKS PAYPAL) 🔴:**
-    *   **La verificación de la firma del webhook en `/src/app/api/paypal/webhook/route.ts` es ACTUALMENTE UN PLACEHOLDER y está BYPASSADA (siempre devuelve `true`).**
+*   **🔴🔴🔴 ADVERTENCIA DE SEGURIDAD CRÍTICA (WEBHOOKS PAYPAL) 🔴🔴🔴:**
+    *   **LA VERIFICACIÓN DE LA FIRMA DEL WEBHOOK EN `/src/app/api/paypal/webhook/route.ts` ES ACTUALMENTE UN PLACEHOLDER Y ESTÁ BYPASSADA (SIEMPRE DEVUELVE `true`).**
     *   **PARA USO EN PRODUCCIÓN, ES ABSOLUTAMENTE ESENCIAL IMPLEMENTAR UNA VERIFICACIÓN DE FIRMA SEGURA Y ROBUSTA.**
     *   Sin una verificación adecuada, su endpoint de webhook es vulnerable a solicitudes falsificadas, lo que podría permitir a un atacante manipular el estado de las suscripciones de los usuarios en su base de datos.
     *   Consulte la documentación oficial de PayPal sobre "Verificación de firmas de webhook". Necesitará su `PAYPAL_WEBHOOK_ID` (configurado en PayPal Developer y en sus variables de entorno de producción).
@@ -420,11 +433,11 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 
 *   **Error de Clave API de Google AI:** Si los análisis fallan con errores sobre la clave API, verifica `NEXT_PUBLIC_GOOGLE_API_KEY` en tu `.env.local`. Asegúrate de que sea una clave válida de Google AI Studio y que el servidor de desarrollo se haya reiniciado después de añadirla.
 *   **Error de Pagos de PayPal (Error `invalid_client` o similar):** Si los botones de PayPal no aparecen, la creación de órdenes falla, o la captura de pagos falla con un error de autenticación:
-    *   **VERIFICA TUS CREDENCIALES DE PAYPAL EN `.env.local`:** Asegúrate de que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean **EXACTAMENTE** los correctos para tu aplicación REST API de PayPal **Sandbox**. Un solo carácter erróneo causará el fallo. (Usa las credenciales que proporcionaste: `PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr` y el secreto `EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8`).
+    *   **VERIFICA TUS CREDENCIALES DE PAYPAL EN `.env.local`:** Asegúrate de que `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET` sean **EXACTAMENTE** los correctos para tu aplicación REST API de PayPal (Sandbox para desarrollo, Live para producción). Un solo carácter erróneo causará el fallo. (Ejemplo Sandbox: `PAYPAL_CLIENT_ID=AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr` y el secreto `EKbftPC4jnqx1dgZq-2w6DnjL3Bfu7hmHIJzgl8kxQPzLMj8`).
     *   **REINICIA EL SERVIDOR DE DESARROLLO (`npm run dev`)**: Después de cualquier cambio en `.env.local`, DEBES reiniciar el servidor.
     *   **REVISA LOS LOGS DEL SERVIDOR NEXT.JS:** La terminal donde ejecutas `npm run dev` mostrará errores detallados del backend (ej. de `/api/paypal/create-order`) que son cruciales para diagnosticar. Busca mensajes como "PAYPAL_CLIENT_ID (desde process.env en API): NO DEFINIDO".
-    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com` para pruebas.
-    *   Verifica que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (para el frontend) sea el mismo que `PAYPAL_CLIENT_ID` (para el backend).
+    *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com` para pruebas Sandbox, o `https://api-m.paypal.com` para producción Live.
+    *   Verifica que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (para el frontend) sea el mismo que `PAYPAL_CLIENT_ID` (para el backend), y que ambos correspondan al entorno correcto (Sandbox o Live).
 *   **Errores de Autenticación o Base de Datos con Supabase:**
     *   **Error "Invalid API key" o "Failed to fetch" al Iniciar Sesión/Registrarse:** Este error casi siempre significa que `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu archivo `.env.local` son incorrectas, están vacías, o el servidor de desarrollo no se reinició después de modificarlas.
         1.  Verifica dos veces que los valores en `.env.local` coincidan exactamente con los de tu proyecto Supabase (Project Settings > API).
@@ -453,7 +466,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
     *   Implementar una UI para que los usuarios gestionen su perfil (cambiar nombre, avatar, etc. - *Roadmap*).
 2.  **Integración Completa de Pasarela de Pagos (PayPal):**
     *   Pasar a credenciales LIVE de PayPal en variables de entorno de producción.
-    *   **Implementar y probar exhaustivamente los Webhooks de PayPal, incluyendo la VERIFICACIÓN DE FIRMA DE FORMA SEGURA con tu `PAYPAL_WEBHOOK_ID`. (VER ADVERTENCIA DE SEGURIDAD ARRIBA).**
+    *   **IMPLEMENTAR Y PROBAR EXHAUSTIVAMENTE LOS WEBHOOKS DE PAYPAL, INCLUYENDO LA VERIFICACIÓN DE FIRMA DE FORMA SEGURA CON TU `PAYPAL_WEBHOOK_ID`. (VER ADVERTENCIA DE SEGURIDAD ARRIBA).**
     *   Asegurar que la actualización de `user_profiles` en la base de datos sea 100% fiable e idempotente.
 
     *   **¿Cómo obtener tu `PAYPAL_WEBHOOK_ID`?:**
@@ -473,7 +486,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
     *   La página `/dashboard` ahora muestra estos registros al usuario autenticado.
 5.  **Despliegue y Alojamiento Profesional:** Vercel, AWS, GCP, etc. Configuración segura de variables de entorno LIVE.
 6.  **Seguridad de la Plataforma:** Protección de claves, validación de entradas, rate limiting, firewalls.
-7.  **Aspectos Legales:** Términos de Servicio (`terms.md`) y Política de Privacidad (`privacy.md`) profesionalmente redactados y adaptados a tu servicio. (Actualmente son placeholders y requieren revisión legal).
+7.  **Aspectos Legales:** Términos de Servicio (`terms.md`) y Política de Privacidad (`privacy.md`) profesionalmente redactados y adaptados a tu servicio. (Actualmente son plantillas y requieren revisión legal).
 8.  **Operaciones y Mantenimiento:** Logging, monitorización, copias de seguridad, soporte al cliente.
 9.  **Publicidad (Google AdSense - Opcional):** Si se desea, integrar Google AdSense para ingresos adicionales, considerando el impacto en la experiencia del usuario.
 
@@ -527,4 +540,3 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
-```
