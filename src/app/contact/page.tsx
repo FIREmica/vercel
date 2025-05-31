@@ -23,23 +23,54 @@ export default function ContactPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // SIMULACIÓN DE ENVÍO DE FORMULARIO
-    // En una aplicación real, aquí llamarías a tu API de backend
-    // para procesar el formulario y enviar el correo.
-    console.log("Simulación de envío de formulario:", { name, email, company, message });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Mensaje Recibido (Simulación)",
-      description: "Gracias por contactarnos. En una aplicación real, tu mensaje sería enviado a nuestro equipo. Esta es una demostración.",
-      variant: "default",
-      duration: 6000,
-    });
-    setName("");
-    setEmail("");
-    setCompany("");
-    setMessage("");
-    setIsLoading(false);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, company, message }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Mensaje Enviado (Simulación)",
+          description: result.message || "Gracias por contactarnos. Tu mensaje ha sido recibido por nuestro servidor. (Nota: El envío real de correo necesita configuración).",
+          variant: "default",
+          duration: 7000,
+        });
+        setName("");
+        setEmail("");
+        setCompany("");
+        setMessage("");
+      } else {
+        // Manejo de errores de validación o del servidor
+        let errorMessage = result.error || "Ocurrió un error al enviar el mensaje.";
+        if (result.details) {
+            // Si hay errores de validación específicos del campo
+            const fieldErrors = Object.values(result.details).flat().join(' ');
+            errorMessage = `${errorMessage} ${fieldErrors}`;
+        }
+        toast({
+          variant: "destructive",
+          title: "Error al Enviar Mensaje",
+          description: errorMessage,
+          duration: 7000,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error de Red",
+        description: "No se pudo conectar con el servidor. Por favor, inténtalo de nuevo.",
+        duration: 7000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -58,7 +89,7 @@ export default function ContactPage() {
           <Card className="shadow-xl border border-border">
             <CardHeader>
               <CardTitle className="text-2xl text-primary">Envíenos un Mensaje</CardTitle>
-              <CardDescription>Complete el formulario y nuestro equipo se pondrá en contacto. (Actualmente es una simulación, no se enviará un correo real).</CardDescription>
+              <CardDescription>Complete el formulario y nuestro equipo se pondrá en contacto. (El envío real de correo electrónico necesita configuración en el backend).</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
