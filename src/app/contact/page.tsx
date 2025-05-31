@@ -89,7 +89,7 @@ export default function ContactPage() {
           <Card className="shadow-xl border border-border">
             <CardHeader>
               <CardTitle className="text-2xl text-primary">Envíenos un Mensaje</CardTitle>
-              <CardDescription>Complete el formulario y nuestro equipo se pondrá en contacto. (El envío real de correo electrónico necesita configuración en el backend).</CardDescription>
+              <CardDescription>Complete el formulario y nuestro equipo se pondrá en contacto con usted a la brevedad.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -202,3 +202,6 @@ export default function ContactPage() {
     </div>
   );
 }
+
+
+    

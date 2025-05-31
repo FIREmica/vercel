@@ -53,15 +53,14 @@ const PayPalSmartPaymentButtons = ({
   const { toast } = useToast();
   const [isPayPalSDKReady, setIsPayPalSDKReady] = useState(false);
   const [payPalButtonInstance, setPayPalButtonInstance] = useState<any>(null);
-  const { session, refreshUserProfile } = useAuth(); // Added refreshUserProfile
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false); 
+  const { session, refreshUserProfile } = useAuth();
 
   useEffect(() => {
     const checkPayPalSDK = () => {
       if (typeof window !== 'undefined' && window.paypal && typeof window.paypal.Buttons === 'function') {
         setIsPayPalSDKReady(true);
-        console.log("PayPal SDK está listo.");
       } else {
-        console.log("PayPal SDK aún no está listo, reintentando...");
         setTimeout(checkPayPalSDK, 100);
       }
     };
@@ -72,7 +71,6 @@ const PayPalSmartPaymentButtons = ({
     const BCPC = paypalButtonsContainerRef.current;
 
     if (!session) {
-      console.log("PayPalButtons: No hay sesión de usuario, limpiando botones si existen.");
       if (BCPC) BCPC.innerHTML = '';
       if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
         payPalButtonInstance.close().catch((err: any) => console.error("Error cerrando botones de PayPal por falta de sesión:", err));
@@ -81,12 +79,10 @@ const PayPalSmartPaymentButtons = ({
       return;
     }
 
-    if (isPayPalSDKReady && BCPC && !payPalButtonInstance) {
-      console.log("PayPalButtons: SDK listo, contenedor existe, sin instancia de botones. Intentando renderizar...");
+    if (isPayPalSDKReady && BCPC && !payPalButtonInstance && !isCreatingOrder) {
       try {
         if (typeof window.paypal?.Buttons !== 'function') {
             toast({ variant: "destructive", title: "Error de SDK de PayPal", description: "Los componentes de botones de PayPal no están disponibles." });
-            console.error("window.paypal.Buttons no es una función o no está disponible.");
             return;
         }
 
@@ -98,35 +94,34 @@ const PayPalSmartPaymentButtons = ({
             label: 'pay',
           },
           createOrder: async () => {
-            console.log("PayPalButtons: createOrder iniciado.");
-            if (!session) { // Double check session before creating order
+            setIsCreatingOrder(true);
+            if (!session) {
                 toast({ variant: "destructive", title: "Error de Autenticación", description: "Debe iniciar sesión para crear una orden de pago." });
                 onLoginRequired();
+                setIsCreatingOrder(false);
                 return Promise.reject(new Error("User not logged in for createOrder"));
             }
             try {
-              toast({ title: "Iniciando Pago", description: "Creando orden de pago segura con PayPal...", variant: "default" });
+              toast({ title: "Creando orden de pago segura con PayPal...", description: "Por favor, espere un momento.", variant: "default" });
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }),
+                body: JSON.stringify({ orderAmount: '10.00', currencyCode: 'USD' }), 
               });
 
               let orderData;
               try {
                 orderData = await response.json();
               } catch (jsonError: any) {
-                console.error("PayPalButtons: Error al parsear la respuesta JSON de /api/paypal/create-order:", jsonError);
                 const errorText = await response.text().catch(() => "No se pudo leer el cuerpo de la respuesta.");
-                console.error("PayPalButtons: Error en backend al crear orden. Status:", response.status, "Respuesta:", errorText);
                 const description = `Error del servidor (${response.status}): ${errorText.substring(0, 200)}. Revise los logs del servidor para más detalles.`;
                 toast({ variant: "destructive", title: "Error de Creación de Orden", description });
                 if (typeof onPaymentError === 'function') onPaymentError(new Error(description));
+                setIsCreatingOrder(false);
                 return Promise.reject(new Error(description));
               }
 
-
-              if (!response.ok || !orderData || orderData.error) {
+              if (!response.ok || orderData.error) {
                 const errorMsg = orderData?.error || (response.ok ? 'Respuesta vacía o malformada del servidor.' : `Error del servidor: ${response.statusText}`);
                 toast({ variant: "destructive", title: "Error de Creación de Orden", description: `No se pudo iniciar el pago: ${errorMsg}` });
                 console.error(
@@ -138,29 +133,29 @@ const PayPalSmartPaymentButtons = ({
                   "| Effective error message for user:", errorMsg
                 );
                 if (typeof onPaymentError === 'function') onPaymentError(new Error(errorMsg));
+                setIsCreatingOrder(false);
                 return Promise.reject(new Error(errorMsg));
               }
 
               if (!orderData.orderID) {
                 const errorMsg = 'Respuesta del servidor no contiene orderID. Revise los logs del servidor.';
                 toast({ variant: "destructive", title: "Error de Respuesta del Servidor", description: errorMsg });
-                console.error("PayPalButtons: Respuesta de /api/paypal/create-order sin orderID:", orderData);
-                 if (typeof onPaymentError === 'function') onPaymentError(new Error(errorMsg));
+                if (typeof onPaymentError === 'function') onPaymentError(new Error(errorMsg));
+                setIsCreatingOrder(false);
                 return Promise.reject(new Error(errorMsg));
               }
               toast({ title: "Orden Creada", description: `Redirigiendo a PayPal para completar el pago. OrderID: ${orderData.orderID}`, variant: "default" });
-              console.log("PayPalButtons: Orden creada exitosamente en backend. OrderID:", orderData.orderID);
+              setIsCreatingOrder(false);
               return orderData.orderID;
             } catch (error: any) {
               const description = error.message || "No se pudo conectar con el servidor de pagos.";
               toast({ variant: "destructive", title: "Error de Pago", description });
-              console.error("PayPalButtons: Error en fetch a /api/paypal/create-order o promesa rechazada:", error);
               if (typeof onPaymentError === 'function') onPaymentError(error);
+              setIsCreatingOrder(false);
               return Promise.reject(error);
             }
           },
           onApprove: async (data: any, actions: any) => {
-            console.log("PayPalButtons: onApprove iniciado. OrderID:", data.orderID);
             toast({ title: "Pago Aprobado por Usuario", description: "Procesando la confirmación del pago con nuestro servidor...", variant: "default" });
             try {
               const response = await fetch('/api/paypal/capture-order', {
@@ -173,16 +168,12 @@ const PayPalSmartPaymentButtons = ({
               if (!response.ok || captureData.error) {
                 const errorMsg = captureData.message || captureData.error || "No se pudo capturar el pago en el servidor.";
                 toast({ variant: "destructive", title: "Error al Confirmar Pago", description: errorMsg });
-                console.error("PayPalButtons: Error capturando orden en backend:", captureData);
                 onPaymentError(new Error(errorMsg));
               } else {
-                 console.log("PayPalButtons: Captura de orden en backend exitosa. Detalles:", captureData);
-                 // Call the onPaymentSuccess passed from HomePage
                  await onPaymentSuccess({ orderID: data.orderID, payerID: data.payerID, paymentID: captureData.paymentDetails?.id, captureDetails: captureData });
               }
             } catch (error: any) {
               toast({ variant: "destructive", title: "Error Post-Aprobación", description: `Hubo un problema al finalizar la activación Premium: ${error.message}` });
-              console.error("PayPalButtons: Error en fetch a /api/paypal/capture-order:", error);
               onPaymentError(error);
             }
           },
@@ -196,50 +187,39 @@ const PayPalSmartPaymentButtons = ({
                 userMessage = "No se pudo obtener un ID de orden de PayPal. Verifique su conexión o intente de nuevo.";
             }
             toast({ variant: "destructive", title: "Error de PayPal", description: userMessage });
-            console.error("PayPalButtons: onError:", err);
             onPaymentError(err);
           },
           onCancel: (data: any) => {
             toast({ title: "Pago Cancelado", description: "El proceso de pago fue cancelado por el usuario.", variant: "default" });
-            console.log("PayPalButtons: Pago cancelado por el usuario. Data:", data);
             onPaymentCancel();
           },
         });
 
         if (BCPC && document.body.contains(BCPC)) {
-           // paypalButtonsContainerRef.current.innerHTML = ''; // Removed this line
           buttonsInstance.render(BCPC)
             .then(() => {
                 setPayPalButtonInstance(buttonsInstance);
-                console.log("PayPal Buttons renderizados exitosamente.");
             })
             .catch((renderError: any) => {
               const errMsg = renderError && renderError.message && typeof renderError.message === 'string' ? renderError.message.substring(0, 250) : "Error desconocido al renderizar botones de PayPal.";
               toast({ variant: "destructive", title: "Error de Interfaz de Pago", description: `No se pudieron mostrar los botones de PayPal: ${errMsg}` });
-              console.error("PayPal SDK .render() error:", renderError);
             });
-        } else {
-            console.warn("PayPalButtons: Contenedor BCPC no encontrado en el DOM al intentar renderizar.");
         }
       } catch (error) {
         const initError = error as Error;
         toast({ variant: "destructive", title: "Error Crítico de SDK de PayPal", description: `No se pudo inicializar la interfaz de pago de PayPal: ${initError.message}` });
-        console.error("Error inicializando PayPal Buttons:", error);
       }
     }
 
     return () => {
         if (payPalButtonInstance && typeof payPalButtonInstance.close === 'function') {
           if (paypalButtonsContainerRef.current && document.body.contains(paypalButtonsContainerRef.current)) {
-            console.log("PayPalButtons: Limpiando instancia de botones de PayPal...");
             payPalButtonInstance.close().catch((err: any) => console.error("Error al cerrar botones de PayPal en cleanup:", err));
-          } else {
-            console.log("PayPalButtons: Contenedor no encontrado en cleanup, no se llama a close().");
           }
           setPayPalButtonInstance(null);
         }
       };
-  }, [isPayPalSDKReady, session, onLoginRequired, onPaymentError, onPaymentCancel, onPaymentSuccess, payPalButtonInstance, toast]);
+  }, [isPayPalSDKReady, session, onLoginRequired, onPaymentError, onPaymentCancel, onPaymentSuccess, payPalButtonInstance, toast, isCreatingOrder]);
 
 
   if (!isPayPalSDKReady) {
@@ -254,6 +234,15 @@ const PayPalSmartPaymentButtons = ({
           <LogIn className="mr-2 h-4 w-4" />
           Iniciar Sesión para Pagar
         </Button>
+      </div>
+    );
+  }
+  
+  if (isCreatingOrder) {
+    return (
+      <div className="mt-4 text-center text-muted-foreground py-10">
+        <Loader2 className="inline-block mr-2 h-6 w-6 animate-spin text-primary"/>
+        Procesando orden... Por favor, espere.
       </div>
     );
   }
@@ -472,19 +461,16 @@ export default function HomePage() {
   };
 
   const handlePayPalPaymentSuccess = useCallback(async (details: any) => {
-    console.log("HomePage: PayPal onPaymentSuccess, detalles:", details);
     toast({ title: "¡Pago Confirmado Exitosamente!", description: `Su pago (Orden ${details.orderID}) ha sido procesado. Actualizando estado de suscripción...`, variant: "default", duration: 5000 });
-    await refreshUserProfile(); // Espera a que el perfil se refresque
+    await refreshUserProfile(); 
   },[refreshUserProfile, toast]);
 
   const handlePayPalPaymentError = useCallback((error: any) => {
     toast({ variant: "destructive", title: "Error de Pago", description: "Hubo un problema al procesar su pago con PayPal." });
-    console.error("HomePage: PayPal onPaymentError:", error);
   }, [toast]);
 
   const handlePayPalPaymentCancel = useCallback(() => {
       toast({ title: "Pago Cancelado", description: "Ha cancelado el proceso de pago.", variant: "default" });
-      console.log("HomePage: PayPal onPaymentCancel");
   }, [toast]);
 
    const handleLoginForPayPal = useCallback(() => {
@@ -645,7 +631,7 @@ export default function HomePage() {
                 <div className="flex items-start gap-4">
                     <img src="https://placehold.co/60x60.png" alt="Usuario Ejemplo 1" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="professional person"/>
                     <div>
-                        <p className="text-muted-foreground mb-3 italic leading-relaxed">\"Desde que usamos el Centro de Análisis de Seguridad Integral, hemos mejorado drásticamente nuestra postura de seguridad y reducido los tiempos de respuesta a incidentes. ¡Imprescindible!\"</p>
+                        <p className="text-muted-foreground mb-3 italic leading-relaxed">"Desde que usamos el Centro de Análisis de Seguridad Integral, hemos mejorado drásticamente nuestra postura de seguridad y reducido los tiempos de respuesta a incidentes. ¡Imprescindible!"</p>
                         <p className="font-semibold text-foreground">- Usuario Ejemplo, Empresa Tecnológica</p>
                         <p className="text-xs text-muted-foreground">Servicios Utilizados: Análisis Web, Análisis de Servidores</p>
                     </div>
@@ -655,7 +641,7 @@ export default function HomePage() {
                 <div className="flex items-start gap-4">
                     <img src="https://placehold.co/60x60.png" alt="Usuario Ejemplo 2" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="game developer"/>
                     <div>
-                        <p className="text-muted-foreground mb-3 italic leading-relaxed">\"La capacidad de analizar nuestros servidores de juegos y la configuración de la nube en una sola plataforma nos ha ahorrado innumerables horas y nos ha dado una tranquilidad invaluable.\"</p>
+                        <p className="text-muted-foreground mb-3 italic leading-relaxed">"La capacidad de analizar nuestros servidores de juegos y la configuración de la nube en una sola plataforma nos ha ahorrado innumerables horas y nos ha dado una tranquilidad invaluable."</p>
                         <p className="font-semibold text-foreground">- Desarrollador Freelance de Juegos</p>
                         <p className="text-xs text-muted-foreground">Servicios Utilizados: Análisis Servidores de Juegos, Análisis Cloud</p>
                     </div>
@@ -769,9 +755,15 @@ export default function HomePage() {
                         <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-3">
                             <Sparkles className="h-6 w-6 text-accent" /> ¡Desbloquee el Poder Completo de la Plataforma!
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                           Conviértase en Premium para acceder a informes técnicos detallados, escenarios de ataque ilustrativos, playbooks de remediación personalizados y la descarga completa de resultados en formato ZIP.
+                         <p className="text-sm text-muted-foreground mb-2">
+                           Conviértase en <strong className="text-accent">Premium Esencial por $10 USD/mes</strong> para acceder a:
                         </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 mb-4">
+                            <li>Informes técnicos detallados y completos.</li>
+                            <li>Generación de escenarios de ataque ilustrativos.</li>
+                            <li>Playbooks de remediación personalizados generados por IA.</li>
+                            <li>Descarga completa de todos los resultados en formato ZIP.</li>
+                        </ul>
                         <div className="flex flex-col items-center">
                             {!session ? (
                                 <Button onClick={() => router.push('/login?redirect=/')} className="w-full max-w-xs bg-accent hover:bg-accent/90 text-accent-foreground" size="lg">
@@ -787,7 +779,7 @@ export default function HomePage() {
                             )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-3 text-center">
-                            Flujo de pago funcional con PayPal Sandbox. La activación Premium requiere que el endpoint de captura en backend actualice correctamente el estado del usuario en la base de datos Supabase.
+                           Proceso de pago seguro y rápido a través de PayPal. Su acceso Premium se activa inmediatamente después de la confirmación.
                         </p>
                         </div>
                     ) : (
@@ -829,3 +821,6 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+
+
+    
