@@ -33,7 +33,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Acceso a Funciones Avanzadas con Suscripción Premium (Gestionado con Supabase Auth y Simulación de Pago PayPal):**
     *   **Autenticación Real (en progreso):** Los usuarios pueden registrarse e iniciar sesión utilizando Supabase Auth. Un `AuthContext` gestiona la sesión globalmente.
     *   **Gestión de Perfil de Usuario:** Se ha definido un esquema para `user_profiles` en la base de datos Supabase (tabla `user_profiles`) que almacenará el estado de su suscripción. Se ha proporcionado el SQL para crear esta tabla y un trigger para crear perfiles básicos al registrarse.
-    *   **Flujo de Pago con PayPal API REST (Simulación Avanzada):** La plataforma integra la API REST de PayPal (Sandbox por defecto, configurable para Live) para simular el proceso de "compra" de una suscripción "Premium Esencial" (ej. $10 USD/mes):
+    *   **Flujo de Pago con PayPal API REST (Simulación Avanzada):** La plataforma integra la API REST de PayPal (Sandbox por defecto, configurable para Live) para simular el proceso de "compra" de una suscripción **"Premium Esencial" por $10 USD/mes**:
         *   Un usuario autenticado puede iniciar un flujo de pago.
         *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
         *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
@@ -75,7 +75,8 @@ Sigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.
 *   Una cuenta de Supabase ([supabase.com](https://supabase.com/))
 *   Una cuenta de PayPal Developer ([developer.paypal.com](https://developer.paypal.com/)) para credenciales Sandbox y/o Live.
 *   Una cuenta de Facebook Developer ([developers.facebook.com](https://developers.facebook.com/)) para obtener una App ID y App Secret.
-*   Una cuenta de Firebase (opcional, si deseas usar Firebase Analytics u otros servicios de Firebase).
+*   Una cuenta de Firebase (opcional, si deseas usar Firebase Analytics u otros servicios de Firebase, o los emuladores).
+*   CLI de Firebase (si vas a usar los emuladores): `npm install -g firebase-tools`
 
 ### Instalación
 
@@ -375,7 +376,7 @@ CREATE POLICY "public can read notes"
 
 ### Ejecutando la Aplicación
 
-1.  **Reinicia el Servidor de Desarrollo:** Si estaba corriendo, detenlo (Ctrl+C) y vuelve a iniciarlo:
+1.  **Iniciar el servidor de desarrollo de Next.js:**
     ```bash
     npm run dev
     ```
@@ -385,6 +386,17 @@ CREATE POLICY "public can read notes"
     npm run genkit:watch
     ```
     Genkit UI estará disponible en [http://localhost:4000](http://localhost:4000) por defecto.
+3.  **Iniciar los Emuladores de Firebase (opcional, si estás desarrollando con Firebase Hosting o Functions localmente):**
+    ```bash
+    firebase emulators:start
+    ```
+    Esto iniciará los emuladores según la configuración en `firebase.json`. Por defecto:
+    *   Hosting: [http://localhost:5001](http://localhost:5001)
+    *   Functions: Puerto 5002
+    *   Emulator UI: [http://localhost:4001](http://localhost:4001)
+    *   Otros emuladores (Auth, Firestore, etc.) se iniciarán en sus puertos por defecto si están habilitados en `firebase.json`.
+
+    **Nota:** Si sirves tu aplicación Next.js a través del emulador de Firebase Hosting, asegúrate de que cualquier URL de redirección configurada en Supabase y proveedores OAuth (como Facebook) también apunte a la URL del emulador (ej. `http://localhost:5001`) para las pruebas.
 
 ## Implementación de Autenticación Real y Base de Datos (En Progreso con Supabase)
 
@@ -405,6 +417,7 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
 
 ## Implementación de Pagos con PayPal (API REST - Sandbox/Live)
 
+La plataforma simula la compra de una suscripción "Premium Esencial" por $10 USD/mes.
 *   **Creación de Órdenes:** El frontend (`src/app/page.tsx`) llama a `/api/paypal/create-order` (backend). El backend usa las credenciales API de PayPal (desde `.env.local`) para crear una orden en PayPal y devuelve el `orderID`.
 *   **Procesamiento de Pago Frontend:** El SDK de JS de PayPal (cargado en `src/app/layout.tsx`) usa el `orderID` para mostrar los botones de pago de PayPal.
 *   **Captura de Órdenes:** Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order` (backend) con el `orderID`.
