@@ -7,7 +7,8 @@ import Script from 'next/script';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from '@/context/AuthContext';
+// import { AuthProvider } from '@/context/AuthContext'; // No longer directly used here
+import { Providers } from './providers'; // Import the new Providers component
 import { analytics } from '@/lib/firebase/client';
 
 const geistSans = Geist({ 
@@ -51,10 +52,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
-        <AuthProvider>
+        <Providers> {/* Use the Providers component here */}
           {children}
           <Toaster />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

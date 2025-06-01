@@ -3,8 +3,11 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase/client';
+// Import createClientComponentClient from @supabase/auth-helpers-nextjs
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { UserProfile } from '@/types/ai-schemas';
+// If you have generated Supabase types, you can uncomment the next line
+// import type { Database } from '@/types/supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -19,6 +22,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Initialize Supabase client inside the provider
+  // If you have Supabase types: const supabase = createClientComponentClient<Database>();
+  const supabase = createClientComponentClient(); 
+  
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -27,33 +34,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = useCallback(async (userIdToFetch: string | undefined) => {
     if (!userIdToFetch) {
-      console.log("AuthContext: No user ID provided to fetchUserProfile. Setting profile to null and non-premium.");
       setUserProfile(null);
       setIsPremium(false);
       return;
     }
 
-    console.log(`AuthContext: Attempting to fetch user profile for ID: ${userIdToFetch}`);
     try {
-      const { data: profiles, error } = await supabase
-        .from('user_profiles')
+      const { data: profileData, error } = await supabase
+        .from('user_profiles') // Using your existing table name
         .select('*')
-        .eq('id', userIdToFetch); // No .single()
+        .eq('id', userIdToFetch)
+        .maybeSingle(); 
 
       if (error) {
         console.error(`AuthContext: Error fetching user profile for ID ${userIdToFetch}:`, error.message);
         setUserProfile(null);
         setIsPremium(false);
-      } else if (profiles && profiles.length > 0) {
-        const profile = profiles[0] as UserProfile;
+      } else if (profileData) {
+        const profile = profileData as UserProfile;
         setUserProfile(profile);
         const currentSubscriptionStatus = profile?.subscription_status?.toLowerCase() || 'free';
-        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active']; // Consider 'active' as a generic premium state
+        const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active'];
         const newIsPremium = premiumStatuses.some(status => currentSubscriptionStatus.includes(status));
         setIsPremium(newIsPremium);
-        console.log(`AuthContext: User profile fetched successfully for ID ${userIdToFetch}. Profile:`, profile, "New isPremium status:", newIsPremium);
       } else {
-        console.warn(`AuthContext: No user profile found for user ID: ${userIdToFetch}. User will be treated as non-premium.`);
         setUserProfile(null);
         setIsPremium(false);
       }
@@ -62,11 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setIsPremium(false);
     }
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
-    const getSessionAndProfile = async () => {
-      console.log("AuthContext: Initializing session and profile fetch...");
+    const getInitialSessionAndProfile = async () => {
       setIsLoading(true);
       const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
       
@@ -77,60 +80,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(currentSession);
       const currentUser = currentSession?.user ?? null;
       setUser(currentUser);
-      console.log("AuthContext: Initial session state:", currentSession ? `User ID: ${currentUser?.id}` : "No session");
 
-      await fetchUserProfile(currentUser?.id);
+      if (currentUser) {
+        await fetchUserProfile(currentUser.id);
+      } else {
+        setUserProfile(null);
+        setIsPremium(false);
+      }
       setIsLoading(false);
-      console.log("AuthContext: Finished initializing session and profile fetch.");
     };
 
-    getSessionAndProfile();
+    getInitialSessionAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, currentSession) => {
-        console.log("AuthContext: Auth state changed. Event:", _event, "New session:", !!currentSession);
+      async (_event, newSession) => {
         setIsLoading(true);
-        setSession(currentSession);
-        const currentUser = currentSession?.user ?? null;
+        setSession(newSession);
+        const currentUser = newSession?.user ?? null;
         setUser(currentUser);
-        console.log("AuthContext: Auth state change. New session state:", currentSession ? `User ID: ${currentUser?.id}` : "No session");
 
-        await fetchUserProfile(currentUser?.id);
-        
-        if (!currentSession) {
-            console.log("AuthContext: User logged out, resetting profile and premium status.");
-            setUserProfile(null);
-            setIsPremium(false);
+        if (currentUser) {
+          await fetchUserProfile(currentUser.id);
+        } else {
+          setUserProfile(null);
+          setIsPremium(false);
         }
         setIsLoading(false);
-        console.log("AuthContext: Finished processing auth state change.");
       }
     );
 
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [supabase, fetchUserProfile]);
 
   const signOutUser = async () => {
     setIsLoading(true);
-    console.log("AuthContext: Signing out user...");
     await supabase.auth.signOut();
     // Auth listener will handle setting session, user, profile to null, and isPremium to false.
-    // No need to manually set state here as onAuthStateChange will fire.
-    console.log("AuthContext: User sign out initiated. Waiting for auth state change.");
-    // setIsLoading(false); // isLoading will be handled by onAuthStateChange
   };
 
   const refreshUserProfileData = useCallback(async () => {
-    if (user) {
-      console.log(`AuthContext: Manually refreshing user profile data for User ID: ${user.id}...`);
-      setIsLoading(true); // Potentially show a loading state specific to profile refresh
-      await fetchUserProfile(user.id);
-      setIsLoading(false);
-      console.log(`AuthContext: User profile data refreshed for User ID: ${user.id}.`);
-    } else {
-        console.log("AuthContext: No user to refresh profile data for (refreshUserProfileData called).");
+    const currentUser = user; 
+    if (currentUser) {
+      await fetchUserProfile(currentUser.id);
     }
   }, [user, fetchUserProfile]);
 
