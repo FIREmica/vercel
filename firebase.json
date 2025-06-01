@@ -75,5 +75,8 @@
       "port": 8085
     },
     "extensions": {}
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }
