@@ -58,7 +58,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Server Analysis Summary:
   - Overall Risk for Server: {{{serverAnalysis.overallRiskAssessment}}}
   - Server Scan Executive Summary: {{{serverAnalysis.executiveSummary}}}
-    {{#if (lookup (filter serverAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter serverAnalysis.findings 'isVulnerable') 'length')}}
   Key Server Vulnerable Findings:
       {{#each serverAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -76,7 +76,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Database Analysis Summary:
   - Overall Risk for Database: {{{databaseAnalysis.overallRiskAssessment}}}
   - Database Scan Executive Summary: {{{databaseAnalysis.executiveSummary}}}
-    {{#if (lookup (filter databaseAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter databaseAnalysis.findings 'isVulnerable') 'length')}}
   Key Database Vulnerable Findings:
       {{#each databaseAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -94,7 +94,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   SAST Analysis (Code Snippet) Summary:
   - Overall Risk for Code: {{{sastAnalysis.overallRiskAssessment}}}
   - SAST Scan Executive Summary: {{{sastAnalysis.executiveSummary}}}
-    {{#if (lookup (filter sastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter sastAnalysis.findings 'isVulnerable') 'length')}}
   Key SAST Vulnerable Findings:
       {{#each sastAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -113,7 +113,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   DAST Analysis (Dynamic Application Scan) Summary:
   - Overall Risk for Application: {{{dastAnalysis.overallRiskAssessment}}}
   - DAST Scan Executive Summary: {{{dastAnalysis.executiveSummary}}}
-    {{#if (lookup (filter dastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter dastAnalysis.findings 'isVulnerable') 'length')}}
   Key DAST Vulnerable Findings:
       {{#each dastAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -132,7 +132,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Cloud Configuration Analysis Summary ({{{cloudAnalysis.findings.0.cloudProvider}}}):
   - Overall Risk for Cloud Config: {{{cloudAnalysis.overallRiskAssessment}}}
   - Cloud Scan Executive Summary: {{{cloudAnalysis.executiveSummary}}}
-    {{#if (lookup (filter cloudAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter cloudAnalysis.findings 'isVulnerable') 'length')}}
   Key Cloud Vulnerable Findings:
       {{#each cloudAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -151,7 +151,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Container Security Analysis Summary:
   - Overall Risk for Container(s): {{{containerAnalysis.overallRiskAssessment}}}
   - Container Scan Executive Summary: {{{containerAnalysis.executiveSummary}}}
-    {{#if (lookup (filter containerAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter containerAnalysis.findings 'isVulnerable') 'length')}}
   Key Container Vulnerable Findings:
       {{#each containerAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -170,7 +170,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Dependency Analysis Summary (File Type: {{#if dependencyAnalysis.findings.length}}{{{dependencyAnalysis.findings.0.fileType}}}{{else}}N/A{{/if}}):
   - Overall Risk for Dependencies: {{{dependencyAnalysis.overallRiskAssessment}}}
   - Dependency Scan Executive Summary: {{{dependencyAnalysis.executiveSummary}}}
-    {{#if (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter dependencyAnalysis.findings 'isVulnerable') 'length')}}
   Key Vulnerable Dependencies:
       {{#each dependencyAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -189,7 +189,7 @@ const generateSecurityReportPrompt = ai.definePrompt({
   Network Security Analysis Summary:
   - Overall Risk for Network: {{{networkAnalysis.overallRiskAssessment}}}
   - Network Scan Executive Summary: {{{networkAnalysis.executiveSummary}}}
-    {{#if (lookup (filter networkAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+    {{#if (lookup (filter networkAnalysis.findings 'isVulnerable') 'length')}}
   Key Network Vulnerable Findings:
       {{#each networkAnalysis.findings}}
         {{#if this.isVulnerable}}
@@ -214,14 +214,14 @@ const generateSecurityReportPrompt = ai.definePrompt({
     {{/each}}
   {{else}}
     {{#unless urlAnalysis.vulnerableFindingsCount}}
-     {{#unless (lookup (filter serverAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-      {{#unless (lookup (filter databaseAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-       {{#unless (lookup (filter sastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-        {{#unless (lookup (filter dastAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-         {{#unless (lookup (filter cloudAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-          {{#unless (lookup (filter containerAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-           {{#unless (lookup (filter dependencyAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
-            {{#unless (lookup (filter networkAnalysis.findings (lookupPath 'isVulnerable')) 'length')}}
+     {{#unless (lookup (filter serverAnalysis.findings 'isVulnerable') 'length')}}
+      {{#unless (lookup (filter databaseAnalysis.findings 'isVulnerable') 'length')}}
+       {{#unless (lookup (filter sastAnalysis.findings 'isVulnerable') 'length')}}
+        {{#unless (lookup (filter dastAnalysis.findings 'isVulnerable') 'length')}}
+         {{#unless (lookup (filter cloudAnalysis.findings 'isVulnerable') 'length')}}
+          {{#unless (lookup (filter containerAnalysis.findings 'isVulnerable') 'length')}}
+           {{#unless (lookup (filter dependencyAnalysis.findings 'isVulnerable') 'length')}}
+            {{#unless (lookup (filter networkAnalysis.findings 'isVulnerable') 'length')}}
   No specific active vulnerabilities were identified by the performed scans/analyses.
             {{/unless}}
            {{/unless}}
