@@ -1,8 +1,5 @@
 
 rules_version = '2';
-
-// Default rules allow all reads and writes.
-// For production, you'll want to secure these rules.
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
