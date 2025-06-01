@@ -33,7 +33,7 @@ En el panorama digital actual, las empresas y los desarrolladores enfrentan una 
 *   **Acceso a Funciones Avanzadas con Suscripción Premium (Gestionado con Supabase Auth y Simulación de Pago PayPal):**
     *   **Autenticación Real (en progreso):** Los usuarios pueden registrarse e iniciar sesión utilizando Supabase Auth. Un `AuthContext` gestiona la sesión globalmente.
     *   **Gestión de Perfil de Usuario:** Se ha definido un esquema para `user_profiles` en la base de datos Supabase (tabla `user_profiles`) que almacenará el estado de su suscripción. Se ha proporcionado el SQL para crear esta tabla y un trigger para crear perfiles básicos al registrarse.
-    *   **Flujo de Pago con PayPal API REST (Simulación Avanzada):** La plataforma integra la API REST de PayPal (Sandbox) para simular el proceso de "compra" de una suscripción:
+    *   **Flujo de Pago con PayPal API REST (Simulación Avanzada):** La plataforma integra la API REST de PayPal (Sandbox por defecto, configurable para Live) para simular el proceso de "compra" de una suscripción "Premium Esencial" (ej. $10 USD/mes):
         *   Un usuario autenticado puede iniciar un flujo de pago.
         *   El frontend llama a `/api/paypal/create-order` para crear una orden en PayPal.
         *   Tras la aprobación del usuario en la UI de PayPal, el frontend llama a `/api/paypal/capture-order`.
@@ -438,15 +438,16 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
     *   **REVISA LOS LOGS DEL SERVIDOR NEXT.JS:** La terminal donde ejecutas `npm run dev` mostrará errores detallados del backend (ej. de `/api/paypal/create-order`) que son cruciales para diagnosticar. Busca mensajes como "PAYPAL_CLIENT_ID (desde process.env en API): NO DEFINIDO".
     *   Asegúrate de que `PAYPAL_API_BASE_URL` esté configurado a `https://api-m.sandbox.paypal.com` para pruebas Sandbox, o `https://api-m.paypal.com` para producción Live.
     *   Verifica que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (para el frontend) sea el mismo que `PAYPAL_CLIENT_ID` (para el backend), y que ambos correspondan al entorno correcto (Sandbox o Live).
+    *   **Error "Está iniciando sesión en la cuenta del vendedor para esta compra...":** Este error de PayPal ocurre si intentas pagar con la misma cuenta de vendedor (negocio/desarrollador) que recibe el pago. **Solución:** Crea una cuenta de comprador (Personal) separada en tu PayPal Developer Sandbox y úsala para realizar los pagos de prueba. No uses las credenciales de tu cuenta de vendedor para simular una compra.
 *   **Errores de Autenticación o Base de Datos con Supabase:**
     *   **Error "Invalid API key" o "Failed to fetch" al Iniciar Sesión/Registrarse:** Este error casi siempre significa que `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu archivo `.env.local` son incorrectas, están vacías, o el servidor de desarrollo no se reinició después de modificarlas.
         1.  Verifica dos veces que los valores en `.env.local` coincidan exactamente con los de tu proyecto Supabase (Project Settings > API).
         2.  Asegúrate de que el archivo se llame `.env.local` y esté en la raíz de tu proyecto.
         3.  **Detén y reinicia tu servidor de desarrollo Next.js** (`npm run dev`).
     *   Para operaciones de backend (como actualizar el estado de suscripción en `/api/paypal/capture-order`), asegúrate de que `SUPABASE_SERVICE_ROLE_KEY` esté configurada en `.env.local` y sea correcta.
-    *   **Error en la Creación de Perfiles de Usuario:** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
+    *   **Error en la Creación de Perfiles de Usuario ("Database error saving new user"):** Si los usuarios se pueden registrar en Supabase Auth (tabla `auth.users`) pero no se crea una entrada correspondiente en `public.user_profiles`, el trigger `handle_new_user` podría haber fallado o no estar configurado.
         1.  **Verifica la Ejecución del SQL:** Asegúrate de haber ejecutado **todo** el script SQL para `user_profiles` y `handle_new_user` (incluyendo `CREATE FUNCTION` y `CREATE TRIGGER`) en el Editor SQL de Supabase.
-        2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger.
+        2.  **Revisa los Logs de Base de Datos de Supabase:** En tu panel de Supabase, ve a "Database" -> "Logs" (o similar, la UI puede cambiar) y busca errores que puedan haber ocurrido alrededor del momento del registro de un nuevo usuario. Estos logs pueden dar pistas sobre por qué falló el trigger (ej. violación de restricción `UNIQUE` si el email ya existe en `user_profiles`).
         3.  **Verifica la Definición de la Función y el Trigger:** En Supabase, ve a "Database" -> "Functions" y asegúrate de que `handle_new_user` exista y su definición sea correcta (especialmente `SECURITY DEFINER` y el uso de `NEW.raw_user_meta_data->>'full_name'` y `NEW.raw_user_meta_data->>'avatar_url'`). Luego ve a "Database" -> "Triggers" y verifica que `on_auth_user_created` esté asociado a la tabla `auth.users` y llame a `handle_new_user`.
         4.  **Permisos:** La función `handle_new_user` debe tener `SECURITY DEFINER` para poder insertar en `public.user_profiles`. La `service_role` de Supabase tiene permisos para esto.
 *   **Login con Facebook (usando Supabase OAuth Provider o SDK de JS + API Route):**
@@ -458,6 +459,42 @@ La plataforma utiliza **Supabase Auth**. Un `AuthProvider` (`src/context/AuthCon
     *   El componente `react-hcaptcha` ha sido eliminado de las dependencias y su uso comentado en los formularios de login/signup debido a problemas persistentes con `npm install`.
     *   **Si deseas reactivarlo:** Sigue las instrucciones detalladas en la sección "Reactivación de hCaptcha" más abajo en este README.
     *   **Error "captcha verification process failed" de Supabase:** Si ves este error en los `toast` de login/signup incluso con el frontend de hCaptcha deshabilitado, significa que **tienes la protección CAPTCHA activada a nivel de proyecto en Supabase**. Ve a tu proyecto Supabase -> Authentication -> Settings y desactiva la protección CAPTCHA. Guarda los cambios.
+
+## Despliegue
+
+### Despliegue en Vercel
+
+Vercel es una excelente plataforma para desplegar aplicaciones Next.js. Para desplegar este proyecto en Vercel:
+
+1.  **Conecta tu repositorio de Git** a Vercel.
+2.  **Configura las Variables de Entorno en Vercel:**
+    *   Ve a la configuración de tu proyecto en Vercel (Project Settings -> Environment Variables).
+    *   Añade las siguientes variables de entorno (obtenidas de tu archivo `.env.local` o de tus paneles de servicio):
+
+        *   `NEXT_PUBLIC_GOOGLE_API_KEY`: Tu clave API de Google AI.
+        *   `NEXT_PUBLIC_SUPABASE_URL`: La URL de tu proyecto Supabase.
+        *   `NEXT_PUBLIC_SUPABASE_ANON_KEY`: La clave anónima pública de tu proyecto Supabase.
+        *   `SUPABASE_SERVICE_ROLE_KEY`: **(SECRETA)** La clave de servicio de tu proyecto Supabase. Asegúrate de que Vercel la trate como secreta.
+        *   `PAYPAL_CLIENT_ID`: Tu Client ID de PayPal (Sandbox o Live, según el entorno que estés desplegando).
+        *   `PAYPAL_CLIENT_SECRET`: **(SECRETA)** Tu Client Secret de PayPal.
+        *   `PAYPAL_API_BASE_URL`: `https://api-m.sandbox.paypal.com` para Sandbox, o `https://api-m.paypal.com` para Live.
+        *   `NEXT_PUBLIC_PAYPAL_CLIENT_ID`: Tu Client ID de PayPal para el SDK de JS (frontend). Debe coincidir con `PAYPAL_CLIENT_ID`.
+        *   `PAYPAL_WEBHOOK_ID`: **(SECRETA, MUY IMPORTANTE para producción Live)** El ID de tu Webhook configurado en PayPal Developer.
+        *   `NEXT_PUBLIC_FACEBOOK_APP_ID`: El App ID de tu aplicación de Facebook para el login social.
+        *   (Opcional) `NEXT_PUBLIC_FIREBASE_API_KEY` y otras variables de Firebase si usas Firebase Analytics.
+        *   (Opcional) `HCAPTCHA_SECRET_KEY` y `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` si reactivas hCaptcha.
+
+3.  **Configura la "URL del Sitio" en Supabase:**
+    *   En tu proyecto Supabase (Authentication -> Settings), asegúrate de que la "Site URL" esté configurada a la URL de tu despliegue en Vercel (ej. `https://tu-proyecto.vercel.app`).
+    *   Añade esta URL también a la lista de "Redirect URLs" adicionales.
+    *   Si usas Facebook Login, añade también la URL de Vercel a las "URIs de redirección OAuth válidas" en tu configuración de la app de Facebook Developer.
+
+4.  **Configura la URL del Webhook de PayPal:**
+    *   En tu aplicación de PayPal Developer, asegúrate de que la URL del Webhook apunte a `https://TU_DOMINIO_VERCEL/api/paypal/webhook`.
+
+5.  **Framework Preset:** Vercel debería detectar automáticamente que es un proyecto Next.js.
+
+Con estas variables configuradas, tu aplicación desplegada en Vercel podrá conectarse a Supabase y a los otros servicios (PayPal, Google AI, Facebook).
 
 ## Pasos Críticos para Puesta en Marcha Online (Producción)
 
