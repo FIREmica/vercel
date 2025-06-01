@@ -9,7 +9,7 @@ import { CheckCircle, ShieldCheck, Zap, Info, FileText, LogIn } from "lucide-rea
 import { useAuth } from "@/context/AuthContext"; // To check if user is now logged in
 
 export default function ConfirmationSuccessPage() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, isPremium } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -61,7 +61,7 @@ export default function ConfirmationSuccessPage() {
                   <li>(Premium) Playbooks de remediación paso a paso.</li>
                   <li>(Premium) Descarga completa de resultados en ZIP.</li>
                 </ul>
-                 {!isLoading && (!session || (session && !useAuth().isPremium)) && (
+                 {!isLoading && (!session || (session && !isPremium)) && (
                   <Button size="sm" asChild className="mt-4 bg-accent hover:bg-accent/90 text-accent-foreground">
                     <Link href="/#premium-section">Descubre Premium</Link>
                   </Button>
