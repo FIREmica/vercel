@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -68,12 +69,26 @@ export default function LoginPage() {
     } else if (window.FB && typeof window.FB.init === "function" && !isFbSdkReady) {
       window.fbAsyncInit();
     }
-  }, []);
+  }, [isFbSdkReady]);
+
+  const getPremiumStatusForToast = async (userId: string): Promise<boolean> => {
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('subscription_status')
+      .eq('id', userId)
+      .single();
+
+    if (profile && !profileError) {
+      const premiumStatuses = ['active_premium', 'premium_monthly', 'premium_yearly', 'active'];
+      return premiumStatuses.some(status => profile.subscription_status?.toLowerCase().includes(status));
+    }
+    return false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       toast({
@@ -82,18 +97,28 @@ export default function LoginPage() {
         description: error.message,
         duration: 12000,
       });
-    } else {
+      setIsLoading(false);
+    } else if (signInData.user) {
+      await refreshUserProfile(); // Actualiza el contexto global
+      const currentIsPremium = await getPremiumStatusForToast(signInData.user.id);
+
       toast({
         title: "Inicio de Sesión Exitoso",
-        description: "Bienvenido de nuevo.",
+        description: `Bienvenido de nuevo. (Cuenta: ${currentIsPremium ? "Premium ✨" : "Gratuita"})`,
         variant: "default",
-        duration: 3000,
+        duration: 4000,
       });
-      await refreshUserProfile();
       const redirectUrl = searchParams.get("redirect") || "/";
       router.push(redirectUrl);
+      setIsLoading(false);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error de Inicio de Sesión",
+        description: "Respuesta inesperada del servidor.",
+      });
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleFacebookLogin = async () => {
@@ -124,15 +149,23 @@ export default function LoginPage() {
 
               const data = await res.json();
 
-              if (!res.ok) throw new Error(data.error);
+              if (!res.ok) throw new Error(data.error || "Error del servidor al autenticar con Facebook.");
+              
+              // Assuming /api/auth/facebook logs the user into Supabase session
+              // Now get the Supabase user and their premium status
+              await refreshUserProfile(); // Ensure context is updated
+              const { data: { user: supaUser } } = await supabase.auth.getUser();
+              let currentIsPremium = false;
+              if (supaUser) {
+                currentIsPremium = await getPremiumStatusForToast(supaUser.id);
+              }
 
               toast({
                 title: "Autenticación Exitosa",
-                description: "Bienvenido con Facebook.",
+                description: `Bienvenido con Facebook. (Cuenta: ${currentIsPremium ? "Premium ✨" : "Gratuita"})`,
                 duration: 5000,
               });
 
-              await refreshUserProfile();
               router.push(searchParams.get("redirect") || "/");
             } catch (err: any) {
               toast({
@@ -202,7 +235,7 @@ export default function LoginPage() {
 
           <Button variant="outline" className="w-full border-blue-600 text-blue-600" onClick={handleFacebookLogin} disabled={isLoading || isLoadingFacebook || !isFbSdkReady}>
             <Facebook className="mr-2 h-5 w-5" />
-            {isLoadingFacebook ? "Conectando..." : "Iniciar Sesión con Facebook"}
+            {isLoadingFacebook ? "Conectando..." : (isFbSdkReady ? "Iniciar Sesión con Facebook" : "Cargando Facebook...")}
           </Button>
 
           <div className="mt-6 text-center text-sm">
