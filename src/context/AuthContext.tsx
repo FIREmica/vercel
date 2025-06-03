@@ -3,8 +3,7 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-// Import createClientComponentClient from @supabase/auth-helpers-nextjs
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { supabase as sbClient } from '@/lib/supabase/client'; // Use the potentially null client from our robust initializer
 import type { UserProfile } from '@/types/ai-schemas';
 // If you have generated Supabase types, you can uncomment the next line
 // import type { Database } from '@/types/supabase';
@@ -22,9 +21,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize Supabase client inside the provider
-  // If you have Supabase types: const supabase = createClientComponentClient<Database>();
-  const supabase = createClientComponentClient(); 
+  const supabase = sbClient; // Use the imported client
   
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -33,15 +30,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserProfile = useCallback(async (userIdToFetch: string | undefined) => {
-    if (!userIdToFetch) {
+    if (!userIdToFetch || !supabase) { // Check if supabase client is available
       setUserProfile(null);
       setIsPremium(false);
+      if (!supabase) console.warn("AuthContext: Supabase client not available for fetchUserProfile.");
       return;
     }
 
     try {
       const { data: profileData, error } = await supabase
-        .from('user_profiles') // Using your existing table name
+        .from('user_profiles')
         .select('*')
         .eq('id', userIdToFetch)
         .maybeSingle(); 
@@ -66,9 +64,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setIsPremium(false);
     }
-  }, [supabase]);
+  }, [supabase]); // Add supabase to dependency array
 
   useEffect(() => {
+    if (!supabase) {
+      setIsLoading(false);
+      setSession(null);
+      setUser(null);
+      setUserProfile(null);
+      setIsPremium(false);
+      console.warn("AuthContext: Supabase client not initialized. Auth features disabled for this session.");
+      return () => {}; // Return an empty cleanup function
+    }
+
     const getInitialSessionAndProfile = async () => {
       setIsLoading(true);
       const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
@@ -115,6 +123,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [supabase, fetchUserProfile]);
 
   const signOutUser = async () => {
+    if (!supabase) {
+      console.warn("AuthContext: Supabase client not initialized. Cannot sign out.");
+      // Simulate sign out locally if Supabase is not available
+      setIsLoading(true);
+      setSession(null);
+      setUser(null);
+      setUserProfile(null);
+      setIsPremium(false);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     await supabase.auth.signOut();
     // Auth listener will handle setting session, user, profile to null, and isPremium to false.
@@ -122,10 +141,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUserProfileData = useCallback(async () => {
     const currentUser = user; 
-    if (currentUser) {
+    if (currentUser && supabase) { // Check supabase client
       await fetchUserProfile(currentUser.id);
+    } else if (!supabase) {
+      console.warn("AuthContext: Supabase client not initialized. Cannot refresh profile.");
     }
-  }, [user, fetchUserProfile]);
+  }, [user, supabase, fetchUserProfile]); // Add supabase to dependency array
 
   const value = {
     session,

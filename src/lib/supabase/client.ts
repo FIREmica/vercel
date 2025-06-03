@@ -1,14 +1,38 @@
 
-import { createBrowserClient } from '@supabase/ssr';
+import { createBrowserClient, type SupabaseClient } from '@supabase/ssr';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new Error("Supabase URL is not defined. Please check your NEXT_PUBLIC_SUPABASE_URL environment variable.");
+let supabaseInstance: SupabaseClient | null = null;
+
+const placeholderKeys = [
+  "YOUR_SUPABASE_URL", 
+  "YOUR_SUPABASE_ANON_KEY",
+  "tu_clave_api_google_aqui_valida", // A common placeholder format seen
+  "https://odrdziwcmlumpifxfhfc.supabase.co", // Default example URL from README
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kcmR6aXdjbWx1bXBpZnhmaGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1MTgwMjgsImV4cCI6MjA2MzA5NDAyOH0.P7Wr7e070TRPkQR8LGLofg8xoXKxKov9WwZFb5xGcow" // Default example key from README
+];
+
+const urlPlaceholders = ["https://your-project-id.supabase.co"];
+
+if (!supabaseUrl || supabaseUrl.trim() === "" || placeholderKeys.includes(supabaseUrl) || urlPlaceholders.includes(supabaseUrl)) {
+  console.warn(
+    "CRITICAL WARNING: Supabase URL (NEXT_PUBLIC_SUPABASE_URL) is not defined, empty, or is a placeholder/example value. " +
+    "Supabase client-side features will be disabled. Please set it correctly in your .env.local file."
+  );
+} else if (!supabaseAnonKey || supabaseAnonKey.trim() === "" || placeholderKeys.includes(supabaseAnonKey)) {
+  console.warn(
+    "CRITICAL WARNING: Supabase Anon Key (NEXT_PUBLIC_SUPABASE_ANON_KEY) is not defined, empty, or is a placeholder/example value. " +
+    "Supabase client-side features will be disabled. Please set it correctly in your .env.local file."
+  );
+} else {
+  try {
+    supabaseInstance = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  } catch (e) {
+    console.error("CRITICAL ERROR: Error initializing Supabase client in src/lib/supabase/client.ts:", e);
+    // supabaseInstance remains null
+  }
 }
-if (!supabaseAnonKey) {
-  throw new Error("Supabase anonymous key is not defined. Please check your NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable.");
-}
 
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+export const supabase = supabaseInstance;
