@@ -4,5 +4,10 @@
     "IDX.corgiMode": true,
     "terminal.integrated.sendKeybindingsToShell": true,
     "atlascode.enableHttpsTunnel": true,
-    "atlascode.jira.enabled": false
+    "atlascode.jira.enabled": false,
+    "files.exclude": {
+        "**/.git": false
+    },
+    "search.useIgnoreFiles": false,
+    "explorer.expandSingleFolderWorkspaces": false
 }
