@@ -3,7 +3,7 @@
 
 Este es un proyecto Next.js que utiliza Genkit para proporcionar un Centro de Análisis de Seguridad Integral. La plataforma permite analizar URLs, descripciones de configuraciones de servidores (incluyendo servidores de juegos como Lineage 2, Roblox, Tibia), bases de datos, código (SAST simulado), aplicaciones en ejecución (DAST simulado), descripciones de configuraciones de nube (AWS, Azure, GCP - conceptual), información de contenedores (Docker, K8s - conceptual), contenido de archivos de dependencias (npm, pip, maven, gem - conceptual) y descripciones de configuraciones de red/resultados de escaneos (conceptual) para identificar vulnerabilidades de seguridad utilizando IA.
 
-**Enlace al Repositorio de GitHub:** [https://github.com/ciberanalitic/Centro-de-an-lisis](https://github.com/ciberanalitic/Centro-de-an-lisis)
+**Enlace al Repositorio de GitHub:** [https://github.com/FIREmica/centro_de_analisis][https://github.com/FIREmica/centro_de_analisis]
 
 **Idea y Visión:** Ronald Gonzalez Niche
 
@@ -590,3 +590,6 @@ La integración de hCaptcha está actualmente deshabilitada en los formularios d
 Este proyecto está licenciado bajo la **Licencia MIT**. Consulta el archivo `LICENSE` para más detalles.
 
 **Idea y Visión:** Ronald Gonzalez Niche
+
+
+[https://github.com/FIREmica/centro_de_analisis]: https://github.com/ciberanalitic/Centro-de-an-lisis
