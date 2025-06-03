@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card, CardContent, CardDescription, CardFooter,
+  CardHeader, CardTitle
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, LogIn } from "lucide-react";
 
-const LoginPage = () => {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -46,13 +49,13 @@ const LoginPage = () => {
         description: error.message || "Ocurrió un error al intentar iniciar sesión.",
       });
     } else if (signInData.user) {
-      await refreshUserProfile(); // Refresca el contexto de autenticación global
+      await refreshUserProfile();
       toast({
         title: "Inicio de Sesión Exitoso",
         description: "¡Bienvenido de nuevo!",
         variant: "default",
       });
-      const redirectUrl = searchParams.get("redirect") || "/dashboard"; // Redirige a dashboard por defecto
+      const redirectUrl = searchParams.get("redirect") || "/dashboard";
       router.push(redirectUrl);
     } else {
       toast({
@@ -65,7 +68,6 @@ const LoginPage = () => {
   };
 
   if (authIsLoading || (!authIsLoading && session)) {
-    // Muestra un loader mientras se verifica la sesión o si ya hay sesión (para que el useEffect haga la redirección)
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -119,27 +121,14 @@ const LoginPage = () => {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col items-center space-y-2 text-sm">
-            <p>
-                ¿No tienes una cuenta?{" "}
-                <Link href="/signup" className="font-medium text-primary hover:underline">
-                    Regístrate
-                </Link>
-            </p>
-            {/* <Link href="/forgot-password" className="font-medium text-primary hover:underline">
-                ¿Olvidaste tu contraseña?
-            </Link> */}
+          <p>
+            ¿No tienes una cuenta?{" "}
+            <Link href="/signup" className="font-medium text-primary hover:underline">
+              Regístrate
+            </Link>
+          </p>
         </CardFooter>
       </Card>
     </div>
   );
-};
-
-const LoginPageWrapper = () => {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-      <LoginPage />
-    </Suspense>
-  );
-};
-
-export default LoginPageWrapper;
+}
