@@ -9,5 +9,6 @@
         "**/.git": false
     },
     "search.useIgnoreFiles": false,
-    "explorer.expandSingleFolderWorkspaces": false
+    "explorer.expandSingleFolderWorkspaces": false,
+    "github.copilot.nextEditSuggestions.enabled": true
 }
