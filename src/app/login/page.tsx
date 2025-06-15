@@ -252,7 +252,7 @@ const LoginPage = () => {
             </Button>
             <p className="text-center text-sm text-muted-foreground mt-2">
               ¿No tienes cuenta?{" "}
-              <Link href="/register" className="underline">
+              <Link href="/signup" className="underline">
                 Regístrate
               </Link>
             </p>

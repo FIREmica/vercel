@@ -10,5 +10,9 @@
     },
     "search.useIgnoreFiles": false,
     "explorer.expandSingleFolderWorkspaces": false,
-    "github.copilot.nextEditSuggestions.enabled": true
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "githubPullRequests.ignoredPullRequestBranches": [
+        "master"
+    ],
+    "npm.enableRunFromFolder": true
 }

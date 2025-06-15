@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tema Matrix */
+.matrix {
+  --background: #0f181a;
+  --foreground: #39ff14;
+  --primary: #39ff14;
+  --border: #39ff14;
+  --accent: #00ffea;
+  --card: #1a282d;
+  --input: #1a282d;
+  --ring: #39ff14;
+  background: #0f181a !important;
+  color: #39ff14 !important;
+}
+.matrix a, .matrix .text-primary {
+  color: #39ff14 !important;
+}
+.matrix .bg-background {
+  background: #0f181a !important;
+}
+.matrix .border-border {
+  border-color: #39ff14 !important;
+}
+.matrix .bg-card {
+  background: #1a282d !important;
+}
+.matrix .text-foreground {
+  color: #39ff14 !important;
+}
+.matrix input, .matrix textarea, .matrix select {
+  background: #1a282d !important;
+  color: #39ff14 !important;
+  border-color: #39ff14 !important;
+}
+.matrix ::selection {
+  background: #39ff14;
+  color: #0f181a;
+}
+
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
@@ -86,4 +124,15 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.matrix-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.25;
 }

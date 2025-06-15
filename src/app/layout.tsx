@@ -1,4 +1,3 @@
-
 // Remove "use client"; directive
 // "use client"; 
 
@@ -10,6 +9,8 @@ import { Toaster } from "@/components/ui/toaster";
 // import { AuthProvider } from '@/context/AuthContext'; // No longer directly used here
 import { Providers } from './providers'; // Import the new Providers component
 import { analytics } from '@/lib/firebase/client';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { ThemeClientWrapper } from '@/components/ThemeClientWrapper';
 
 const geistSans = Geist({ 
   variable: '--font-geist-sans',
@@ -52,10 +53,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
-        <Providers> {/* Use the Providers component here */}
-          {children}
-          <Toaster />
-        </Providers>
+        <ThemeProvider>
+          <ThemeClientWrapper />
+          <Providers> {/* Use the Providers component here */}
+            {children}
+            <Toaster />
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

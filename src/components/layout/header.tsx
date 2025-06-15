@@ -1,8 +1,7 @@
-
 "use client";
 
 import Link from 'next/link';
-import { ShieldCheck, UserCircle, LogIn, LogOut, Menu, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, UserCircle, LogIn, LogOut, Menu } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState } from 'react';
+import { useTheme } from '@/context/ThemeContext';
 
 const navItems = [
   { href: "/", label: "Inicio" },
@@ -26,6 +26,7 @@ const navItems = [
 
 export function AppHeader() {
   const { session, user, isLoading, signOut } = useAuth();
+  const { theme, setTheme, themes } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -99,6 +100,18 @@ export function AppHeader() {
               </Button>
             </Link>
           )}
+
+          {/* Theme Selector */}
+          <select
+            value={theme}
+            onChange={e => setTheme(e.target.value)}
+            className="rounded px-2 py-1 border bg-background text-foreground"
+            aria-label="Seleccionar tema"
+          >
+            {themes.map(t => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
 
           {/* Mobile Menu */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
