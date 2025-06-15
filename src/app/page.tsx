@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import JSZip from 'jszip';
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/header";
@@ -25,6 +24,7 @@ import { ChatAssistant } from "@/components/chat-assistant";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
 declare global {
   interface Window {
@@ -251,7 +251,7 @@ const PayPalSmartPaymentButtons = ({
 };
 
 
-export default function HomePage() {
+export default function HomePage({ searchParams }: { searchParams: any }) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
@@ -261,7 +261,9 @@ export default function HomePage() {
   const { toast } = useToast();
   const router = useRouter();
   const { session, isLoading: isLoadingAuth, isPremium, refreshUserProfile } = useAuth();
-
+  const [analysisParams, setAnalysisParams] = useState<any | null>(null);
+  const [analysisPremium, setAnalysisPremium] = useState(false);
+  const [formValues, setFormValues] = useState<any | null>(null);
 
   useEffect(() => {
     const currentZipUrl = zipUrl;
@@ -351,31 +353,6 @@ export default function HomePage() {
   const handleFormSubmit = async (values: UrlInputFormValues) => {
     setIsLoadingAnalysis(true);
     setAnalysisResult(null);
-
-    const descriptionParts = [];
-    if (values.url) descriptionParts.push(`URL: ${values.url}`);
-    if (values.serverDescription) descriptionParts.push("Servidor General");
-    if (values.gameServerDescription) descriptionParts.push("Servidor de Juegos");
-    if (values.databaseDescription) descriptionParts.push("Base de Datos");
-    if (values.codeSnippet) descriptionParts.push("Análisis SAST");
-    if (values.dastTargetUrl) descriptionParts.push(`Análisis DAST (${values.dastTargetUrl})`);
-    if (values.cloudProvider && values.cloudConfigDescription) descriptionParts.push(`Cloud (${values.cloudProvider}${values.cloudRegion ? `/${values.cloudRegion}` : ''})`);
-    if (values.containerImageName || values.dockerfileContent || values.kubernetesManifestContent) descriptionParts.push("Contenedores/K8s");
-    if (values.dependencyFileType && values.dependencyFileContent) descriptionParts.push(`Dependencias (${values.dependencyFileType})`);
-    if (values.networkDescription || values.networkScanResults || values.networkFirewallRules) descriptionParts.push('Red');
-
-    const currentTargetDesc = descriptionParts.join(', ') || "Análisis General";
-    setSubmittedTargetDescription(currentTargetDesc);
-
-    if (zipUrl) { URL.revokeObjectURL(zipUrl); setZipUrl(null); }
-    if (jsonExportUrl) { URL.revokeObjectURL(jsonExportUrl); setJsonExportUrl(null); }
-
-    toast({
-        title: "Iniciando Análisis Integral de Seguridad...",
-        description: `Analizando: ${currentTargetDesc}. Este proceso puede tomar unos momentos.`,
-        variant: "default",
-    });
-
     try {
       const params: Parameters<typeof performAnalysisAction>[0] = {};
       if (values.url) params.url = values.url;
@@ -387,22 +364,21 @@ export default function HomePage() {
       }
       if (finalServerDescription) params.serverDescription = finalServerDescription;
       if (values.databaseDescription) params.databaseDescription = values.databaseDescription;
-        if (values.codeSnippet) params.codeSnippet = values.codeSnippet;
-        if (values.sastLanguage) params.sastLanguage = values.sastLanguage;
-        if (values.dastTargetUrl) params.dastTargetUrl = values.dastTargetUrl;
-        if (values.cloudProvider) params.cloudProvider = values.cloudProvider;
-        if (values.cloudConfigDescription) params.cloudConfigDescription = values.cloudConfigDescription;
-        if (values.cloudRegion) params.cloudRegion = values.cloudRegion;
-        if (values.containerImageName) params.containerImageName = values.containerImageName;
-        if (values.dockerfileContent) params.dockerfileContent = values.dockerfileContent;
-        if (values.kubernetesManifestContent) params.kubernetesManifestContent = values.kubernetesManifestContent;
-        if (values.containerAdditionalContext) params.containerAdditionalContext = values.containerAdditionalContext;
-        if (values.dependencyFileContent) params.dependencyFileContent = values.dependencyFileContent;
-        if (values.dependencyFileType) params.dependencyFileType = values.dependencyFileType;
-        if (values.networkDescription) params.networkDescription = values.networkDescription;
-        if (values.networkScanResults) params.networkScanResults = values.networkScanResults;
-        if (values.networkFirewallRules) params.networkFirewallRules = values.networkFirewallRules;
-
+      if (values.codeSnippet) params.codeSnippet = values.codeSnippet;
+      if (values.sastLanguage) params.sastLanguage = values.sastLanguage;
+      if (values.dastTargetUrl) params.dastTargetUrl = values.dastTargetUrl;
+      if (values.cloudProvider) params.cloudProvider = values.cloudProvider;
+      if (values.cloudConfigDescription) params.cloudConfigDescription = values.cloudConfigDescription;
+      if (values.cloudRegion) params.cloudRegion = values.cloudRegion;
+      if (values.containerImageName) params.containerImageName = values.containerImageName;
+      if (values.dockerfileContent) params.dockerfileContent = values.dockerfileContent;
+      if (values.kubernetesManifestContent) params.kubernetesManifestContent = values.kubernetesManifestContent;
+      if (values.containerAdditionalContext) params.containerAdditionalContext = values.containerAdditionalContext;
+      if (values.dependencyFileContent) params.dependencyFileContent = values.dependencyFileContent;
+      if (values.dependencyFileType) params.dependencyFileType = values.dependencyFileType;
+      if (values.networkDescription) params.networkDescription = values.networkDescription;
+      if (values.networkScanResults) params.networkScanResults = values.networkScanResults;
+      if (values.networkFirewallRules) params.networkFirewallRules = values.networkFirewallRules;
 
       if (Object.keys(params).length === 0) {
         toast({ variant: "destructive", title: "Entrada Inválida", description: "Por favor, proporciona al menos un objetivo de análisis."});
@@ -417,14 +393,14 @@ export default function HomePage() {
         toast({ variant: "destructive", title: "Análisis Fallido", description: result.error, duration: 8000 });
       } else {
           const vulnerableCount = result.allFindings?.filter(f => f.isVulnerable).length ?? 0;
-          const summaryItems = [ result.urlAnalysis?.executiveSummary, result.serverAnalysis?.executiveSummary, result.databaseAnalysis?.executiveSummary, result.sastAnalysis?.executiveSummary, result.dastAnalysis?.executiveSummary, result.cloudAnalysis?.executiveSummary, result.containerAnalysis?.executiveSummary, result.dependencyAnalysis?.executiveSummary, result.networkAnalysis?.executiveSummary ];
+          const summaryItems = [ result.urlAnalysis?.executiveSummary, result.serverAnalysis?.executiveSummary, result.databaseAnalysis?.executiveSummary, result.sastAnalysis?.executiveSummary, result.dastAnalysis?.executiveSummary, result.cloudAnalysis?.executiveSummary, result.containerAnalysis?.executiveSummary, result.dependencyAnalysis?.executiveSummary ];
           const primarySummary = result.reportText ? "Informe completo generado." : (summaryItems.find(s => s) || (vulnerableCount > 0 ? 'Se encontraron vulnerabilidades.' : 'No se detectaron vulnerabilidades críticas.'));
 
           if (result.allFindings && result.allFindings.length > 0) {
-             await generateJsonExportFile(result.allFindings, currentTargetDesc);
+             await generateJsonExportFile(result.allFindings, submittedTargetDescription);
           }
           if (session && isPremium && (result.reportText || (result.allFindings && result.allFindings.length > 0))) {
-            await generateZipFile(result, currentTargetDesc);
+            await generateZipFile(result, submittedTargetDescription);
           }
           toast({
             title: "Análisis Completo",
@@ -618,179 +594,14 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </section>
-
-          <Separator className="my-8 md:my-12" />
-
-          <section id="testimonios" className="py-12 md:py-16">
-            <div className="text-center mb-12">
-                <Badge variant="outline" className="text-sm py-1 px-3 border-primary text-primary mb-2">Confianza Comprobada</Badge>
-                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Lo Que Dicen Nuestros Usuarios (Ejemplos)</h3>
-            </div>
-            <div className="grid md:grid-cols-2 gap-8">
-              <Card className="bg-card border-border shadow-sm p-6">
-                <div className="flex items-start gap-4">
-                    <img src="https://placehold.co/60x60.png" alt="Usuario Ejemplo 1" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="professional person"/>
-                    <div>
-                        <p className="text-muted-foreground mb-3 italic leading-relaxed">"Desde que usamos el Centro de Análisis de Seguridad Integral, hemos mejorado drásticamente nuestra postura de seguridad y reducido los tiempos de respuesta a incidentes. ¡Imprescindible!"</p>
-                        <p className="font-semibold text-foreground">- Usuario Ejemplo, Empresa Tecnológica</p>
-                        <p className="text-xs text-muted-foreground">Servicios Utilizados: Análisis Web, Análisis de Servidores</p>
-                    </div>
-                </div>
-              </Card>
-              <Card className="bg-card border-border shadow-sm p-6">
-                <div className="flex items-start gap-4">
-                    <img src="https://placehold.co/60x60.png" alt="Usuario Ejemplo 2" className="rounded-full h-14 w-14 border-2 border-primary" data-ai-hint="game developer"/>
-                    <div>
-                        <p className="text-muted-foreground mb-3 italic leading-relaxed">"La capacidad de analizar nuestros servidores de juegos y la configuración de la nube en una sola plataforma nos ha ahorrado innumerables horas y nos ha dado una tranquilidad invaluable."</p>
-                        <p className="font-semibold text-foreground">- Desarrollador Freelance de Juegos</p>
-                        <p className="text-xs text-muted-foreground">Servicios Utilizados: Análisis Servidores de Juegos, Análisis Cloud</p>
-                    </div>
-                </div>
-              </Card>
-            </div>
-          </section>
-
-          <Separator className="my-8 md:my-12" />
-
-          {isLoadingAnalysis && (
-            <div className="space-y-8 mt-8">
-              <Card className="shadow-lg animate-pulse bg-card"> <CardHeader> <Skeleton className="h-8 w-1/2 bg-muted" /> </CardHeader> <CardContent className="space-y-4"> <Skeleton className="h-6 w-3/4 mb-4 bg-muted" /> <div className="grid grid-cols-2 md:grid-cols-4 gap-4"> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> <Skeleton className="h-16 w-full bg-muted" /> </div> <Skeleton className="h-40 w-full mt-4 bg-muted" /> </CardContent> </Card>
-            </div>
-          )}
-
+          {/* El resultado ahora se muestra en analysis-server-form.tsx */}
           {!isLoadingAnalysis && analysisResult && (
-            <div className="space-y-8">
-              <AnalysisSummaryCard result={analysisResult} />
-              <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={!!session && isPremium} />
-
-              <PremiumFeatureCard
-                title="Escenarios de Ataque Ilustrativos (Premium)"
-                description="Comprenda cómo las vulnerabilidades activas identificadas podrían ser explotadas con ejemplos conceptuales."
-                icon={Zap}
-                isPremiumFeature={true}
-              >
-                {session && isPremium && analysisResult.attackVectors && analysisResult.attackVectors.length > 0 && (
-                   <AttackVectorsDisplay attackVectors={analysisResult.attackVectors as AttackVector[]} />
-                )}
-                 {session && isPremium && (!analysisResult.attackVectors || analysisResult.attackVectors.length === 0) && (
-                    <p className="text-sm text-muted-foreground">No se generaron escenarios de ataque, o no se encontraron vulnerabilidades activas para generar escenarios.</p>
-                )}
-              </PremiumFeatureCard>
-
-              <PremiumFeatureCard
-                title="Playbooks de Remediación Sugeridos (Premium)"
-                description="Acceda a guías paso a paso generadas por IA para ayudar a corregir las vulnerabilidades detectadas."
-                icon={FileLock2}
-                isPremiumFeature={true}
-              >
-                 {session && isPremium && analysisResult.remediationPlaybooks && analysisResult.remediationPlaybooks.length > 0 && (
-                   <RemediationPlaybooksDisplay playbooks={analysisResult.remediationPlaybooks} />
-                 )}
-                  {session && isPremium && (!analysisResult.remediationPlaybooks || analysisResult.remediationPlaybooks.length === 0) && (
-                    <p className="text-sm text-muted-foreground">No se generaron playbooks de remediación, o no se encontraron vulnerabilidades activas para generar playbooks.</p>
-                )}
-              </PremiumFeatureCard>
-
-              {(analysisResult.reportText || (analysisResult.allFindings && analysisResult.allFindings.length > 0)) && (
-                 <Card className="shadow-lg mt-8">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Download className="h-6 w-6 text-primary" />
-                      Descargar Resultados
-                    </CardTitle>
-                    <CardDescription>
-                      {session && isPremium ? "Descargue el paquete completo (ZIP) o solo los hallazgos (JSON)." : "Descargue los hallazgos en JSON. Inicie sesión y suscríbase a Premium para el paquete ZIP completo."}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                    {!!session && isPremium && zipUrl ? (
-                      <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
-                        <a href={zipUrl} download={`analisis_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.zip`}>
-                          <Download className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)
-                        </a>
-                      </Button>
-                    ) : (!session || !isPremium) && (analysisResult.allFindings && analysisResult.allFindings.length > 0) && (
-                         <TooltipProvider>
-                         <Tooltip>
-                           <TooltipTrigger asChild>
-                             <Button size="lg" className="bg-primary text-primary-foreground w-full sm:w-auto opacity-70 cursor-not-allowed" onClick={() => router.push('/login?redirect=/')}>
-                               <span><LockIcon className="mr-2 h-5 w-5" /> Descargar Paquete (ZIP)</span>
-                             </Button>
-                           </TooltipTrigger>
-                           <TooltipContent> <p>Inicie sesión y suscríbase para descargar el paquete completo.</p> </TooltipContent>
-                         </Tooltip>
-                         </TooltipProvider>
-                    )}
-                     {jsonExportUrl && (
-                       <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                         <a href={jsonExportUrl} download={`hallazgos_seguridad_${submittedTargetDescription.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0,50)}_${new Date().toISOString().split('T')[0]}.json`}>
-                           <span><FileJson className="mr-2 h-5 w-5" /> Descargar Hallazgos (JSON)</span>
-                         </a>
-                       </Button>
-                     )}
-                  </CardContent>
-                   {!!session && isPremium && zipUrl && ( <p className="text-xs text-muted-foreground p-4 pt-0 text-center"> El ZIP contiene informe, hallazgos, y (si generados) vectores de ataque y playbooks. </p> )}
-                   {jsonExportUrl && ( <p className="text-xs text-muted-foreground p-4 pt-0 text-center"> El JSON contiene todos los hallazgos. {(!session || !isPremium) && "Suscríbase para la descarga ZIP completa."} </p> )}
-                </Card>
-              )}
-            </div>
-          )}
-
-          {!isLoadingAnalysis && !analysisResult && (
-             <Card className="mt-8 shadow-lg max-w-3xl mx-auto border-l-4 border-primary bg-card">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-3 text-xl text-foreground">
-                    <ShieldEllipsis className="h-7 w-7 text-primary" /> Plataforma Integral de Análisis de Seguridad
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                    Ingrese los detalles en el formulario superior para iniciar un análisis de seguridad asistido por IA.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <p className="text-muted-foreground">
-                    Nuestra plataforma analiza URLs, servidores (incluyendo juegos como Lineage 2, Roblox), bases de datos, código (SAST), aplicaciones (DAST simulado), configuraciones Cloud, contenedores, dependencias y redes.
-                    </p>
-                    { !session || !isPremium ? (
-                        <div className="mt-6 pt-6 border-t border-border">
-                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-3">
-                            <Sparkles className="h-6 w-6 text-accent" /> ¡Desbloquee el Poder Completo de la Plataforma!
-                        </h3>
-                         <p className="text-sm text-muted-foreground mb-2">
-                           Conviértase en <strong className="text-accent">Premium Esencial por $10 USD/mes</strong> para acceder a:
-                        </p>
-                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 mb-4">
-                            <li>Informes técnicos detallados y completos.</li>
-                            <li>Generación de escenarios de ataque ilustrativos.</li>
-                            <li>Playbooks de remediación personalizados generados por IA.</li>
-                            <li>Descarga completa de todos los resultados en formato ZIP.</li>
-                        </ul>
-                        <div className="flex flex-col items-center">
-                            {!session ? (
-                                <Button onClick={() => router.push('/login?redirect=/')} className="w-full max-w-xs bg-accent hover:bg-accent/90 text-accent-foreground" size="lg">
-                                <LogIn className="mr-2 h-5 w-5" /> Iniciar Sesión para Suscribirse
-                                </Button>
-                            ) : (
-                                <PayPalSmartPaymentButtons
-                                    onPaymentSuccess={handlePayPalPaymentSuccess}
-                                    onPaymentError={handlePayPalPaymentError}
-                                    onPaymentCancel={handlePayPalPaymentCancel}
-                                    onLoginRequired={handleLoginForPayPal}
-                                />
-                            )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                           Proceso de pago seguro y rápido a través de PayPal. Su acceso Premium se activa inmediatamente después de la confirmación.
-                        </p>
-                        </div>
-                    ) : (
-                        <div className="mt-6 pt-6 border-t border-border text-center">
-                             <p className="text-lg text-green-600 dark:text-green-500 font-semibold flex items-center justify-center gap-2"><ShieldCheck className="h-6 w-6"/> ¡Suscripción Premium Activa!</p>
-                             <p className="text-sm text-muted-foreground mt-2">Disfrute de todas las funcionalidades avanzadas.</p>
-                        </div>
-                    )}
-                </CardContent>
-             </Card>
-          )}
+  <div className="space-y-8 mt-8">
+    <AnalysisSummaryCard result={analysisResult} />
+    <VulnerabilityReportDisplay result={analysisResult} isPremiumUser={!!session && isPremium} />
+    {/* ...otros componentes... */}
+  </div>
+)}
         </main>
 
         <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
@@ -823,4 +634,3 @@ export default function HomePage() {
 }
 
 
-    

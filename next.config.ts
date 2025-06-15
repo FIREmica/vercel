@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 import type { Configuration as WebpackConfiguration } from 'webpack';
 
@@ -21,6 +20,12 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
+  experimental: {
+    allowedServerActionsOrigins: [
+      "https://jubilant-cod-pj9vv6wq949w297x4-9002.app.github.dev",
+      "http://localhost:9002"
+    ]
+  },
   webpack: (
     config: WebpackConfiguration,
     options: { buildId: string; dev: boolean; isServer: boolean; defaultLoaders: any; nextRuntime?: string; totalPages?: number }

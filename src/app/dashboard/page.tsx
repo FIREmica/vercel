@@ -267,7 +267,7 @@ export default function DashboardPage({ searchParams }: { searchParams?: Record<
                  <CardDescription>Gestiona tu plan y detalles de facturación.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Tu estado actual de suscripción: {isPremium ? <Badge className="ml-2 bg-green-500 text-white">Premium Activa</Badge> : <Badge variant="outline" className="ml-2">Gratuita</Badge>}</p>
+                <span className="text-muted-foreground">Tu estado actual de suscripción: {isPremium ? <Badge className="ml-2 bg-green-500 text-white">Premium Activa</Badge> : <Badge variant="outline" className="ml-2">Gratuita</Badge>}</span>
                 <p className="text-sm text-muted-foreground mt-2">Aquí podrás cambiar tu plan, ver historial de pagos, etc.</p>
             </CardContent>
         </Card>
