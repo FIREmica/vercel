@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -8,12 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, FileText, History, Eye, BarChart3, ShieldCheck, Trash2 } from "lucide-react";
+import { Loader2, AlertTriangle, FileText, History, Eye, BarChart3, ShieldCheck, Trash2, Wifi, ShieldAlert, Search } from "lucide-react";
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase/client'; 
 import type { AnalysisRecord as AnalysisRecordType } from '@/types/ai-schemas';
+import dynamic from "next/dynamic";
+
+const WifiSecurity = dynamic(() => import("./wifi"), { ssr: false });
+const CveSearch = dynamic(() => import("./cve"), { ssr: false });
+const WebScan = dynamic(() => import("./webscan"), { ssr: false });
 
 
 interface AnalysisRecordDisplay extends Omit<AnalysisRecordType, 'full_report_data' | 'user_id' | 'report_summary'> {
@@ -21,7 +25,33 @@ interface AnalysisRecordDisplay extends Omit<AnalysisRecordType, 'full_report_da
   created_at: string; 
 }
 
-export default function DashboardPage() {
+const tools = [
+  {
+    icon: <ShieldAlert className="text-primary w-8 h-8" />,
+    title: "Escaneo de Vulnerabilidades Web",
+    description: "Analiza tu sitio web en busca de vulnerabilidades comunes y avanzadas.",
+    href: "/dashboard?tool=webscan",
+  },
+  {
+    icon: <Wifi className="text-primary w-8 h-8" />,
+    title: "Revisión de Seguridad WiFi",
+    description: "Evalúa la seguridad de tu conexión WiFi y recibe recomendaciones.",
+    href: "/dashboard?tool=cve",
+  },
+  {
+    icon: <Search className="text-primary w-8 h-8" />,
+    title: "Buscador de Vulnerabilidades (CVE)",
+    description: "Consulta vulnerabilidades conocidas por tecnología, dominio o CVE.",
+    href: "/dashboard?tool=cve",
+  },
+];
+
+export default function DashboardPage({ searchParams }: { searchParams?: Record<string, string> }) {
+  const tool = searchParams?.tool;
+  if (tool === "wifi") return <WifiSecurity />;
+  if (tool === "cve") return <CveSearch />;
+  if (tool === "webscan") return <WebScan />;
+
   const { user, isLoading: authIsLoading, session, userProfile, isPremium } = useAuth();
   const [analysisRecords, setAnalysisRecords] = useState<AnalysisRecordDisplay[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
@@ -242,6 +272,18 @@ export default function DashboardPage() {
             </CardContent>
         </Card>
 
+        <section className="mt-12">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Herramientas de Ciberseguridad</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {tools.map((tool) => (
+              <Link key={tool.title} href={tool.href} className="bg-card rounded-xl shadow p-6 flex flex-col items-center hover:scale-105 transition-transform border border-border">
+                {tool.icon}
+                <h2 className="font-semibold text-lg mt-4 mb-2 text-center">{tool.title}</h2>
+                <p className="text-sm text-center text-muted-foreground">{tool.description}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
       </main>
       <footer className="text-center py-8 text-sm text-muted-foreground border-t border-border bg-card">
         <p>© {new Date().getFullYear()} Centro de Análisis de Seguridad Integral. Todos los derechos reservados.</p>
