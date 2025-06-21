@@ -21,10 +21,7 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
   experimental: {
-    allowedServerActionsOrigins: [
-      "https://jubilant-cod-pj9vv6wq949w297x4-9002.app.github.dev",
-      "http://localhost:9002"
-    ]
+    // allowedServerActionsOrigins ha sido eliminado porque no es una opción reconocida por Next.js
   },
   webpack: (
     config: WebpackConfiguration,
