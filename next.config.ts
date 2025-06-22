@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 import type { Configuration as WebpackConfiguration } from 'webpack';
 
