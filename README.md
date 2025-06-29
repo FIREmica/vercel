@@ -126,6 +126,12 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de Facebook Login (App ID para el frontend) ---
     NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
 
+    # --- Credenciales de Google Login (OAuth) ---
+    # Client ID para el frontend (debe ser público)
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=TU_GOOGLE_CLIENT_ID_AQUI
+    # Client Secret para el backend (¡MANTENER SECRETO!)
+    GOOGLE_CLIENT_SECRET=TU_GOOGLE_CLIENT_SECRET_AQUI
+
     # (Opcional) ID del Webhook de PayPal para pruebas con Sandbox (si usas webhooks en desarrollo)
     # PAYPAL_WEBHOOK_ID=TU_PAYPAL_SANDBOX_WEBHOOK_ID
     ```
@@ -156,6 +162,12 @@ Este proyecto requiere claves API para funcionar correctamente.
     # --- Credenciales de Facebook Login ---
     NEXT_PUBLIC_FACEBOOK_APP_ID=TU_FACEBOOK_APP_ID_AQUI
 
+    # --- Credenciales de Google Login (OAuth) ---
+    # Client ID para el frontend (debe ser público)
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=TU_GOOGLE_CLIENT_ID_AQUI
+    # Client Secret para el backend (¡MANTENER SECRETO!)
+    GOOGLE_CLIENT_SECRET=TU_GOOGLE_CLIENT_SECRET_AQUI
+
     # (Opcional) Clave API de Firebase para el cliente
     # NEXT_PUBLIC_FIREBASE_API_KEY=TU_FIREBASE_WEB_API_KEY
     ```
@@ -167,6 +179,43 @@ Este proyecto requiere claves API para funcionar correctamente.
     *   Asegúrate de que `NEXT_PUBLIC_PAYPAL_CLIENT_ID` sea el mismo que `PAYPAL_CLIENT_ID` para el entorno correspondiente (Sandbox o Live).
     *   Para producción, el `PAYPAL_WEBHOOK_ID` es **ESENCIAL** para la seguridad.
     *   Reemplaza `TU_FACEBOOK_APP_ID_AQUI` con tu App ID de Facebook.
+ *   Reemplaza `TU_GOOGLE_CLIENT_ID` con tu Google Client ID y `TU_GOOGLE_CLIENT_SECRET` con tu Google Client Secret. (Necesarios si habilitas Google Login).
+ *   Las credenciales de Supabase ya están pre-llenadas; usa las de tu propio proyecto Supabase.
+ *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
+
+2.  **Obtén tus Claves API (Si necesitas cambiarlas o para Producción):**
+    *   **Google AI:** [Google AI Studio](https://aistudio.google.com/app/apikey).
+    *   **PayPal Sandbox/Live:**
+        1.  Ve a [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications).
+        2.  Crea o selecciona tu aplicación REST API. Necesitarás una para Sandbox (desarrollo) y otra para Live (producción).
+        3.  Obtén el `Client ID` y `Client Secret` para cada entorno. **Verifica que el Secret que uses en `.env.local` sea el correcto para el Client ID que estás usando.**
+        4.  En la configuración de tu aplicación **LIVE** en PayPal Developer, crea un Webhook (Dashboard > My Apps & Credentials > [Tu App LIVE] > Add Webhook). Configura la URL de tu endpoint de webhook (ej. `https://TU_DOMINIO_DE_PRODUCCION/api/paypal/webhook`) y obtén el `Webhook ID`. Este ID se usará en la variable de entorno `PAYPAL_WEBHOOK_ID` y es necesario para la verificación de webhooks. **LA VERIFICACIÓN DE WEBHOOKS ES CRÍTICA PARA LA SEGURIDAD EN PRODUCCIÓN.**
+    *   **Supabase:** "Project Settings" > "API" en tu [Supabase Dashboard](https://supabase.com/dashboard). Necesitarás `URL del Proyecto`, `Clave anónima pública (anon key)` y la `Clave de servicio (service_role key)`.
+    *   **Facebook Login (para Supabase Auth Provider y Frontend SDK):**
+        1.  Ve a [Facebook Developer Apps](https://developers.facebook.com/apps/).
+        2.  Crea una nueva aplicación (o selecciona una existente).
+        3.  Añade el producto "Inicio de sesión con Facebook".
+        4.  Obtén tu **App ID** y tu **App Secret**. El **App ID** lo usarás en `NEXT_PUBLIC_FACEBOOK_APP_ID`. El **App ID** y **App Secret** los deberás **configurar en Supabase** (Authentication > Providers > Facebook).
+        5.  En la configuración de "Inicio de sesión con Facebook" en Facebook Developers, asegúrate de que "Login con el SDK de JavaScript" esté activado y **añade la URL de Callback de OAuth de Supabase** a las "URIs de redirección OAuth válidas". Supabase te proporcionará esta URL de callback cuando configures Facebook como proveedor (será algo como `https://<TU_REF_DE_PROYECTO_SUPABASE>.supabase.co/auth/v1/callback`). También añade `http://localhost:9002` (o el puerto que uses) y la URL de tu sitio en producción.
+    *   **Google Login (para Supabase Auth Provider):**
+        1.  Ve a [Google Cloud Console](https://console.cloud.google.com/).
+        2.  Crea un nuevo proyecto (o selecciona uno existente).
+        3.  Ve a "APIs & Services" > "Credentials".
+        4.  Haz clic en "Create Credentials" > "OAuth client ID".
+        5.  Selecciona "Web application".
+        6.  Dale un nombre a tu cliente OAuth.
+        7.  En "Authorized JavaScript origins", añade la URL de tu sitio en desarrollo (ej. `http://localhost:9002`) y tu URL de producción (ej. `https://tu-proyecto.vercel.app`).
+        8.  En "Authorized redirect URIs", deberás añadir la **URL de Callback de OAuth de Supabase** para Google. Puedes encontrar esta URL en tu panel de Supabase después de habilitar Google como proveedor de autenticación (será algo como `https://<TU_REF_DE_PROYECTO_SUPABASE>.supabase.co/auth/v1/callback`).
+        9.  Haz clic en "Create".
+        10. Se te proporcionará un **Client ID** y un **Client Secret**. Copia ambos y configúralos en tu archivo `.env.local` como `NEXT_PUBLIC_GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`. También los necesitarás para configurar el proveedor de Google en Supabase.
+    *   **Firebase (si usas Analytics):** Configuración de tu proyecto en la [Consola de Firebase](https://console.firebase.google.com/).
+    *   **hCaptcha (si lo reactivas):** Obtén tu "Site Key" y "Secret Key" desde tu [hCaptcha Dashboard](https://dashboard.hcaptcha.com/).
+
+### Configuración de Base de Datos Supabase (Fundamental)
+
+Ejecuta el siguiente script SQL completo en el **SQL Editor** de tu proyecto Supabase. Este script crea las tablas `user_profiles` y `analysis_records` (si no existen) y configura los triggers y políticas RLS necesarios.
+
+
     *   Las credenciales de Supabase ya están pre-llenadas; usa las de tu propio proyecto Supabase.
     *   **No subas el archivo `.env.local` a tu repositorio de Git.** Asegúrate de que `.env.local` esté en tu archivo `.gitignore`.
 

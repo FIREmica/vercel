@@ -1,0 +1,14 @@
+I0629 06:06:06.427740    1413 load.go:37] Reloading schema and connectors...
+I0629 06:06:06.524268    1413 control.go:84] [/emulator/ciber-hack 2eff] UpdateResources(): done
+Schema: sources: schema/schema.gql [2088B] 
+Connector "default": sources: connector/mutations.gql [1233B] connector/queries.gql [1802B] 
+I0629 06:06:06.597363    1413 codegen.go:82] [connector "default" javascriptSdk] Generating sources into "/home/user/ciber-hack/dataconnect-generated/js/default-connector"
+I0629 06:06:06.663019    1413 collector.go:107] schema extensions wrote into "/home/user/ciber-hack/dataconnect/.dataconnect/schema"
+Generated sources: prelude.gql [71203B] 
+I0629 06:06:06.707370    1413 collector.go:107] connector "default" javascriptSdk wrote into "/home/user/ciber-hack/dataconnect-generated/js/default-connector"
+Generated sources: esm/index.esm.js [113B] esm/package.json [17B] react/index.d.ts [228B] react/esm/package.json [17B] react/esm/index.esm.js [0B] index.d.ts [246B] index.cjs.js [148B] package.json [860B] README.md [2896B] react/package.json [468B] react/index.cjs.js [0B] react/README.md [5474B] 
+I0629 06:06:06.734983    1413 installsdk.go:86] Running command: pnpm link ./dataconnect-generated/js/default-connector
+E0629 06:06:06.739002    1413 installsdk.go:88] Failed to install package: exec: "pnpm": executable file not found in $PATH
+I0629 06:06:06.739067    1413 load.go:115] Finished reloading
+I0629 06:06:06.764436    1413 dev.go:95] Listening on address (HTTP + gRPC): 127.0.0.1:50001
+I0629 06:06:06.949835    1413 engine.go:170] [/emulator/ciber-hack 2eff] ExecuteGraphqlRead IntrospectionQuery: succeeded. 

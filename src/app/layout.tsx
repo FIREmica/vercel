@@ -1,14 +1,10 @@
-// Remove "use client"; directive
-// "use client"; 
-
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
-// import { AuthProvider } from '@/context/AuthContext'; // No longer directly used here
-import { Providers } from './providers'; // Import the new Providers component
-import { analytics } from '@/lib/firebase/client';
+import { Toaster } from '@/components/ui/toaster';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Providers } from './providers';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ThemeClientWrapper } from '@/components/ThemeClientWrapper';
 
@@ -33,32 +29,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!googleClientId) {
+    console.error("ERROR CRÍTICO: La variable de entorno NEXT_PUBLIC_GOOGLE_CLIENT_ID no está definida. El inicio de sesión con Google no funcionará.");
+  }
 
   return (
     <html lang="es" suppressHydrationWarning className="dark">
       <head>
-        {paypalClientId && 
-         paypalClientId.trim() !== "" && 
-         paypalClientId !== "tu_paypal_sandbox_client_id_aqui_para_sdk_js_" && // Original placeholder
-         paypalClientId !== "AdLdNIavBkmAj9AyalbF_sDT0pF5l7PH0W6JHfHKl9gl5bIqrHa9cNAunX52IIoMFPtPPgum28S0ZnYr" && // Example placeholder
-         (
-          <Script
-            src={`https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`}
-            strategy="beforeInteractive"
-            data-sdk-integration-source="developer-studio" 
-          />
-        )}
+        {paypalClientId && <Script src={`https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`} strategy="beforeInteractive" data-sdk-integration-source="developer-studio" />}
       </head>
-      <body 
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-        suppressHydrationWarning={true}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`} suppressHydrationWarning={true}>
         <ThemeProvider>
           <ThemeClientWrapper />
-          <Providers> {/* Use the Providers component here */}
-            {children}
-            <Toaster />
-          </Providers>
+          <GoogleOAuthProvider clientId={googleClientId || ""}>
+            <Providers>{children}<Toaster /></Providers>
+          </GoogleOAuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,266 +1,108 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, LogIn } from "lucide-react";
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useGoogleLogin } from '@react-oauth/google';
 
-declare global {
-  interface Window {
-    FB: any;
-    fbAsyncInit: () => void;
-  }
-}
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
+import { Loader2 } from 'lucide-react';
 
-const LoginPage = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
-  const [isFbSdkReady, setIsFbSdkReady] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState("/");
+const loginSchema = z.object({
+  email: z.string().email({ message: "Por favor, ingrese un correo electrónico válido." }),
+  password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
+});
 
-  const { toast } = useToast();
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+export default function LoginPage() {
   const router = useRouter();
-  const { session, isLoading: authIsLoading, refreshUserProfile } = useAuth();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState<null | 'google' | 'facebook'>(null);
+  const supabase = createClient();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const redirect = params.get("redirect");
-      setRedirectUrl(redirect || "/");
-    }
-  }, []);
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
 
-  useEffect(() => {
-    if (!authIsLoading && session) {
-      router.replace(redirectUrl);
-    }
-  }, [session, authIsLoading, router, redirectUrl]);
-
-  useEffect(() => {
-    const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-    if (!facebookAppId || facebookAppId === "TU_FACEBOOK_APP_ID_AQUI") {
-      console.warn("LoginPage: Facebook App ID no está configurado.");
-      setIsFbSdkReady(false);
-      return;
-    }
-
-    window.fbAsyncInit = function () {
-      if (window.FB) {
-        window.FB.init({
-          appId: facebookAppId,
-          cookie: true,
-          xfbml: true,
-          version: "v19.0",
-        });
-        setIsFbSdkReady(true);
-      }
-    };
-
-    if (!document.getElementById("facebook-jssdk")) {
-      const script = document.createElement("script");
-      script.id = "facebook-jssdk";
-      script.src = "https://connect.facebook.net/es_LA/sdk.js";
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = "anonymous";
-      document.head.appendChild(script);
-    } else if (window.FB && typeof window.FB.init === "function" && !isFbSdkReady) {
-      window.fbAsyncInit();
-    }
-  }, [isFbSdkReady]);
-
-  const getPremiumStatusForToast = async (userId: string): Promise<boolean> => {
-    const { data: profile, error: profileError } = await supabase
-      .from("user_profiles")
-      .select("subscription_status")
-      .eq("id", userId)
-      .single();
-
-    if (profile && !profileError) {
-      const premiumStatuses = ["active_premium", "premium_monthly", "premium_yearly", "active"];
-      return premiumStatuses.some(status =>
-        profile.subscription_status?.toLowerCase().includes(status)
-      );
-    }
-    return false;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
-
+  const handleEmailLogin = async (data: LoginFormValues) => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword(data);
     if (error) {
       toast({
         variant: "destructive",
-        title: "Error de Inicio de Sesión",
+        title: "Error al iniciar sesión",
         description: error.message,
-        duration: 12000,
       });
-    } else if (signInData.user) {
-      await refreshUserProfile();
-      const currentIsPremium = await getPremiumStatusForToast(signInData.user.id);
-
-      toast({
-        title: "Inicio de Sesión Exitoso",
-        description: `Bienvenido de nuevo. (Cuenta: ${currentIsPremium ? "Premium ✨" : "Gratuita"})`,
-        variant: "default",
-        duration: 4000,
-      });
-
-      router.push(redirectUrl);
     } else {
       toast({
-        variant: "destructive",
-        title: "Error de Inicio de Sesión",
-        description: "Respuesta inesperada del servidor.",
+        title: "Inicio de sesión exitoso",
+        description: "¡Bienvenido de vuelta!",
       });
+      const redirectUrl = searchParams.get('redirect') || '/dashboard';
+      router.push(redirectUrl);
+      router.refresh();
     }
-    setIsLoading(false);
+    setLoading(false);
   };
 
-  const handleFacebookLogin = async () => {
-    setIsLoadingFacebook(true);
+  const handleGoogleLoginSuccess = async (codeResponse: any) => {
+    try {
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeResponse.code }),
+      });
 
-    if (!isFbSdkReady || !window.FB || typeof window.FB.login !== "function") {
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Falló el inicio de sesión con Google.');
+      }
+
+      toast({
+        title: "Inicio de sesión con Google exitoso",
+        description: "¡Bienvenido!",
+      });
+      const redirectUrl = searchParams.get('redirect') || '/dashboard';
+      router.push(redirectUrl);
+      router.refresh();
+    } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error de Facebook Login",
-        description: "El SDK de Facebook no está listo.",
+        title: "Error de inicio de sesión con Google",
+        description: error.message,
       });
-      setIsLoadingFacebook(false);
-      return;
+    } finally {
+      setProviderLoading(null);
     }
-
-    window.FB.login(async (response: any) => {
-      if (response.authResponse) {
-        const accessToken = response.authResponse.accessToken;
-
-        window.FB.api("/me", { fields: "id,name,email" }, async (profile: any) => {
-          if (profile && !profile.error) {
-            try {
-              const res = await fetch("/api/auth/facebook", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ accessToken }),
-              });
-
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || "Error del servidor al autenticar con Facebook.");
-
-              await refreshUserProfile();
-              const { data: { user: supaUser } } = await supabase.auth.getUser();
-              let currentIsPremium = false;
-              if (supaUser) {
-                currentIsPremium = await getPremiumStatusForToast(supaUser.id);
-              }
-
-              toast({
-                title: "Autenticación Exitosa",
-                description: `Bienvenido con Facebook. (Cuenta: ${currentIsPremium ? "Premium ✨" : "Gratuita"})`,
-                duration: 5000,
-              });
-
-              router.push(redirectUrl);
-            } catch (err: any) {
-              toast({
-                variant: "destructive",
-                title: "Error de Autenticación",
-                description: err.message,
-              });
-            }
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Error al obtener datos de Facebook",
-              description: profile.error?.message || "Error desconocido.",
-            });
-          }
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Inicio de sesión cancelado",
-          description: "No se completó el inicio con Facebook.",
-        });
-      }
-      setIsLoadingFacebook(false);
-    }, { scope: "email,public_profile" });
   };
 
-  if (authIsLoading && !session) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Cargando sesión...</p>
-      </div>
-    );
-  }
+  const handleGoogleLoginError = (errorResponse: any) => {
+    console.error('Error en el login con Google:', errorResponse);
+    toast({
+      variant: "destructive",
+      title: "Error de inicio de sesión con Google",
+      description: "No se pudo completar el inicio de sesión. Por favor, intente de nuevo.",
+    });
+    setProviderLoading(null);
+  };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-secondary/50 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <LogIn className="h-6 w-6 text-primary" />
-            Iniciar Sesión
-          </CardTitle>
-          <CardDescription>
-            Accede a tu cuenta para gestionar tus análisis de seguridad.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading || isLoadingFacebook}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading || isLoadingFacebook}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading || isLoadingFacebook}>
-              {isLoading ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" />}
-              Iniciar Sesión
-            </Button>
-            <Button type="button" variant="outline" className="w-full" onClick={handleFacebookLogin} disabled={isLoading || isLoadingFacebook}>
-              {isLoadingFacebook ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" />}
-              Iniciar con Facebook
-            </Button>
-            <p className="text-center text-sm text-muted-foreground mt-2">
-              ¿No tienes cuenta?{" "}
-              <Link href="/signup" className="underline">
-                Regístrate
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default LoginPage;
+  const loginWithGoogle = useGoogleLogin({
+    flow: 'auth-code',
+    onSuccess: handleGoogleLoginSuccess,
+    onError: handleGoogleLoginError,
+  

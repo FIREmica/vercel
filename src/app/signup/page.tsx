@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@radix-ui/react-label";
 import { UserPlus, Facebook, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
+import { useGoogleLogin } from '@react-oauth/google';
 
 declare global {
   interface Window {
@@ -28,6 +29,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
   const [isFbSdkReady, setIsFbSdkReady] = useState(false);
+  const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -40,6 +42,73 @@ export default function SignupPage() {
       router.replace(redirectUrl);
     }
   }, [session, authIsLoading, router, searchParams]);
+
+  // Google Login Hook (Auth Code Flow)
+  const googleLogin = useGoogleLogin({
+    onSuccess: async codeResponse => {
+      console.log('Google Login Success (Signup Page):', codeResponse);
+      setIsLoadingGoogle(true);
+      try {
+        const res = await fetch("/api/auth/google", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ code: codeResponse.code }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Error inesperado del servidor durante la autenticación con Google.");
+        }
+
+        toast({
+          title: "Autenticación con Google Exitosa",
+          description: "Te has registrado e iniciado sesión con Google.",
+          variant: "default",
+          duration: 5000,
+        });
+
+        await refreshUserProfile();
+        router.push(searchParams.get("redirect") || "/");
+
+      } catch (err: any) {
+        console.error("Error en la llamada a /api/auth/google (Signup):", err);
+        toast({
+          variant: "destructive",
+          title: "Error de Autenticación con Google",
+          description: err.message || "No se pudo completar la autenticación con Google en el servidor.",
+          duration: 7000,
+        });
+      } finally {
+        setIsLoadingGoogle(false);
+      }
+    },
+    onError: (errorResponse) => console.error('Google Login Error (Signup Page):', errorResponse),
+    flow: 'auth-code', // Request authorization code
+  });
+
+ // Define fbAsyncInit outside the script loading logic
+  useEffect(() => {
+    console.log("SignupPage: Defining window.fbAsyncInit");
+    window.fbAsyncInit = function() {
+      console.log("SignupPage: fbAsyncInit called.");
+      const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+      if (window.FB && facebookAppId && facebookAppId !== "TU_FACEBOOK_APP_ID_AQUI") {
+        window.FB.init({
+          appId: facebookAppId,
+          cookie: true,
+          xfbml: true,
+          version: 'v19.0'
+        });
+        setIsFbSdkReady(true); // SDK is initialized and ready
+        console.log("SignupPage: Facebook SDK Initialized and ready via fbAsyncInit.");
+      } else {
+        console.warn("SignupPage: Facebook SDK could not be initialized. App ID missing or FB object not defined.");
+      }
+    };
+  }, []); // Define fbAsyncInit only once
 
  useEffect(() => {
     const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
@@ -293,7 +362,7 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                disabled={isLoading || isLoadingFacebook}
+ disabled={isLoading || isLoadingFacebook || isLoadingGoogle}
               />
             </div>
             <div className="space-y-2">
@@ -306,7 +375,7 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-                disabled={isLoading || isLoadingFacebook}
+ disabled={isLoading || isLoadingFacebook || isLoadingGoogle}
               />
             </div>
             <div className="space-y-2">
@@ -319,7 +388,7 @@ export default function SignupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-                disabled={isLoading || isLoadingFacebook}
+ disabled={isLoading || isLoadingFacebook || isLoadingGoogle}
               />
             </div>
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || isLoadingFacebook}>
@@ -342,10 +411,31 @@ export default function SignupPage() {
             variant="outline" 
             className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
             onClick={handleFacebookLogin}
-            disabled={isLoading || isLoadingFacebook || !isFbSdkReady}
+            disabled={isLoading || isLoadingFacebook || isLoadingGoogle || !isFbSdkReady}
           >
             <Facebook className="mr-2 h-5 w-5" />
              {isLoadingFacebook ? "Conectando..." : (isFbSdkReady ? "Registrarse con Facebook" : "Cargando Facebook...")}
+          </Button>
+
+          {/* Google Sign-Up Button */}
+          <Button 
+            variant="outline" 
+            className="w-full border-red-600 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+            onClick={() => googleLogin()} // Trigger the Google login flow
+            disabled={isLoading || isLoadingFacebook || isLoadingGoogle}
+          >
+            {isLoadingGoogle ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M12.4 12.296l-2.482-1.925a3.63 3.63 0 0 0-.088 2.017l-1.194 9.262 2.482 1.925c.96-.745 1.726-1.65 2.3-2.715 1.143-2.102 2.347-4.688 3.605-7.47.218-.484.354-.98.424-1.474h-5.121zm-1.816-7.563l-2.482 1.925a3.63 3.63 0 0 0-.088 2.017l-1.194-9.262 2.482-1.925c-.96.745-1.726 1.65-2.3 2.715-1.143 2.102-2.347 4.688-3.605 7.47-.218.484-.354.98-.424 1.474h5.121zm-.063 14.974a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>}
+             Registrarse con Google
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => googleLogin()} // This will trigger the hook configured above
+            disabled={isLoading || isLoadingFacebook || isLoadingGoogle}
+          >
+            {isLoadingGoogle ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M12.4 12.296l-2.482-1.925a3.63 3.63 0 0 0-.088 2.017l-1.194 9.262 2.482 1.925c.96-.745 1.726-1.65 2.3-2.715 1.143-2.102 2.347-4.688 3.605-7.47.218-.484.354-.98.424-1.474h-5.121zm-1.816-7.563l-2.482 1.925a3.63 3.63 0 0 0-.088 2.017l-1.194-9.262 2.482-1.925c-.96.745-1.726 1.65-2.3 2.715-1.143 2.102-2.347 4.688-3.605 7.47-.218.484-.354.98-.424 1.474h5.121zm-.063 14.974a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-3.244a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>}
+             Registrarse con Google
           </Button>
 
           <div className="mt-6 text-center text-sm">
@@ -357,6 +447,7 @@ export default function SignupPage() {
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> El registro con Email/Contraseña usa Supabase Auth.
             El registro con Facebook actualmente llama a un endpoint de backend (`/api/auth/facebook`) que necesita ser implementado para una autenticación segura y completa con Supabase.
+             El registro con Google también utiliza un endpoint de backend (`/api/auth/google`).
           </div>
         </CardContent>
       </Card>

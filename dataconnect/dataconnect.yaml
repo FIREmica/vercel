@@ -1,0 +1,12 @@
+specVersion: "v1"
+serviceId: "ciber-hack"
+location: "us-central1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcdb"
+      cloudSql:
+        instanceId: "ciber-hack-fdc"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]

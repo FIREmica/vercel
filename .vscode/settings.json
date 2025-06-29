@@ -14,5 +14,9 @@
     "githubPullRequests.ignoredPullRequestBranches": [
         "master"
     ],
-    "npm.enableRunFromFolder": true
+    "npm.enableRunFromFolder": true,
+    "firebase.dataConnect.alwaysAllowMutationsInProduction": true,
+    "firebase.dataConnect.skipToAppFolderSelect": true,
+    "firebase.debug": true,
+    "firebase.emulators.exportOnExit": true
 }
